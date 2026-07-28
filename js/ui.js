@@ -121,7 +121,7 @@ function renderTiles(){
       else if (t === TILE.FLOOR)  html += `<div class="t floor${alt}" style="${st}"></div>`;
       else {
         const inf = TILE_INFO[t] || { n:'' };
-        html += `<div class="t floor${alt} obj" style="${st};background-image:url(${furnSprite(t)})" title="${inf.n}"></div>`;
+        html += `<div class="t floor${alt} obj" style="${st};${furnStyle(t)}" title="${inf.n}"></div>`;
       }
     }
   }

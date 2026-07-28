@@ -212,27 +212,44 @@ const F_DOC = [
   '................',
 ];
 
-/* 타일 → { 모양, 팔레트 } */
+/* ============================================================
+   가구 타일셋 — Kenney "Roguelike Indoors" (CC0, public domain)
+   assets/kenney_roguelike-indoors/  · 16x16 타일, 타일 사이 1px 마진
+   CC0라 크레딧 의무도 재배포 제한도 없지만 README에 표기해 둔다.
+   시트에 없는 물건(로켓 등)은 아래 ASCII 스프라이트로 대체한다.
+   ============================================================ */
+const SHEET = {
+  src: 'assets/kenney_roguelike-indoors/roguelikeIndoor_transparent.png',
+  w: 458, h: 305,          // 시트 원본 크기
+  tile: 16, margin: 1,
+  scale: PXS,              // 가구도 고양이와 같은 픽셀 배율
+};
+
+/* 타일 → 시트 좌표 [열, 행] 또는 { shape, pal } (시트에 없는 것) */
 const FURN = {};
+const sheetAt = (tile, col, row) => { FURN[tile] = { col, row }; };
 function furn(tile, shape, a, b, d){ FURN[tile] = { shape, pal:{ o:'#3A2E28', a, b, d } }; }
-furn(TILE.DESK,      F_DESK,    '#C9A47C', '#E8CFA8', '#4A6B8A');
-furn(TILE.MEETING,   F_DESK,    '#B58A5F', '#D9B98C', '#7FCDB8');
-furn(TILE.LEGAL,     F_DESK,    '#5A4A42', '#7A6558', '#C4587A');
-furn(TILE.INBOX,     F_BOX,     '#D96C5F', '#F09183', '#FFF6E9');
-furn(TILE.BED,       F_BOX,     '#C9A47C', '#E8D3B0', '#A8804F');
-furn(TILE.LITTER,    F_BOX,     '#9AA3AD', '#C3CAD3', '#7D8894');
-furn(TILE.COOLER,    F_MACHINE, '#DCEBF8', '#FFFFFF', '#7FB6EC');
-furn(TILE.COFFEE,    F_MACHINE, '#6B4C3A', '#8D6A52', '#F2E2C6');
-furn(TILE.COPIER,    F_MACHINE, '#7A8590', '#9FAAB4', '#DCE4EA');
-furn(TILE.SERVER,    F_MACHINE, '#3F4A56', '#59677A', '#7FCDB8');
-furn(TILE.FEEDER,    F_MACHINE, '#E8D3B0', '#FFF0D6', '#F5C451');
-furn(TILE.LAB,       F_MACHINE, '#DCE4EA', '#FFFFFF', '#7FCDB8');
-furn(TILE.GYM,       F_MACHINE, '#5A6470', '#7C8794', '#F5C451');
-furn(TILE.ROCKET,    F_MACHINE, '#E4E9EE', '#FFFFFF', '#E2705C');
-furn(TILE.PLANT,     F_PLANT,   '#B5744E', '#D08F63', '#5FA86B');
-furn(TILE.TOWER,     F_PLANT,   '#C9A47C', '#E8D3B0', '#A8804F');
-furn(TILE.SCRATCH,   F_PLANT,   '#C9A47C', '#E8D3B0', '#C98A4B');
-furn(TILE.WHITEBOARD,F_BOARD,   '#DDD3C6', '#FFFDF8', '#5F8FBF');
+
+sheetAt(TILE.DESK,       5, 5);    // 붉은 서류를 올려둔 책상
+sheetAt(TILE.MEETING,    7, 0);    // 원형 회의 테이블
+sheetAt(TILE.LEGAL,      5, 11);   // 등받이 높은 의자 — 법무팀 자리
+// 결재함은 게임의 핵심 오브젝트라 시트에 묻히지 않게 직접 그린 빨간 트레이를 쓴다
+sheetAt(TILE.LITTER,    22, 4);    // 나무통 — 모래상자
+sheetAt(TILE.COOLER,    21, 4);    // 파란 뚜껑 물통 — 정수기
+sheetAt(TILE.PLANT,     16, 0);    // 화분
+sheetAt(TILE.COFFEE,     6, 12);   // 병을 올린 카운터 — 커피머신
+sheetAt(TILE.COPIER,    11, 15);   // 둥근 창이 달린 기계 — 복사기
+sheetAt(TILE.TOWER,      0, 11);   // 1인 소파 — 캣타워 대용, 고양이 자리
+sheetAt(TILE.SCRATCH,   16, 3);    // 나무 스툴 — 스크래처
+sheetAt(TILE.FEEDER,     5, 12);   // 음식 올린 카운터 — 자동급식기
+sheetAt(TILE.LAB,        7, 12);   // 병·시약 카운터 — 냥연구소
+sheetAt(TILE.GYM,       22, 8);    // 원판형 금속 — 헬스장
+sheetAt(TILE.WHITEBOARD,19, 12);   // 액자 — 화이트보드
+// 시트에 없거나 시트 그림이 애매해서 직접 그린 것
+furn(TILE.INBOX,  F_BOX,     '#D96C5F', '#F09183', '#FFF6E9');
+furn(TILE.BED,    F_BOX,     '#C9A47C', '#E8D3B0', '#A8804F');   // 고양이는 상자에서 잔다
+furn(TILE.SERVER, F_MACHINE, '#3F4A56', '#59677A', '#7FCDB8');
+furn(TILE.ROCKET, F_MACHINE, '#E4E9EE', '#FFFFFF', '#E2705C');
 
 /* ---------- 렌더 ---------- */
 const _cache = new Map();
@@ -349,18 +366,31 @@ function catPortrait(c){
   return url;
 }
 
-function furnSprite(tile){
-  const key = 'f|' + tile;
+/* 가구 한 칸을 그리는 CSS 배경 선언을 돌려준다.
+   시트에서 잘라오는 쪽은 캔버스를 안 쓴다 — file:// 에서 외부 이미지를 캔버스에
+   그리면 캔버스가 오염돼 toDataURL()이 막히기 때문. CSS 배경 슬라이싱은 그 제약이 없다. */
+function furnStyle(tile){
+  const key = 'fs|' + tile;
   const hit = _cache.get(key);
   if (hit) return hit;
   const def = FURN[tile];
-  if (!def) return null;
-  const cv = document.createElement('canvas');
-  cv.width = FW * PXS; cv.height = FH * PXS;
-  drawMap(cv.getContext('2d'), def.shape, def.pal, 0, 0, PXS);
-  const url = cv.toDataURL();
-  _cache.set(key, url);
-  return url;
+  if (!def) return '';
+  let css;
+  if (def.col !== undefined){
+    const S = SHEET, step = (S.tile + S.margin) * S.scale;
+    css = `background-image:url(${S.src});`
+        + `background-size:${S.w * S.scale}px ${S.h * S.scale}px;`
+        + `background-position:${-def.col * step}px ${-def.row * step}px;`
+        + `background-repeat:no-repeat`;
+  } else {
+    const cv = document.createElement('canvas');
+    cv.width = FW * PXS; cv.height = FH * PXS;
+    drawMap(cv.getContext('2d'), def.shape, def.pal, 0, 0, PXS);
+    css = `background-image:url(${cv.toDataURL()});background-size:${FW*PXS}px ${FH*PXS}px;`
+        + `background-repeat:no-repeat`;
+  }
+  _cache.set(key, css);
+  return css;
 }
 
 function docSprite(){
