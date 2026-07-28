@@ -1,0 +1,24 @@
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Node (only if tooling is added later)
+node_modules/
+npm-debug.log*
+package-lock.json
+
+# Build output for a future desktop wrap (Tauri / Electron)
+dist/
+build/
+src-tauri/target/
+
+# Scratch
+*.local
+tmp/
+scratch/
