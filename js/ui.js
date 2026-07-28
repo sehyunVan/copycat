@@ -4,7 +4,7 @@
 
 const $  = s => document.querySelector(s);
 const $$ = s => Array.from(document.querySelectorAll(s));
-const TS = 34;                       // 타일 픽셀 (style.css의 --ts와 동일)
+const TS = 32;                       // 타일 픽셀 (style.css의 --ts, 가구 스프라이트 크기와 동일)
 
 let uiSize = 's', uiTab = 'staff', soundOn = true, selCat = null;
 const actors = new Map();
@@ -90,7 +90,7 @@ function renderTodos(){
     const r = todoReward(t.size);
     const od = isOverdue(t);
     return `<div class="todo ${t.done?'done':''} ${od?'overdue':''}" data-id="${t.id}">
-      <button class="chk" data-act="toggle">✓</button>
+      <button class="chk" data-act="toggle" title="완료 처리 — 고양이가 서류를 가져갑니다">✓</button>
       <div class="txt">${esc(t.text)}
         <div class="meta"><span class="tag ${t.size}">${SIZE_INFO[t.size].label}</span>
         ${t.done ? '<span>전달됨</span>' : `<span>+${r.kpi} 성과 · 🐟${fmt(r.money)}</span>`}
@@ -99,7 +99,10 @@ function renderTodos(){
       <button class="del" data-act="del">✕</button>
     </div>`;
   };
-  el.innerHTML = open.map(row).join('')
+  // 아직 한 건도 처리 안 했으면 어디를 눌러야 하는지 알려준다
+  const hint = (open.length && !S.stats.done)
+    ? `<div class="chkhint">👈 왼쪽 <b>네모 칸</b>을 누르면 완료 — 고양이가 서류를 가지러 옵니다</div>` : '';
+  el.innerHTML = hint + open.map(row).join('')
     + (done.length ? `<div class="sechead">최근 처리</div>` + done.map(row).join('') : '');
 }
 
@@ -136,8 +139,9 @@ function fitWorld(){
   if (!W) return;
   const vp = $('#viewport');
   if (!vp.clientWidth || !vp.clientHeight){ requestAnimationFrame(fitWorld); return; }
-  const raw = Math.min(vp.clientWidth / (W.W * TS), vp.clientHeight / (W.H * TS), 2.2);
-  const s = Math.max(0.4, Math.round(raw * 8) / 8);      // 도트가 덜 뭉개지도록 계단식 배율
+  // 반드시 내림. 올리면 월드가 뷰포트를 넘어서 잘린다.
+  const raw = Math.min(vp.clientWidth / (W.W * TS), vp.clientHeight / (W.H * TS), 2.5);
+  const s = Math.max(0.4, Math.floor(raw * 8) / 8);      // 도트가 덜 뭉개지도록 계단식 배율
   const world = $('#world');
   world.style.transform = `scale(${s})`;
   world.style.left = Math.round((vp.clientWidth - W.W * TS * s) / 2) + 'px';
@@ -285,7 +289,7 @@ function renderRight(){
 }
 
 function portrait(c, size){
-  return `<span class="pix" style="width:${size}px;height:${Math.round(size*20/24)}px;
+  return `<span class="pix" style="width:${size}px;height:${Math.round(size*SH/SW)}px;
     background-image:url(${catPortrait(c)})"></span>`;
 }
 function needBars(c){
