@@ -24,7 +24,9 @@ const SIZE_INFO = {
 };
 
 const HIRE_BASE = 140, HIRE_GROW = 1.72;
-const qTarget = q => Math.round(10 * Math.pow(1.285, q - 1));
+/* 분기 목표. 지수로 두면 후반이 도달 불가라 완만한 곡선을 쓴다.
+   대신 todoReward의 성과가 사무실 등급과 함께 커져서 "분기당 처리 건수"가 일정하게 유지된다. */
+const qTarget = q => Math.round(6 + 1.6 * Math.pow(q - 1, 1.45));
 
 const EVENTS = [
   { t:'복사기가 서류를 씹었다. 수리비가 나갔다.',                   k:'bad',  money:-0.06 },
@@ -140,7 +142,9 @@ function todoReward(size){
   let bonus = 0;
   S.cats.forEach(c => { const t = traitOf(c); if (t.bonusTodo) bonus += t.bonusTodo; });
   money *= (1 + bonus);
-  return { money: Math.round(money), kpi: Math.max(1, Math.round(si.kpi * shopMul('kpiMul', 1))) };
+  // 성과도 등급과 함께 커진다 — 같은 서류 한 장이 더 큰 회사에서 더 큰 실적이 된다
+  const kpi = si.kpi * (1 + S.tier * 0.6) * shopMul('kpiMul', 1);
+  return { money: Math.round(money), kpi: Math.max(1, Math.round(kpi)) };
 }
 
 /* ---------- 결재함 ---------- */

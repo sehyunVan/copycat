@@ -128,6 +128,17 @@ function canHandleDocs(c){
   return c.needs.energy > 12 && c.needs.bladder > 12;
 }
 
+/* 서류가 들어오면 가장 가까운 고양이가 곧바로 반응한다.
+   안 그러면 근무 중인 고양이는 다음 재판단(4~8초)까지 서류를 못 본다. */
+bus.on('doc:spawn', () => {
+  const cands = S.cats.filter(c => !c.doc && canHandleDocs(c) &&
+    (c.act.s === 'work' || c.act.s === 'idle'));
+  if (!cands.length) return;
+  const d = c => Math.abs(c.x - W.inbox.x) + Math.abs(c.y - W.inbox.y);
+  cands.sort((a, b) => d(a) - d(b));
+  decide(cands[0]);
+});
+
 /* ---------- 의사결정 ---------- */
 const NEED_FACILITY = { energy:'sleep', bladder:'litter', caffeine:'coffee', fun:'social' };
 
