@@ -240,11 +240,13 @@ sheetAt(TILE.PLANT,     16, 0);    // 화분
 sheetAt(TILE.COFFEE,     6, 12);   // 병을 올린 카운터 — 커피머신
 sheetAt(TILE.COPIER,    11, 15);   // 둥근 창이 달린 기계 — 복사기
 sheetAt(TILE.TOWER,      0, 11);   // 1인 소파 — 캣타워 대용, 고양이 자리
-sheetAt(TILE.SCRATCH,   16, 3);    // 나무 스툴 — 스크래처
+sheetAt(TILE.SCRATCH,   21, 9);    // 나무 사다리 — 긁고 올라가는 곳
 sheetAt(TILE.FEEDER,     5, 12);   // 음식 올린 카운터 — 자동급식기
 sheetAt(TILE.LAB,        7, 12);   // 병·시약 카운터 — 냥연구소
 sheetAt(TILE.GYM,       22, 8);    // 원판형 금속 — 헬스장
 sheetAt(TILE.WHITEBOARD,19, 12);   // 액자 — 화이트보드
+sheetAt(TILE.DECOR,     16, 12);   // 작은 액자 — 사내 장식
+sheetAt(TILE.SHELF,     19, 17);   // 병 올린 선반 — 문서 선반
 // 시트에 없거나 시트 그림이 애매해서 직접 그린 것
 furn(TILE.INBOX,  F_BOX,     '#D96C5F', '#F09183', '#FFF6E9');
 furn(TILE.BED,    F_BOX,     '#C9A47C', '#E8D3B0', '#A8804F');   // 고양이는 상자에서 잔다

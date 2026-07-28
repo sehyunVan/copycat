@@ -9,6 +9,7 @@ const TILE = {
   BED:6, LITTER:7, COOLER:8, PLANT:9,
   COFFEE:10, COPIER:11, TOWER:12, SCRATCH:13, SERVER:14,
   FEEDER:15, MEETING:16, GYM:17, LAB:18, ROCKET:19, WHITEBOARD:20, LEGAL:21,
+  DECOR:22, SHELF:23,
 };
 
 // 걸어 다닐 수 있는 타일
@@ -34,6 +35,8 @@ const TILE_INFO = {
   [TILE.ROCKET]:    { em:'🚀', n:'사내 로켓', use:'social' },
   [TILE.WHITEBOARD]:{ em:'📋', n:'화이트보드',use:null     },
   [TILE.LEGAL]:     { em:'⚖️', n:'법무팀 데스크', use:'legal' },
+  [TILE.DECOR]:     { em:'🖼️', n:'사내 액자',   use:null     },
+  [TILE.SHELF]:     { em:'🗄️', n:'문서 선반',   use:null     },
 };
 
 function mulberry32(a){
@@ -156,8 +159,11 @@ function genOffice(tier, owned, seed){
   };
   Object.keys(SHOP_TILE).forEach(k => { if (owned[k]) wanted.push(SHOP_TILE[k]); });
   if (tier >= 1) wanted.push(TILE.LEGAL);        // 법무팀이 왔을 때 앉는 자리
-  if (tier >= 2) wanted.push(TILE.WHITEBOARD);
-  for (let i = 0; i < 1 + Math.floor(tier/2); i++) wanted.push(TILE.PLANT);
+  if (tier >= 1) wanted.push(TILE.WHITEBOARD);
+  // 장식 — 기능은 없지만 사무실이 텅 비어 보이지 않게 한다
+  for (let i = 0; i < 2 + tier; i++) wanted.push(TILE.PLANT);
+  for (let i = 0; i < 1 + Math.floor(tier * 0.8); i++) wanted.push(TILE.DECOR);
+  for (let i = 0; i < 1 + Math.floor(tier * 0.6); i++) wanted.push(TILE.SHELF);
 
   // 벽에 붙은 빈 칸을 후보로. 한쪽에 몰리지 않게 오른쪽/왼쪽/위쪽을 번갈아 쓴다.
   const right = [], left = [], top = [];

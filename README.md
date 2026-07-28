@@ -106,9 +106,12 @@ to look different, which an asset pack can't give you.
 **Furniture comes from a tileset**: [Kenney's Roguelike Indoors](https://kenney.nl/assets/roguelike-indoors)
 (16×16, **CC0 / public domain**), sliced straight out of the sheet with CSS
 `background-position`. No canvas involved — under `file://`, drawing an external image
-onto a canvas taints it and blocks `toDataURL()`. A few objects the sheet doesn't have
-(the inbox, the server rack, the rocket) are still drawn in code, so both paths coexist
-in one `FURN` table.
+onto a canvas taints it and blocks `toDataURL()`. A few objects the sheet has no match for
+(the inbox, the server rack, the rocket, the nap box) are still drawn in code, so both
+paths coexist in one `FURN` table. The pack ships no floor or wall tiles, so those stay CSS.
+
+Purely decorative tiles — framed pictures, shelves, potted plants — are scattered by the
+generator too, scaling with office tier. Without them the early offices read as empty rooms.
 
 Sizes are deliberate: furniture fills a full tile (16 logical px → 32 screen px), a cat is
 smaller (14×13 → 28×26). Pixel density is identical everywhere, so nothing looks resampled.
@@ -148,11 +151,16 @@ Double-click `index.html`. That's it — it works over `file://`.
 
 ## Testing
 
-A headless harness loads the four core files with no DOM and runs the simulation directly,
-covering: the approval pipeline, 10 minutes of runtime stability, legal referrals,
-raids/detention/return, office relocation, save/restore, and reachability across all
-210 floor plans. Sprites were verified by rendering them to PNG with a hand-rolled
-zero-dependency encoder and looking at them.
+Two layers. A **headless harness** loads the core files with no DOM and runs the
+simulation directly, covering: the approval pipeline, 10 minutes of runtime stability,
+legal referrals, raids/detention/return, office relocation, save/restore, and reachability
+across all 210 floor plans.
+
+That harness is not enough on its own — it passed everything while half the cats were
+invisible on screen. So the game is also **driven in a real headless Chrome over CDP**:
+boot it, dismiss the modal, add a task, check it off, watch a cat carry the document,
+trigger a raid, and screenshot each step. Art is reviewed by rendering sprite sheets to
+PNG (hand-rolled zero-dependency encoder) and looking at them.
 
 ---
 
