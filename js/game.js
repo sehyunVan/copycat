@@ -28,23 +28,28 @@ const HIRE_BASE = 140, HIRE_GROW = 1.72;
    대신 todoReward의 성과가 사무실 등급과 함께 커져서 "분기당 처리 건수"가 일정하게 유지된다. */
 const qTarget = q => Math.round(6 + 1.6 * Math.pow(q - 1, 1.45));
 
+/* 사건 표.
+   Copycat은 짝퉁을 찍어내는 회사다. 좋은 일은 대체로 안 걸린 일이고,
+   나쁜 일은 대체로 흔적이 남은 일이다. */
 const EVENTS = [
-  { t:'복사기가 서류를 씹었다. 수리비가 나갔다.',                   k:'bad',  money:-0.06 },
-  { t:'옆 건물 참치캔 공장에서 후원 물량이 도착했다!',               k:'good', flat:2.5 },
-  { t:'전 직원 낮잠 시간이 공식 도입되었다.',                        k:'good', need:{ energy:100, fun:30 } },
-  { t:'인턴 냥이가 서류 뭉치에서 미체결 계약서를 발견했다.',         k:'good', flat:1.6 },
-  { t:'창밖 새를 보느라 오전 업무가 통째로 사라졌다.',               k:'bad',  money:-0.04, need:{ fun:35 } },
-  { t:'사내 캣닢 파티. 생산성은 0이었지만 아무도 후회하지 않았다.',  k:'good', need:{ fun:100 }, money:-0.03 },
-  { t:'대표냥이 사업 계획서 위에서 잤다. 계획서가 따뜻해졌다.',      k:'neutral' },
-  { t:'경쟁사 멍멍상사가 우리 고객을 뺏어갔다. 다들 이를 갈았다.',   k:'bad',  money:-0.08, need:{ fun:-15 } },
-  { t:'업계 매거진 「월간 캣워크」 표지에 실렸다.',                  k:'good', flat:2.0, drop:1 },
-  { t:'택배 상자가 도착했다. 내용물보다 상자가 인기였다.',           k:'neutral', need:{ fun:40 } },
-  { t:'분기 감사에서 회계 장부 대신 발자국이 발견되었다.',           k:'bad',  money:-0.05 },
-  { t:'신입 냥이가 문 앞에서 울고 있었다. 채용 공고도 안 냈는데.',   k:'hire' },
-  { t:'전 직원 단체 그루밍 워크숍. 털이 반짝인다.',                  k:'good', need:{ fun:50, energy:30 } },
-  { t:'투자자 미팅에서 골골송을 불렀다. 투자가 성사됐다.',           k:'good', flat:3.2, drop:1 },
-  { t:'분실물 센터에서 물건을 찾아왔다.',                            k:'good', drop:1 },
-  { t:'서버실 온기 때문에 아무도 자리에 안 돌아왔다.',               k:'neutral', need:{ energy:60 }, money:-0.02 },
+  { t:'복사기가 원본 도안을 씹었다. 같은 걸 또 구해와야 한다.',            k:'bad',  money:-0.06 },
+  { t:'항구에서 「참치캔(정품 아님)」 한 컨테이너가 무사히 빠져나갔다.',   k:'good', flat:2.5 },
+  { t:'단속 일정을 미리 입수했다. 그날은 전 직원 연차를 썼다.',           k:'good', heat:-1 },
+  { t:'인턴 냥이가 창고에서 라벨을 거꾸로 붙였다. 아무도 눈치 못 챘다.',   k:'good', flat:1.6 },
+  { t:'창밖에 낯선 차가 이틀째 서 있다. 다들 조용히 일했다.',             k:'bad',  need:{ fun:-20 }, heat:1 },
+  { t:'사내 캣닢 파티. 생산성은 0이었지만 아무도 후회하지 않았다.',       k:'good', need:{ fun:100 }, money:-0.03 },
+  { t:'대표냥이 이중장부 위에서 잤다. 장부가 따뜻해졌다.',                k:'neutral' },
+  { t:'경쟁사 멍멍상사가 우리 도안을 베꼈다. 베낀 걸 베꼈다.',            k:'bad',  money:-0.08, need:{ fun:-15 } },
+  { t:'업계 매거진 「월간 캣워크」가 우리를 유망 스타트업으로 소개했다.', k:'good', flat:2.0, drop:1 },
+  { t:'택배 상자가 도착했다. 송장에 적힌 이름은 우리 회사가 아니었다.',   k:'neutral', need:{ fun:40 } },
+  { t:'세무 조사에서 회계 장부 대신 발자국이 발견되었다.',                k:'bad',  money:-0.05, heat:1 },
+  { t:'신입 냥이가 문 앞에서 울고 있었다. 채용 공고도 안 냈는데.',        k:'hire' },
+  { t:'전 직원 단체 그루밍 워크숍. 감식에 털이 안 남게 하는 요령도 배웠다.',k:'good', need:{ fun:50, energy:30 } },
+  { t:'투자자 미팅에서 골골송을 불렀다. 아무도 사업 내용을 묻지 않았다.', k:'good', flat:3.2, drop:1 },
+  { t:'분실물 센터에서 「우리 것이 아닌」 물건을 찾아왔다.',              k:'good', drop:1 },
+  { t:'서버실 온기 때문에 아무도 자리에 안 돌아왔다.',                    k:'neutral', need:{ energy:60 }, money:-0.02 },
+  { t:'내부 고발 편지가 반송되어 돌아왔다. 주소를 잘못 썼더라.',          k:'good', heat:-1 },
+  { t:'창고 재고와 장부가 안 맞는다. 맞춘 적이 없긴 하다.',               k:'bad',  heat:1 },
 ];
 
 /* ---------- 상태 ---------- */
@@ -149,11 +154,11 @@ function todoReward(size){
 
 /* ---------- 결재함 ---------- */
 function addTodo(text, size){
-  // 올린 분기를 기록한다. 다음 분기까지 안 끝내면 법무팀으로 넘어간다.
+  // 올린 분기를 기록한다. 다음 분기까지 안 끝내면 흔적으로 남는다.
   S.todos.push({ id:'t' + Math.random().toString(36).slice(2,9), text, size, done:false, q:S.quarter });
   save();
 }
-/* 이번 분기 마감 때 법무팀으로 넘어갈 건 (= 전 분기 이월분) */
+/* 이번 분기 마감 때 밖으로 샐 건 (= 전 분기 이월분) */
 const overdueTodos = () => S.todos.filter(t => !t.done && t.q < S.quarter);
 const isOverdue = t => !t.done && t.q < S.quarter;
 function completeTodo(id){
@@ -246,13 +251,13 @@ function unequip(catId, slot){
 }
 
 /* ============================================================
-   법무팀 · 벌점 · 냥찰
-   분기 마감 시점에 전 분기 이월 미처리 건은 법무팀으로 이관된다.
-   벌점이 쌓이면 생산성이 떨어지고, 5점을 넘기면 압수수색이 들어온다.
+   흔적 · 혐의 · 냥찰
+   분기 마감 시점에 전 분기 이월 미처리 건은 정리되지 못한 채 밖으로 샌다 = 증거.
+   혐의가 쌓이면 다들 몸을 사려 생산성이 떨어지고, 5점을 넘기면 압수수색이 들어온다.
    ============================================================ */
-const RAID_THRESHOLD = 5;
+const RAID_THRESHOLD = 5;   // 이 점수를 넘으면 영장이 나온다
 
-/* 벌점 1점당 생산 -6%, 압수수색 중엔 별도로 sim에서 추가 감산 */
+/* 혐의 1점당 생산 -6% — 다들 몸을 사린다. 압수수색 중엔 sim에서 추가 감산 */
 function legalDrag(){ return Math.max(0.40, 1 - 0.06 * (S.penalty || 0)); }
 
 function referToLegal(list){
@@ -267,8 +272,24 @@ function referToLegal(list){
   S.todos = S.todos.filter(t => !ids.has(t.id));
   S.cats.forEach(c => { c.needs.fun = Math.max(0, c.needs.fun - 12); });
   sendLegal();
-  pushLog(`미처리 <b>${list.length}건</b>이 법무팀으로 이관되었습니다. 벌점 +${points}, 법무 비용 🐟${fmt(fee)}.`, 'bad');
+  pushLog(`미처리 <b>${list.length}건</b>이 정리되지 않은 채 밖으로 나갔습니다. 혐의 +${points}, 뒷수습 비용 🐟${fmt(fee)}.`, 'bad');
   return { count:list.length, points, fee, items:list.map(t => t.text) };
+}
+
+/* 무마 — 혐의를 돈으로 지운다.
+   불법 회사에 어울리는 선택지이자, "무사고 분기로 버틸까 / 돈으로 막을까"의 저울질. */
+function lobbyCost(){ return Math.max(600, Math.round(S.anchovy * 0.22)); }
+function lobby(){
+  if (!S.penalty || RAID) return false;
+  const cost = lobbyCost();
+  if (S.anchovy < cost) return false;
+  S.anchovy -= cost;
+  S.penalty--;
+  S.stats.lobbied = (S.stats.lobbied || 0) + 1;
+  pushLog(`법무법인에 <b>🐟${fmt(cost)}</b>을 집행했습니다. 혐의 1점이 조용히 사라졌습니다.`, 'bad');
+  bus.emit('lobby', { cost });
+  save();
+  return true;
 }
 
 /* 냥찰 압수수색 종료 — sim.js의 RAID 타이머가 부른다 */
@@ -292,7 +313,7 @@ function endRaid(){
   }
   S.cats.forEach(c => { c.needs.fun = Math.max(0, c.needs.fun - 25); });
 
-  pushLog(`냥찰청 조사 종료. 과징금 🐟${fmt(fine)} 부과, 벌점 ${before} → 0.`
+  pushLog(`냥찰청 조사 종료. 과징금 🐟${fmt(fine)} 부과, 혐의 ${before} → 0.`
     + (taken ? ` <b>${esc(taken.name)}</b> 냥은 참고인 조사차 연행되었습니다.` : ''), 'bad');
   bus.emit('raid:end', { fine, taken, before });
   save();
@@ -314,7 +335,7 @@ function closeQuarter(){
   const legal = referToLegal(overdueTodos());
   if (!legal && S.penalty > 0){
     S.penalty--;                                   // 무사고 분기 1점 소멸
-    pushLog('무사고 분기 달성. 벌점 1점이 소멸되었습니다.', 'good');
+    pushLog('이번 분기는 흔적을 남기지 않았습니다. 혐의 1점이 소멸되었습니다.', 'good');
   }
 
   const ev = EVENTS[Math.floor(Math.random() * EVENTS.length)];
@@ -327,6 +348,7 @@ function closeQuarter(){
       for (const k in ev.need) c.needs[k] = Math.max(0, Math.min(100, c.needs[k] + ev.need[k]));
     });
   }
+  if (ev.heat){ S.penalty = Math.max(0, S.penalty + ev.heat); }
   if (ev.drop || Math.random() < 0.35){
     const it = EQUIP[Math.floor(Math.random() * EQUIP.length)];
     S.bag.push(it.id);
@@ -377,10 +399,10 @@ function closeQuarter(){
   if (evDrop) pushLog(`창고에 <b>${evDrop.n}</b>${evDrop.em} 이(가) 들어왔습니다.`, 'good');
   if (moved)  pushLog(`🎉 <b>${TIERS[S.tier].name}</b>(으)로 이전했습니다. 자리 ${deskCount()}석`, 'big');
 
-  // 3) 벌점 한계 초과 → 냥찰 출동
+  // 3) 혐의 한계 초과 → 영장 발부
   const raiding = S.penalty >= RAID_THRESHOLD;
   if (raiding){
-    pushLog(`벌점 ${S.penalty}점. <b>냥찰청 특별사법경찰</b>이 출동했습니다.`, 'bad');
+    pushLog(`혐의 ${S.penalty}점. <b>냥찰청 특별사법경찰</b>이 압수수색 영장을 받았습니다.`, 'bad');
     setTimeout(startRaid, 2500);
   }
 

@@ -80,6 +80,10 @@ function bindInput(){
         else { sfx.buy(); setTimeout(sfx.meow, 200); toast(`${r.cat.name} 냥 입사. 잘 부탁한다냥`); }
       }
       if (a === 'promo'){ if (promote(btn.dataset.id)) sfx.buy(); else sfx.err(); }
+      if (a === 'lobby'){
+        if (lobby()){ sfx.legal(); toast('혐의 1점이 조용히 사라졌습니다', 'bad'); }
+        else sfx.err();
+      }
       if (a === 'buy'){
         const it = SHOP.find(x => x.id === btn.dataset.id);
         if (buyItem(btn.dataset.id)){ sfx.buy(); toast(`${it.n} 설치 완료`); } else sfx.err();
@@ -187,7 +191,7 @@ function boot(){
   renderAll();
 
   if (isNew){
-    pushLog('종이상자 하나로 <b>Copycat</b>을 창업했습니다. 직원은 치즈 하나.', 'big');
+    pushLog('뒷골목 종이상자에서 <b>Copycat</b>을 차렸습니다. 직원은 치즈 하나, 사업은 짝퉁.', 'big');
     setTimeout(showHelp, 450);
   } else {
     pushLog('출근했습니다. 고양이들이 기지개를 켭니다.', '');

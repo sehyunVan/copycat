@@ -94,7 +94,7 @@ function renderTodos(){
       <div class="txt">${esc(t.text)}
         <div class="meta"><span class="tag ${t.size}">${SIZE_INFO[t.size].label}</span>
         ${t.done ? '<span>전달됨</span>' : `<span>+${r.kpi} 성과 · 🐟${fmt(r.money)}</span>`}
-        ${od ? '<span class="od">⚠ 이월 · 마감 시 법무팀 이관</span>' : ''}</div>
+        ${od ? '<span class="od">⚠ 이월 · 마감 시 밖으로 샙니다</span>' : ''}</div>
       </div>
       <button class="del" data-act="del">✕</button>
     </div>`;
@@ -311,15 +311,18 @@ function staffHTML(){
   let h = '';
 
   if (S.penalty > 0){
-    h += `<div class="card legalcard"><div class="crow"><span class="em">⚖️</span>
-      <div class="info"><b>법무 리스크</b><span>누적 벌점 ${S.penalty}점 · 전 직원 생산
-        ${Math.round((1-legalDrag())*100)}% 감소<br>${RAID_THRESHOLD}점을 넘기면 냥찰청이 출동합니다</span></div>
-    </div></div>`;
+    h += `<div class="card legalcard"><div class="crow"><span class="em">🔍</span>
+      <div class="info"><b>수사 혐의 ${S.penalty}점</b><span>전 직원 생산
+        ${Math.round((1-legalDrag())*100)}% 감소 — 다들 몸을 사립니다<br>
+        ${RAID_THRESHOLD}점을 넘기면 냥찰청이 들이닥칩니다</span></div>
+      <button class="buy" data-act="lobby" ${S.anchovy<lobbyCost()||RAID?'disabled':''}>무마 🐟${fmt(lobbyCost())}</button>
+    </div>
+    <div class="hintbad" style="margin-top:7px">법무법인을 통해 혐의 1점을 지웁니다. 회사가 클수록 비쌉니다.</div></div>`;
   }
   if (S.jail.length){
     h += `<div class="card legalcard">${S.jail.map(j =>
       `<div class="crow"><span class="em">🚔</span><div class="info"><b>${esc(j.cat.name)}</b>
-        <span>참고인 조사 중 · Q${j.returnQ}에 복귀 예정</span></div></div>`).join('')}</div>`;
+        <span>조사 받는 중 · Q${j.returnQ} 복귀 예정 · 아무 말도 안 했다고 한다</span></div></div>`).join('')}</div>`;
   }
 
   h += `<div class="card" style="background:#FFF9EF">
@@ -460,19 +463,19 @@ function showQuarter(d){
       <div class="rrow"><span>평균 사기</span><b>${Math.round(avgMood())}%</b></div>
       <div class="rrow"><span>분기 배당</span><b class="good">+🐟 ${fmt(d.bonus)}</b></div>
       ${d.evGain?`<div class="rrow"><span>특별 손익</span><b class="${d.evGain>0?'good':'bad'}">${d.evGain>0?'+':'-'}🐟 ${fmt(Math.abs(d.evGain))}</b></div>`:''}
-      ${d.legal?`<div class="rrow"><span>법무 비용</span><b class="bad">-🐟 ${fmt(d.legal.fee)}</b></div>`:''}
+      ${d.legal?`<div class="rrow"><span>뒷수습 비용</span><b class="bad">-🐟 ${fmt(d.legal.fee)}</b></div>`:''}
 
       ${d.legal?`<div class="legalbox">
-        <span class="lbl">법무팀 이관 통지</span>
-        전 분기 이월 미처리 <b>${d.legal.count}건</b>이 법무팀으로 이관되었습니다.
+        <span class="lbl">미처리 건 유출</span>
+        전 분기에 정리하지 못한 <b>${d.legal.count}건</b>이 그대로 밖으로 나갔습니다.
         <div class="items">${d.legal.items.slice(0,5).map(t=>'· '+esc(t)).join('<br>')}
           ${d.legal.items.length>5?`<br>외 ${d.legal.items.length-5}건`:''}</div>
-        <div class="pen">벌점 +${d.legal.points} → 누적 <b>${d.penalty}점</b>${d.raiding?'':` (${RAID_THRESHOLD}점 초과 시 냥찰청 출동)`}</div>
+        <div class="pen">혐의 +${d.legal.points} → 누적 <b>${d.penalty}점</b>${d.raiding?'':` (${RAID_THRESHOLD}점 초과 시 압수수색)`}</div>
       </div>`:''}
 
       ${d.raiding?`<div class="raidbox">
         <div class="siren">🚨 특별사법경찰 출동 통보</div>
-        누적 벌점이 한계치를 넘었습니다. 냥찰청이 사무실로 향하고 있습니다.
+        혐의가 한계치를 넘었습니다. 영장이 발부됐고 냥찰청이 오고 있습니다.
         <div class="tiny" style="margin-top:6px">조사 중 생산 40% · 종료 시 과징금 15% · 직원 연행 가능</div>
       </div>`:''}
 
@@ -504,34 +507,38 @@ function showRaidEnd(d){
     <div class="mhead police"><div class="q">SPECIAL INVESTIGATION</div>
       <h3>조사 결과 통지서</h3><p>냥찰청 특별사법경찰 3팀</p></div>
     <div class="mbody">
-      <div class="rrow"><span>조사 사유</span><b>미처리 결재 누적 (벌점 ${d.before}점)</b></div>
+      <div class="rrow"><span>혐의 내용</span><b>부정경쟁방지법 위반 등 (혐의 ${d.before}점)</b></div>
       <div class="rrow"><span>과징금</span><b class="bad">-🐟 ${fmt(d.fine)}</b></div>
-      <div class="rrow"><span>벌점 처리</span><b class="good">${d.before} → 0</b></div>
+      <div class="rrow"><span>혐의 처리</span><b class="good">${d.before} → 0</b></div>
       ${d.taken?`<div class="raidbox"><div class="siren">🚔 참고인 연행</div>
         <b>${esc(d.taken.name)}</b> 냥을 참고인 자격으로 연행합니다. 다음 분기 결산 시 복귀 예정입니다.
         <div class="hireline" style="margin-top:8px">${portrait(d.taken,34)}<span class="tiny">“저는 인턴인데요”</span></div>
       </div>`:`<div class="okbox">연행 인원 없음. 전 직원 귀가 조치.</div>`}
-      <div class="tiny center" style="margin-top:12px">재발 시 가중 처벌됩니다. 결재는 제때 하십시오.</div>
+      <div class="tiny center" style="margin-top:12px">재발 시 가중 처벌됩니다. 서류는 제때 정리하십시오.</div>
     </div>
     <div class="mfoot"><button class="okbtn" data-close>확인했습니다</button></div>`);
 }
 
 function showHelp(){
   modal(`
-    <div class="mhead"><div class="q">EMPLOYEE HANDBOOK</div><h3>Copycat 사규</h3>
-      <p>고양이는 스스로 일합니다. 당신은 일감을 넣을 뿐입니다</p></div>
+    <div class="mhead"><div class="q">INTERNAL — DO NOT DISTRIBUTE</div><h3>Copycat 영업 지침</h3>
+      <p>우리는 남의 것을 아주 잘 베낍니다. 그게 사업입니다</p></div>
     <div class="mbody helpwrap">
+      <p style="background:#FFF6F7;border:2px solid #F0BCC4;padding:9px;line-height:1.7;margin-bottom:11px">
+         <b>회사 소개</b> — Copycat은 <b>짝퉁을 찍어내는 회사</b>입니다. 명품 가방도, 참치캔도, 남의 도안도
+         아주 잘 베낍니다. 그래서 이름이 Copycat이고, 그래서 <b>냥찰이 우리를 찾아옵니다.</b></p>
       <p><b>1. 결재함</b> — 할 일을 올리고 완료 체크를 하면 <b>서류가 사무실 결재함에 실제로 떨어집니다</b>.
          가까운 고양이가 걸어와 물고 가서, 자기 자리에서 도장을 찍어야 보상이 들어옵니다.</p>
       <p><b>2. 고양이는 에이전트입니다</b> — 기력·재미·화장실·카페인 욕구가 있고, 스스로 커피머신·낮잠상자·정수기를 찾아갑니다.
          자리에 앉아 있을 때만 멸치를 법니다. 놀러 다니면 수입이 줍니다. 정상입니다.</p>
       <p><b>3. 분기</b> — 성과 게이지를 채우면 결산이 열립니다. 사건이 터지고, 배당과 장비가 나오고,
          특정 분기(3·6·10·15·21·28)마다 <b>사무실을 이전</b>합니다. 평면도는 그때마다 새로 생성됩니다.</p>
-      <p><b>4. 법무팀</b> — 분기 마감 시점에 <b>전 분기에 올려놓고 아직 안 끝낸 건</b>은 법무팀으로 이관됩니다.
-         법무 비용이 청구되고 <b>벌점</b>이 쌓입니다. 벌점 1점당 전 직원 생산이 6% 떨어집니다.</p>
-      <p><b>5. 냥찰</b> — 벌점이 <b>${RAID_THRESHOLD}점</b>을 넘으면 냥찰청 특별사법경찰이 압수수색을 나옵니다.
+      <p><b>4. 흔적</b> — 분기 마감 시점에 <b>전 분기에 올려놓고 안 끝낸 건</b>은 정리되지 못한 채 밖으로 샙니다.
+         뒷수습 비용이 나가고 <b>혐의</b>가 쌓입니다. 혐의 1점당 전 직원 생산이 6% 떨어집니다 —
+         다들 몸을 사리기 때문입니다. 급하면 <b>무마</b>로 돈을 써서 1점씩 지울 수 있습니다.</p>
+      <p><b>5. 냥찰</b> — 혐의가 <b>${RAID_THRESHOLD}점</b>을 넘으면 영장이 나오고 압수수색이 들어옵니다.
          조사 중 생산 40%, 종료 시 과징금 15%, 확률적으로 직원 1명이 연행됩니다(다음 분기 복귀).
-         무사고 분기를 넘기면 벌점이 1점씩 소멸합니다.</p>
+         흔적 없이 넘긴 분기는 혐의가 1점씩 소멸합니다.</p>
       <ul>
         <li>낮 09–18시 근무, 18–22시 야근(야근형만), 22시 이후 취침(생산 35%)</li>
         <li>능력치는 입사 시 4d6 중 최저 1개를 버려 굴립니다</li>
@@ -539,7 +546,7 @@ function showHelp(){
         <li>꺼놔도 최대 8시간(자동급식기 16시간) 일합니다</li>
         <li>고양이를 클릭하면 인사 기록이 열립니다</li>
       </ul>
-      <p class="tiny">목표는 <b>달 지사</b>. 거기까지 가면 당신도 꽤 많은 일을 끝냈다는 뜻입니다.</p>
+      <p class="tiny">목표는 <b>달 지사</b>. 지구 밖에는 아직 단속 기관이 없습니다.</p>
     </div>
     <div class="mfoot"><button class="okbtn" data-close>숙지했습니다</button></div>`);
 }

@@ -1,10 +1,12 @@
 # Copycat
 
-> Cats work office jobs. Finish your to-dos and the company grows.
-> Don't, and Legal comes for you.
+> Copycat is a **counterfeiting operation staffed entirely by cats.**
+> Finish your to-dos and the business grows. Leave paperwork lying around
+> and the Cat Police come for you.
 
 A to-do list × idle management sim × multi-agent sandbox.
-Open `index.html` in a browser and it runs. No build step, no server, nothing to install.
+Open `index.html` in a browser and it runs. No build step, no server, no dependencies
+(the tileset is a purchased asset — see the install section).
 
 🇰🇷 [한국어 README](README.ko.md)
 
@@ -21,9 +23,13 @@ and stamps it — and only then do you get paid. If every cat happens to be in t
 box, the paperwork just piles up.
 
 The reverse direction exists too. **Work you *didn't* do also creates events.**
-At quarter close, anything carried over unfinished from the previous quarter is referred
-to the Legal team. Penalty points accumulate. Cross the threshold and the Cat Police
-Special Investigation Unit raids your office. Sometimes they take an employee with them.
+The company forges things — knockoff handbags, knockoff tuna cans, other people's designs.
+So paperwork left unfinished at quarter close doesn't just sit there: it leaks, and it
+becomes evidence. **Suspicion** accumulates. Cross the threshold and a warrant is issued
+and the Cat Police Special Investigation Unit raids the office. Sometimes they take an
+employee with them.
+
+You can pay to make suspicion go away, which is exactly the kind of company this is.
 
 It isn't just achievement that's rewarded — **failure comes back through the bureaucracy.**
 The joke is how quietly realistic that turns out to be.
@@ -76,14 +82,18 @@ the same layout back.
 
 | Situation | Consequence |
 |---|---|
-| Unfinished items carried over from last quarter | Referred to Legal · 1 penalty point each (2 for large) · legal fees billed |
-| Accumulated penalties | −6% output for every employee per point |
-| A clean quarter | One penalty point expires |
-| More than 5 penalty points | 🚨 Police raid (output drops to 40% during the investigation) |
-| Raid ends | 15% fine · penalties reset to 0 · 35% chance one employee is taken in |
-| Detained employee | Returns cleared of charges at the next quarter close |
+| Unfinished items carried over from last quarter | They leak · +1 suspicion each (2 for large) · cleanup costs billed |
+| Accumulated suspicion | −6% output per point — everyone keeps their head down |
+| A quarter that left no trace | One suspicion point expires |
+| Paying a law firm | Buy off one point. Cost scales with how big the company is. |
+| More than 5 suspicion | 🚨 Warrant issued, raid (output drops to 40% during the investigation) |
+| Raid ends | 15% fine · suspicion reset to 0 · 35% chance one employee is taken in |
+| Detained employee | Returns cleared of charges at the next quarter close. Says nothing. |
 
 There's a one-quarter grace period. Something you added today will never be due today.
+
+The suspicion meter is the real tension: you can grind clean quarters, or you can just pay.
+Paying is faster and it is also, unmistakably, a bribe.
 
 ### 5. Pixel art — two sources
 
@@ -103,12 +113,17 @@ Fur colors, accessories and equipment are composited as palette overlays, so add
 combinations never adds files. That matters here — every one of the twenty employees has
 to look different, which an asset pack can't give you.
 
-**Furniture comes from a tileset**: [Kenney's Roguelike Indoors](https://kenney.nl/assets/roguelike-indoors)
-(16×16, **CC0 / public domain**), sliced straight out of the sheet with CSS
-`background-position`. No canvas involved — under `file://`, drawing an external image
-onto a canvas taints it and blocks `toDataURL()`. A few objects the sheet has no match for
-(the inbox, the server rack, the rocket, the nap box) are still drawn in code, so both
-paths coexist in one `FURN` table. The pack ships no floor or wall tiles, so those stay CSS.
+**Furniture, floors and walls come from a tileset**:
+[LimeZu's Modern Office - Revamped](https://limezu.itch.io/modernoffice) (16×16, paid),
+sliced straight out of the sheet with CSS `background-position`. No canvas involved —
+under `file://`, drawing an external image onto a canvas taints it and blocks
+`toDataURL()`. A couple of objects the pack has no match for are still drawn in code, so
+both paths coexist in one `FURN` table.
+
+The pack is built for multi-tile furniture, which fights a strict one-tile-per-object
+grid. Objects marked `tall: 2` render up into the tile above while still occupying only
+the lower tile for pathfinding — desks, water coolers, vending machines and lockers all
+need it.
 
 Purely decorative tiles — framed pictures, shelves, potted plants — are scattered by the
 generator too, scaling with office tier. Without them the early offices read as empty rooms.
@@ -134,7 +149,7 @@ copycat/
 ├── index.html          # markup
 ├── style.css           # pixel-flavored UI
 ├── assets/
-│   └── kenney_roguelike-indoors/   # CC0 furniture tileset + its license
+│   └── modern_office/              # paid tileset — gitignored, see install section
 └── js/
     ├── world.js        # procedural floor plans + BFS pathfinding
     ├── cats.js         # cat data · 4d6 stats · traits · equipment
@@ -144,6 +159,25 @@ copycat/
     ├── ui.js           # rendering · modals
     └── main.js         # boot · loop · input
 ```
+
+## Installing the art assets
+
+The furniture and floor tileset is **[Modern Office - Revamped](https://limezu.itch.io/modernoffice)
+by LimeZu**, a paid asset. Its license allows commercial use but forbids redistributing the
+asset itself, so it is **gitignored and never enters this repository**. A fresh clone will
+run but the office will be blank.
+
+To install: buy the pack, then copy these two files into `assets/modern_office/`:
+
+```
+assets/modern_office/
+├── Modern_Office_Shadowless_16x16.png    # from 3_Modern_Office_Shadowless/
+├── Room_Builder_Office_16x16.png         # from 1_Room_Builder_Office/
+└── LICENSE.txt                           # from the pack root
+```
+
+Cats, sound, and a few objects the pack has no match for are generated in code and need
+nothing installed.
 
 ## Running it
 
@@ -184,12 +218,9 @@ PNG (hand-rolled zero-dependency encoder) and looking at them.
 ## Credits & references
 
 **Assets**
-- Furniture tileset: **[Roguelike Indoors](https://kenney.nl/assets/roguelike-indoors) by
-  Kenney ([kenney.nl](https://kenney.nl))** — licensed **CC0 1.0 (public domain)**.
-  Credit is not required by the license; it is given here because it should be.
-  The unmodified sheet and its license text live in
-  `assets/kenney_roguelike-indoors/`. Usable in commercial projects with no restrictions,
-  which is why it was chosen over the (nicer, paid) modern-office packs.
+- Furniture, floors and walls: **[Modern Office - Revamped](https://limezu.itch.io/modernoffice)
+  by [LimeZu](https://limezu.itch.io/)** — a paid asset. Commercial use is permitted;
+  redistributing the asset is not, so it is gitignored here. See the install section.
 
 **Ideas**
 - [OpenMMO](https://github.com/Julian-adv/OpenMMO) — agent–human parity, procedural generation, 4d6-drop-lowest
@@ -197,8 +228,8 @@ PNG (hand-rolled zero-dependency encoder) and looking at them.
   asset is used; the cat sprites are generated by this repository's own code.
 
 Only ideas were borrowed from those two projects, never code. No fonts, no libraries,
-no build step. Cats and all sound are generated at runtime; furniture is the one
-vendored asset, and it is public domain.
+no build step. Cats and all sound are generated at runtime; the tileset is the one
+external asset, and it is not redistributed here.
 
 ## License
 
