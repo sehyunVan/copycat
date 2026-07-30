@@ -132,9 +132,14 @@ function renderTiles(){
       }
     }
   }
+  // 벽에 거는 것 — 벽 타일 위에 한 겹 더
+  (w.wallDecor || []).forEach(d => {
+    html += `<div class="t obj" style="left:${d.x*TS}px;top:${d.y*TS}px;z-index:${10 + d.y*4 - 2};`
+         +  `${furnStyle(d.tile)}" title="${(TILE_INFO[d.tile]||{}).n || ''}"></div>`;
+  });
   box.innerHTML = html;
   const pw = w.W * TS, ph = w.H * TS;
-  ['#tiles','#world','#night'].forEach(sel => {
+  ['#tiles','#world','#night','#warm'].forEach(sel => {
     $(sel).style.width = pw + 'px'; $(sel).style.height = ph + 'px';
   });
   actors.forEach(a => a.el.remove()); actors.clear();

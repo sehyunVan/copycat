@@ -193,41 +193,54 @@ function genOffice(tier, owned, seed){
   };
   Object.keys(SHOP_TILE).forEach(k => { if (owned[k]) wanted.push(SHOP_TILE[k]); });
   if (tier >= 1) wanted.push(TILE.LEGAL);        // 법무팀이 왔을 때 앉는 자리
-  if (tier >= 1) wanted.push(TILE.WHITEBOARD);
-  // 장식 — 기능은 없지만 사무실이 텅 비어 보이지 않게 한다
+  // 바닥에 놓는 장식 — 사무실이 텅 비어 보이지 않게 한다
   for (let i = 0; i < 2 + tier; i++) wanted.push(TILE.PLANT);
-  for (let i = 0; i < 1 + Math.floor(tier * 0.8); i++) wanted.push(TILE.DECOR);
   for (let i = 0; i < 1 + Math.floor(tier * 0.6); i++) wanted.push(TILE.SHELF);
 
-  // 벽에 붙은 빈 칸을 후보로. 한쪽에 몰리지 않게 오른쪽/왼쪽/위쪽을 번갈아 쓴다.
-  const right = [], left = [], top = [];
-  for (let y = 1; y <= H-2; y += 2) right.push({x:W-2, y});
-  for (let y = 2; y <= H-2; y += 2) left.push({x:1, y});
-  for (let x = 2; x <= W-3; x += 3) top.push({x, y:1});
-  const spots = [];
-  // 커피·급식기·정수기는 휴게실 안으로 (예시 배치의 탕비실 구조).
-  // 단 벽에 붙은 칸만 쓴다 — 방 한가운데를 채우면 서로의 진입로를 막는다.
-  if (hasBreak){
-    for (let y = by0+1; y <= H-2; y++)
-      for (let x = 1; x < bx1; x++){
-        if (get(x, y) !== TILE.FLOOR) continue;
-        const onEdge = (x === 1 || y === H-2 || x === bx1-1 || y === by0+1);
-        if (onEdge) spots.push({ x, y });
+  /* 후보 자리 만들기.
+     예시 배치를 보면 물건이 벽에만 붙어 있지 않다 — 책상 섬 사이, 구석, 통로 끝에도 있다.
+     벽면만 후보로 쓰면 상단 벽을 따라 한 줄로 빽빽하게 늘어선다. */
+  const shuffle = a => {
+    for (let i = a.length - 1; i > 0; i--){
+      const j = Math.floor(rng() * (i + 1));
+      const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+  };
+  const isSeat = (x, y) => desks.some(d => d.seat.x === x && d.seat.y === y);
+
+  const breakSpots = [], wallSpots = [], innerSpots = [];
+  for (let y = 1; y <= H-2; y++){
+    for (let x = 1; x <= W-2; x++){
+      if (get(x, y) !== TILE.FLOOR) continue;
+      if (isSeat(x, y)) continue;                       // 앉을 자리는 비워둔다
+      if (Math.abs(x - inbox.x) + Math.abs(y - inbox.y) < 2) continue;
+      if (Math.abs(x - doorX) < 2 && y >= H-3) continue; // 출입구 앞은 비워둔다
+      const touchesWall = get(x-1,y) === TILE.WALL || get(x+1,y) === TILE.WALL
+                       || get(x,y-1) === TILE.WALL || get(x,y+1) === TILE.WALL;
+      if (zone[y*W + x]){
+        if (touchesWall) breakSpots.push({ x, y });
+      } else if (touchesWall) {
+        wallSpots.push({ x, y });
+      } else {
+        innerSpots.push({ x, y });
       }
+    }
   }
-  for (let i = 0; i < Math.max(right.length, left.length, top.length); i++){
-    if (right[i]) spots.push(right[i]);
-    if (left[i])  spots.push(left[i]);
-    if (top[i])   spots.push(top[i]);
+  shuffle(wallSpots); shuffle(innerSpots);
+  // 휴게실 먼저(커피·급식기), 그 다음 벽면과 안쪽을 번갈아 — 한쪽에 몰리지 않게
+  const spots = breakSpots.slice();
+  for (let i = 0; i < Math.max(wallSpots.length, innerSpots.length); i++){
+    if (wallSpots[i]) spots.push(wallSpots[i]);
+    if (innerSpots[i]) spots.push(innerSpots[i]);
   }
-  // 그래도 모자라면 벽에 붙은 나머지 칸을 전부 후보에 추가
-  for (let y = 1; y <= H-2; y++){ spots.push({x:W-2, y}); spots.push({x:1, y}); }
-  for (let x = 2; x <= W-3; x++) spots.push({x, y:1});
 
   const facilities = {};
   const placed = [];
   const freeAround = p => [[1,0],[-1,0],[0,1],[0,-1]]
     .filter(([dx,dy]) => get(p.x+dx, p.y+dy) === TILE.FLOOR).length;
+  // 시설끼리 딱 붙으면 벽을 따라 한 덩어리로 뭉쳐 보인다. 한 칸은 띄운다.
+  const crowded = p => placed.some(q => Math.abs(q.x - p.x) <= 1 && Math.abs(q.y - p.y) <= 1);
 
   /* 시설 배치 규칙
      - 진입로가 최소 하나는 남아야 한다
@@ -236,6 +249,7 @@ function genOffice(tier, owned, seed){
   function placeAmenity(x, y, t){
     const wide = (FURN_SPAN[t] || 1);              // 2칸짜리 가구는 오른쪽 칸까지 먹는다
     if (wide > 1 && get(x+1, y) !== TILE.FLOOR) return false;
+    if (wide > 1 && isSeat(x+1, y)) return false;
     const prev = get(x, y), prevR = wide > 1 ? get(x+1, y) : null;
     set(x, y, t);
     if (wide > 1) set(x+1, y, TILE.FILLER);
@@ -251,20 +265,50 @@ function genOffice(tier, owned, seed){
     return true;
   }
 
-  let si = 0;
+  /* 두 번 훑는다. 1차는 서로 한 칸씩 띄우고, 못 놓은 건 2차에서 그 조건을 푼다. */
   for (const t of wanted){
-    while (si < spots.length){
-      const s = spots[si++];
-      if (get(s.x, s.y) !== TILE.FLOOR) continue;
-      if (freeAround(s) < 2) continue;              // 놓고 나서도 길이 남아야 한다
-      if (!placeAmenity(s.x, s.y, t)) continue;
-      const use = TILE_INFO[t] && TILE_INFO[t].use;
-      if (use){ (facilities[use] = facilities[use] || []).push({x:s.x, y:s.y}); }
-      break;
+    let done = false;
+    for (const pass of [0, 1]){
+      if (done) break;
+      for (const sp of spots){
+        if (get(sp.x, sp.y) !== TILE.FLOOR) continue;
+        if (freeAround(sp) < 2) continue;
+        if (pass === 0 && crowded(sp)) continue;
+        if (!placeAmenity(sp.x, sp.y, t)) continue;
+        const use = TILE_INFO[t] && TILE_INFO[t].use;
+        if (use){ (facilities[use] = facilities[use] || []).push({x:sp.x, y:sp.y}); }
+        done = true;
+        break;
+      }
     }
   }
 
-  const world = { W, H, grid:g, zone, tier, desks, facilities, inbox, door:{x:doorX, y:H-1}, seed };
+  /* 벽에 거는 것 — 액자·화이트보드는 바닥이 아니라 벽에 붙어야 한다.
+     격자는 그대로 WALL로 두고 별도 목록으로 관리한다(길찾기에 영향 없음).
+     위쪽 벽만 쓴다. 옆벽에 걸면 정면으로 그려진 그림이 옆을 보고 서 있는 꼴이 된다. */
+  const wallDecor = [];
+  {
+    const cand = [];
+    for (let x = 1; x <= W-2; x++) if (get(x, 0) === TILE.WALL) cand.push({ x, y:0 });
+    if (hasBreak) for (let x = 1; x < bx1; x++) if (get(x, by0) === TILE.WALL) cand.push({ x, y:by0 });
+    shuffle(cand);
+    const taken = new Set();
+    const put = (tile, wide) => {
+      for (const c of cand){
+        if (taken.has(c.y * W + c.x)) continue;
+        if (wide > 1 && (get(c.x+1, c.y) !== TILE.WALL || taken.has(c.y * W + c.x + 1))) continue;
+        taken.add(c.y * W + c.x);
+        if (wide > 1) taken.add(c.y * W + c.x + 1);
+        wallDecor.push({ x:c.x, y:c.y, tile });
+        return true;
+      }
+      return false;
+    };
+    if (tier >= 1) put(TILE.WHITEBOARD, 2);
+    for (let i = 0; i < 2 + Math.floor(tier * 0.8); i++) put(TILE.DECOR, 1);
+  }
+
+  const world = { W, H, grid:g, zone, wallDecor, tier, desks, facilities, inbox, door:{x:doorX, y:H-1}, seed };
 
   /* --- 연결성 검사: 문에서 못 가는 자리는 버린다 --- */
   const reach = floodFrom(world, { x:doorX, y:H-2 });
