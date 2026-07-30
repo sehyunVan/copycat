@@ -213,44 +213,58 @@ const F_DOC = [
 ];
 
 /* ============================================================
-   가구 타일셋 — Kenney "Roguelike Indoors" (CC0, public domain)
-   assets/kenney_roguelike-indoors/  · 16x16 타일, 타일 사이 1px 마진
-   CC0라 크레딧 의무도 재배포 제한도 없지만 README에 표기해 둔다.
-   시트에 없는 물건(로켓 등)은 아래 ASCII 스프라이트로 대체한다.
+   가구 타일셋 — LimeZu "Modern Office - Revamped" (구매 에셋)
+   assets/modern_office/  · 16x16 타일, 마진 0
+   라이선스: 상업/비상업 프로젝트 사용 가능, 에셋 자체의 재판매·재배포 금지.
+   그래서 이 폴더는 .gitignore 로 저장소에서 제외한다 — README 설치 안내 참고.
+
+   이 팩은 가구가 1x2칸(책상·정수기·자판기)인 게 많다. tall:2 로 표시하면
+   위쪽 칸까지 넘겨 그린다. 게임 로직상 점유하는 칸은 여전히 아래 한 칸이다.
    ============================================================ */
 const SHEET = {
-  src: 'assets/kenney_roguelike-indoors/roguelikeIndoor_transparent.png',
-  w: 458, h: 305,          // 시트 원본 크기
-  tile: 16, margin: 1,
-  scale: PXS,              // 가구도 고양이와 같은 픽셀 배율
+  src: 'assets/modern_office/Modern_Office_Shadowless_16x16.png',
+  w: 256, h: 848,          // 16 x 53 타일
+  tile: 16, margin: 0,
+  scale: PXS,
+};
+/* 바닥·벽 — 같은 팩의 Room Builder 시트 */
+const ROOM = {
+  src: 'assets/modern_office/Room_Builder_Office_16x16.png',
+  w: 256, h: 224,          // 16 x 14 타일
+  tile: 16, margin: 0,
+  scale: PXS,
+  // 바닥은 한 종류로 통일한다. LimeZu 바닥은 여러 칸이 이어진 패턴이라
+  // 두 타일을 번갈아 깔면 가로 줄무늬처럼 어른거린다.
+  floor:  [10, 5],
+  floor2: [10, 5],
+  wall:   [0, 9],          // 벽면
 };
 
-/* 타일 → 시트 좌표 [열, 행] 또는 { shape, pal } (시트에 없는 것) */
+/* 타일 → 시트 좌표 { col, row, tall? } 또는 { shape, pal } (시트에 없는 것) */
 const FURN = {};
-const sheetAt = (tile, col, row) => { FURN[tile] = { col, row }; };
+const sheetAt = (tile, col, row, tall) => { FURN[tile] = { col, row, tall: tall || 1 }; };
 function furn(tile, shape, a, b, d){ FURN[tile] = { shape, pal:{ o:'#3A2E28', a, b, d } }; }
 
-sheetAt(TILE.DESK,       5, 5);    // 붉은 서류를 올려둔 책상
-sheetAt(TILE.MEETING,    7, 0);    // 원형 회의 테이블
-sheetAt(TILE.LEGAL,      5, 11);   // 등받이 높은 의자 — 법무팀 자리
-// 결재함은 게임의 핵심 오브젝트라 시트에 묻히지 않게 직접 그린 빨간 트레이를 쓴다
-sheetAt(TILE.LITTER,    22, 4);    // 나무통 — 모래상자
-sheetAt(TILE.COOLER,    21, 4);    // 파란 뚜껑 물통 — 정수기
-sheetAt(TILE.PLANT,     16, 0);    // 화분
-sheetAt(TILE.COFFEE,     6, 12);   // 병을 올린 카운터 — 커피머신
-sheetAt(TILE.COPIER,    11, 15);   // 둥근 창이 달린 기계 — 복사기
-sheetAt(TILE.TOWER,      0, 11);   // 1인 소파 — 캣타워 대용, 고양이 자리
-sheetAt(TILE.SCRATCH,   21, 9);    // 나무 사다리 — 긁고 올라가는 곳
-sheetAt(TILE.FEEDER,     5, 12);   // 음식 올린 카운터 — 자동급식기
-sheetAt(TILE.LAB,        7, 12);   // 병·시약 카운터 — 냥연구소
-sheetAt(TILE.GYM,       22, 8);    // 원판형 금속 — 헬스장
-sheetAt(TILE.WHITEBOARD,19, 12);   // 액자 — 화이트보드
-sheetAt(TILE.DECOR,     16, 12);   // 작은 액자 — 사내 장식
-sheetAt(TILE.SHELF,     19, 17);   // 병 올린 선반 — 문서 선반
-// 시트에 없거나 시트 그림이 애매해서 직접 그린 것
-furn(TILE.INBOX,  F_BOX,     '#D96C5F', '#F09183', '#FFF6E9');
-furn(TILE.BED,    F_BOX,     '#C9A47C', '#E8D3B0', '#A8804F');   // 고양이는 상자에서 잔다
-furn(TILE.SERVER, F_MACHINE, '#3F4A56', '#59677A', '#7FCDB8');
+sheetAt(TILE.DESK,       5,  3, 2);   // 책상 (위 칸까지 2칸)
+sheetAt(TILE.MEETING,   13, 21);      // 원목 회의 테이블
+sheetAt(TILE.LEGAL,     15, 21);      // 짙은 원목 책상 — 법무팀 자리
+sheetAt(TILE.COOLER,    12, 16, 2);   // 정수기
+sheetAt(TILE.PLANT,      6,  8);      // 잎 넓은 화분
+sheetAt(TILE.COFFEE,     2, 25, 2);   // 자판기 — 커피머신
+sheetAt(TILE.FEEDER,     4, 25, 2);   // 자판기 — 자동급식기
+sheetAt(TILE.COPIER,     9, 22);      // 복합기
+sheetAt(TILE.SERVER,     2, 24, 2);   // 회색 랙 — 서버룸
+sheetAt(TILE.LAB,        3, 24, 2);   // 회색 랙 — 냥연구소
+sheetAt(TILE.GYM,        0, 24, 2);   // 라커 — 헬스장
+sheetAt(TILE.TOWER,      4, 16, 2);   // 안락의자 — 캣타워
+sheetAt(TILE.BED,        3, 16, 2);   // 안락의자 — 낮잠 자리
+sheetAt(TILE.SCRATCH,    6, 13);      // 키 큰 화분 — 긁는 곳
+sheetAt(TILE.WHITEBOARD, 9, 13);      // 차트 화이트보드
+sheetAt(TILE.DECOR,      5, 12);      // 액자
+sheetAt(TILE.SHELF,      7, 13);      // 책장
+sheetAt(TILE.INBOX,      7, 11);      // 결재 서류 뭉치
+// 시트에 대응물이 없어서 직접 그린 것
+furn(TILE.LITTER, F_BOX,     '#9AA3AD', '#C3CAD3', '#7D8894');
 furn(TILE.ROCKET, F_MACHINE, '#E4E9EE', '#FFFFFF', '#E2705C');
 
 /* ---------- 렌더 ---------- */
@@ -379,11 +393,13 @@ function furnStyle(tile){
   if (!def) return '';
   let css;
   if (def.col !== undefined){
-    const S = SHEET, step = (S.tile + S.margin) * S.scale;
+    const S = SHEET, step = (S.tile + S.margin) * S.scale, t = def.tall || 1;
+    // tall 가구는 위쪽 칸으로 넘겨 그린다. 차지하는 칸은 여전히 아래 한 칸.
     css = `background-image:url(${S.src});`
         + `background-size:${S.w * S.scale}px ${S.h * S.scale}px;`
-        + `background-position:${-def.col * step}px ${-def.row * step}px;`
-        + `background-repeat:no-repeat`;
+        + `background-position:${-def.col * step}px ${-(def.row - t + 1) * step}px;`
+        + `background-repeat:no-repeat;`
+        + (t > 1 ? `height:${t * S.tile * S.scale}px;margin-top:${-(t-1) * S.tile * S.scale}px;z-index:1;` : '');
   } else {
     const cv = document.createElement('canvas');
     cv.width = FW * PXS; cv.height = FH * PXS;
@@ -391,6 +407,20 @@ function furnStyle(tile){
     css = `background-image:url(${cv.toDataURL()});background-size:${FW*PXS}px ${FH*PXS}px;`
         + `background-repeat:no-repeat`;
   }
+  _cache.set(key, css);
+  return css;
+}
+
+/* 바닥·벽도 같은 팩에서 잘라 쓴다 */
+function roomStyle(kind){
+  const key = 'rs|' + kind;
+  const hit = _cache.get(key);
+  if (hit) return hit;
+  const [c, r] = ROOM[kind] || ROOM.floor;
+  const step = (ROOM.tile + ROOM.margin) * ROOM.scale;
+  const css = `background-image:url(${ROOM.src});`
+    + `background-size:${ROOM.w * ROOM.scale}px ${ROOM.h * ROOM.scale}px;`
+    + `background-position:${-c * step}px ${-r * step}px;background-repeat:no-repeat`;
   _cache.set(key, css);
   return css;
 }

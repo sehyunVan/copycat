@@ -115,13 +115,15 @@ function renderTiles(){
       const t = tileAt(w, x, y);
       const st = `left:${x*TS}px;top:${y*TS}px`;
       const alt = (x + y) % 2 ? ' alt' : '';
-      if (t === TILE.WALL)        html += `<div class="t wall" style="${st}"></div>`;
+      const floorCss = roomStyle(alt ? 'floor2' : 'floor');
+      if (t === TILE.WALL)        html += `<div class="t wall" style="${st};${roomStyle('wall')}"></div>`;
       else if (t === TILE.WINDOW) html += `<div class="t window" style="${st}"></div>`;
       else if (t === TILE.DOOR)   html += `<div class="t door" style="${st}"></div>`;
-      else if (t === TILE.FLOOR)  html += `<div class="t floor${alt}" style="${st}"></div>`;
+      else if (t === TILE.FLOOR)  html += `<div class="t floor" style="${st};${floorCss}"></div>`;
       else {
         const inf = TILE_INFO[t] || { n:'' };
-        html += `<div class="t floor${alt} obj" style="${st};${furnStyle(t)}" title="${inf.n}"></div>`;
+        html += `<div class="t floor obj" style="${st};${floorCss}"></div>`
+             +  `<div class="t obj" style="${st};${furnStyle(t)}" title="${inf.n}"></div>`;
       }
     }
   }

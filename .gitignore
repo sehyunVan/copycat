@@ -22,3 +22,9 @@ src-tauri/target/
 *.local
 tmp/
 scratch/
+
+# 구매 에셋 (LimeZu Modern Office) — 재배포 금지 라이선스라 저장소에 넣지 않는다.
+# 설치 방법은 README 참고.
+/assets/modern_office/
+/Modern_Office_Revamped_v1.2/
+*.zip
