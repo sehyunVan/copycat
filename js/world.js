@@ -9,7 +9,7 @@ const TILE = {
   BED:6, LITTER:7, COOLER:8, PLANT:9,
   COFFEE:10, COPIER:11, TOWER:12, SCRATCH:13, SERVER:14,
   FEEDER:15, MEETING:16, GYM:17, LAB:18, ROCKET:19, WHITEBOARD:20, LEGAL:21,
-  DECOR:22, SHELF:23, FILLER:24, FILLER:24,
+  DECOR:22, SHELF:23, FILLER:24, DESK_R:25, FILLER:24,
 };
 
 // 걸어 다닐 수 있는 타일
@@ -38,7 +38,9 @@ const TILE_INFO = {
   [TILE.DECOR]:     { em:'🖼️', n:'사내 액자',   use:null     },
   [TILE.SHELF]:     { em:'🗄️', n:'문서 선반',   use:null     },
   [TILE.FILLER]:    { em:'',   n:'',           use:null     },   // 여러 칸 가구가 차지하는 나머지 칸
+  [TILE.DESK_R]:    { em:'💻', n:'책상',       use:'work'   },   // 2칸 책상의 오른쪽 절반
   [TILE.FILLER]:    { em:'',   n:'',           use:null     },   // 여러 칸 가구가 차지하는 나머지 칸
+  [TILE.DESK_R]:    { em:'💻', n:'책상',       use:'work'   },   // 2칸 책상의 오른쪽 절반
 };
 
 function mulberry32(a){
@@ -152,35 +154,37 @@ function genOffice(tier, owned, seed){
     get(x, y) === TILE.FLOOR && get(x, y+1) === TILE.FLOOR &&
     !zone[y*W + x] && !zone[(y+1)*W + x] &&           // 휴게실에는 책상을 두지 않는다
     !(x === inbox.x && Math.abs(y - inbox.y) < 2);
+  /* 책상은 2칸이 한 짝이다 — 타일셋의 책상이 가로 2칸이고,
+     참고 배치도 2인 1조로 붙여 놓는다. 자리는 각 칸 아래에 하나씩. */
   const putDesk = (x, y) => {
-    if (!tryPlace(x, y, TILE.DESK)) return false;
-    desks.push({ desk:{x,y}, seat:{x, y:y+1} });
+    if (!canDesk(x, y) || !canDesk(x+1, y)) return false;
+    const prevL = get(x, y), prevR = get(x+1, y);
+    set(x, y, TILE.DESK); set(x+1, y, TILE.DESK_R);
+    if (!keepsConnected()){ set(x, y, prevL); set(x+1, y, prevR); return false; }
+    desks.push({ desk:{x,y},     seat:{x,   y:y+1} });
+    desks.push({ desk:{x:x+1,y}, seat:{x:x+1, y:y+1} });
     return true;
   };
 
   const need = T.desks;
-  const perRow = Math.ceil(need / rowYs.length);
+  const perRow = Math.ceil(need / rowYs.length / 2) * 2;      // 행마다 짝수로
   for (const y of rowYs){
     if (desks.length >= need) break;
-    const count = Math.min(perRow, need - desks.length);
-    const pods = Math.ceil(count / 2);
-    const span = pods * 2 + (pods - 1) * 2;                  // pod 2칸 + 사이 통로 2칸
+    const pods = Math.min(Math.ceil(perRow / 2), Math.ceil((need - desks.length) / 2));
+    const span = pods * 2 + (pods - 1) * 2;                   // 책상 2칸 + 사이 통로 2칸
     const jitter = rng() < .5 ? 0 : 1;
-    let x0 = Math.max(2, Math.floor((deskRight + 2 - span) / 2) + jitter);
-    let n = 0;
-    for (let p = 0; p < pods && n < count; p++){
-      for (let k = 0; k < 2 && n < count; k++){
-        const x = x0 + p * 4 + k;
-        if (x > deskRight) break;
-        if (!canDesk(x, y)) continue;
-        if (putDesk(x, y)) n++;
-      }
+    const x0 = Math.max(2, Math.floor((deskRight + 2 - span) / 2) + jitter);
+    for (let p = 0; p < pods && desks.length < need; p++){
+      const x = x0 + p * 4;
+      if (x + 1 > deskRight) break;
+      putDesk(x, y);
     }
   }
-  // 못 채웠으면 남은 칸을 훑어서 마저 채운다
+  // 못 채웠으면 남은 칸을 훑어서 마저 채운다 (여기서도 2칸 한 짝)
   for (const y of rowYs){
-    for (let x = 2; x <= deskRight && desks.length < need; x++){
-      if (canDesk(x, y) && get(x-1, y) !== TILE.DESK) putDesk(x, y);
+    for (let x = 2; x + 1 <= deskRight && desks.length < need; x++){
+      if (get(x-1, y) === TILE.DESK || get(x-1, y) === TILE.DESK_R) continue;
+      putDesk(x, y);
     }
   }
 

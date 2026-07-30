@@ -122,6 +122,11 @@ function renderTiles(){
       else if (t === TILE.DOOR)   html += `<div class="t door" style="${st}"></div>`;
       else if (t === TILE.FLOOR)  html += `<div class="t floor" style="${st};${floorCss}"></div>`;
       else if (t === TILE.FILLER) html += `<div class="t floor" style="${st};${floorCss}"></div>`;
+      else if (t === TILE.DESK_R) {
+        // 2칸 책상의 오른쪽 절반 — 책상 그림은 왼쪽 칸이 통째로 그린다. 소품만 얹는다.
+        html += `<div class="t floor" style="${st};${floorCss}"></div>`
+             +  `<div class="t obj" style="left:${x*TS}px;top:${(y-1)*TS}px;z-index:${z+1};${deskTopStyle(x,y)}"></div>`;
+      }
       else {
         const inf = TILE_INFO[t] || { n:'' };
         html += `<div class="t floor" style="${st};${floorCss}"></div>`

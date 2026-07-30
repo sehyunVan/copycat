@@ -215,7 +215,7 @@ const ROOM = {
 const FURN_SPAN = {};
 
 /* 책상 위에 얹는 소품. 빈 나무판만 있으면 사무실로 안 보인다. */
-const DESK_TOPS = [[8,44], [9,44], [10,44], [11,44], [7,11], [7,9], [11,15]];
+const DESK_TOPS = [[8,44], [9,44], [10,9], [11,9], [13,12], [3,12]];
 
 /* 타일 → 시트 좌표 { col, row, tall?, wide? } 또는 { shape, pal } (시트에 없는 것) */
 const FURN = {};
@@ -225,24 +225,24 @@ const sheetAt = (tile, col, row, tall, wide) => {
 };
 function furn(tile, shape, a, b, d){ FURN[tile] = { shape, pal:{ o:'#3A2E28', a, b, d } }; }
 
-sheetAt(TILE.DESK,       5,  3, 2);   // 책상 (위 칸까지 2칸)
-sheetAt(TILE.MEETING,   12, 21, 1, 2);// 원목 회의 테이블 (가로 2칸)
-sheetAt(TILE.LEGAL,     14, 21, 1, 2);// 원목 책상 — 법무팀 자리 (가로 2칸)
-sheetAt(TILE.COOLER,    12, 16, 2);   // 정수기
-sheetAt(TILE.PLANT,      6,  8);      // 잎 넓은 화분
-sheetAt(TILE.COFFEE,     2, 25, 2);   // 자판기 — 커피머신
-sheetAt(TILE.FEEDER,     4, 25, 2);   // 자판기 — 자동급식기
-sheetAt(TILE.COPIER,     9, 22);      // 복합기
-sheetAt(TILE.SERVER,     2, 24, 2);   // 회색 랙 — 서버룸
-sheetAt(TILE.LAB,        3, 24, 2);   // 회색 랙 — 냥연구소
-sheetAt(TILE.GYM,        0, 24, 2);   // 라커 — 헬스장
-sheetAt(TILE.TOWER,      4, 16, 2);   // 안락의자 — 캣타워
-sheetAt(TILE.BED,        3, 16, 2);   // 안락의자 — 낮잠 자리
-sheetAt(TILE.SCRATCH,    6, 13);      // 키 큰 화분 — 긁는 곳
-sheetAt(TILE.WHITEBOARD, 9, 13, 1, 2);// 차트 화이트보드 (가로 2칸)
-sheetAt(TILE.DECOR,      5, 12);      // 액자
-sheetAt(TILE.SHELF,      7, 13, 1, 2);      // 책장
-sheetAt(TILE.INBOX,      7, 11);      // 결재 서류 뭉치
+sheetAt(TILE.DESK,        6, 21, 2, 2);  // 2인 책상 (2x2) — 오른쪽 절반은 DESK_R 칸
+sheetAt(TILE.MEETING,    12, 21, 2, 2);  // 원목 회의 테이블 (2x2)
+sheetAt(TILE.LEGAL,      14, 21, 2, 2);  // 원목 책상 — 법무팀 자리 (2x2)
+sheetAt(TILE.COOLER,     12, 17, 3, 1);  // 정수기 (1x3)
+sheetAt(TILE.PLANT,       6,  9, 3, 1);  // 잎 넓은 화분 (1x3)
+sheetAt(TILE.COFFEE,      2, 25, 3, 2);  // 자판기 — 커피머신 (2x3)
+sheetAt(TILE.FEEDER,      4, 25, 2, 2);  // 자판기 — 자동급식기 (2x2)
+sheetAt(TILE.COPIER,      9, 23, 2, 1);  // 복합기 (1x2)
+sheetAt(TILE.SERVER,     12, 24, 3, 2);  // 대형 기기 — 건조실 (2x3)
+sheetAt(TILE.LAB,         7, 17, 3, 2);  // 대형 기기 — 정제실 (2x3)
+sheetAt(TILE.GYM,         0, 25, 3, 2);  // 자판기 — 헬스장 (2x3)
+sheetAt(TILE.TOWER,      13, 16, 2, 1);  // 1인용 의자 — 캣타워 (1x2)
+sheetAt(TILE.BED,        11, 16, 2, 1);  // 1인용 의자 — 낮잠 자리 (1x2)
+sheetAt(TILE.SCRATCH,     6, 14, 3, 1);  // 키 큰 화분 — 긁는 곳 (1x3)
+sheetAt(TILE.WHITEBOARD,  9, 13, 2, 2);  // 차트 화이트보드 (2x2)
+sheetAt(TILE.DECOR,       5, 12, 1, 1);  // 액자 (1x1)
+sheetAt(TILE.SHELF,       7, 14, 3, 2);  // 책장 (2x3)
+sheetAt(TILE.INBOX,       7, 11, 2, 1);  // 결재 서류 뭉치 (1x2)
 // 시트에 대응물이 없어서 직접 그린 것
 furn(TILE.LITTER, F_BOX,     '#9AA3AD', '#C3CAD3', '#7D8894');
 furn(TILE.ROCKET, F_MACHINE, '#E4E9EE', '#FFFFFF', '#E2705C');
