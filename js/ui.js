@@ -124,16 +124,14 @@ function renderTiles(){
       else if (t === TILE.FILLER) html += `<div class="t floor" style="${st};${floorCss}"></div>`;
       else if (t === TILE.DESK_R) {
         // 2칸 책상의 오른쪽 절반 — 책상 그림은 왼쪽 칸이 통째로 그린다. 소품만 얹는다.
-        html += `<div class="t floor" style="${st};${floorCss}"></div>`
-             +  `<div class="t obj" style="left:${x*TS}px;top:${(y-1)*TS}px;z-index:${z+1};${deskTopStyle(x,y)}"></div>`;
+        html += `<div class="t floor" style="${st};${floorCss}"></div>` + deskProps(x, y, z);
       }
       else {
         const inf = TILE_INFO[t] || { n:'' };
         html += `<div class="t floor" style="${st};${floorCss}"></div>`
              +  `<div class="t obj" style="${st};z-index:${z};${furnStyle(t)}" title="${inf.n}"></div>`;
-        // 책상에는 모니터·서류를 한 겹 더 얹는다
-        if (t === TILE.DESK)
-          html += `<div class="t obj" style="left:${x*TS}px;top:${(y-1)*TS}px;z-index:${z+1};${deskTopStyle(x,y)}"></div>`;
+        // 책상에는 모니터를 얹고, 옆에 작은 소품을 하나 더 비켜 놓는다
+        if (t === TILE.DESK) html += deskProps(x, y, z);
       }
     }
   }
@@ -141,6 +139,17 @@ function renderTiles(){
   (w.wallDecor || []).forEach(d => {
     html += `<div class="t obj" style="left:${d.x*TS}px;top:${d.y*TS}px;z-index:${10 + d.y*4 - 2};`
          +  `${furnStyle(d.tile)}" title="${(TILE_INFO[d.tile]||{}).n || ''}"></div>`;
+  });
+  // 자리마다 의자 — 그림만 얹는다. 고양이가 그 위에 앉는다.
+  w.desks.forEach(d => {
+    const sy = d.seat.y;
+    html += `<div class="t obj" style="left:${d.seat.x*TS}px;top:${sy*TS}px;`
+         +  `z-index:${10 + sy*4 - 3};${chairStyle(d.seat.x, sy)}"></div>`;
+  });
+  // 바닥 잡동사니
+  (w.clutter || []).forEach(c => {
+    html += `<div class="t obj" style="left:${c.x*TS}px;top:${c.y*TS}px;`
+         +  `z-index:${10 + c.y*4 - 2};${clutterStyle(c.i)}"></div>`;
   });
   box.innerHTML = html;
   const pw = w.W * TS, ph = w.H * TS;
@@ -150,6 +159,17 @@ function renderTiles(){
   actors.forEach(a => a.el.remove()); actors.clear();
   docEls.forEach(e => e.remove()); docEls.clear();
   fitWorld();
+}
+
+/* 책상 한 칸의 소품 두 겹 — 주 소품(모니터)과 곁들이는 작은 물건.
+   작은 쪽은 살짝 비켜 놓아야 "정리된 진열"이 아니라 "쓰는 책상"으로 보인다. */
+function deskProps(x, y, z){
+  const top = (y-1) * TS;
+  // 작은 물건은 책상 앞쪽 모서리에 비켜 놓는다. 모니터를 가리면 지저분해 보인다.
+  const off = ((x * 3 + y * 5) % 3) - 1;
+  return `<div class="t obj" style="left:${x*TS}px;top:${top}px;z-index:${z+1};${deskTopStyle(x,y)}"></div>`
+       + `<div class="t obj" style="left:${x*TS + off*5}px;top:${top + TS - 10}px;z-index:${z+2};`
+       + `transform:scale(.75);transform-origin:bottom center;${deskSideStyle(x,y)}"></div>`;
 }
 
 function fitWorld(){

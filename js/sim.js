@@ -38,7 +38,7 @@ function snapshotWorld(){
   S.layout = {
     tier: S.tier, seed: S.seed, w: W.W, h: W.H,
     grid: Array.from(W.grid), zone: Array.from(W.zone || []),
-    wallDecor: W.wallDecor, machineSide: W.machineSide,
+    wallDecor: W.wallDecor, clutter: W.clutter, machineSide: W.machineSide,
   };
 }
 /* 가구 한 개를 지금 사무실에 끼워 넣는다. 기존 배치는 그대로 둔다. */

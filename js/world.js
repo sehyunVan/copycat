@@ -216,6 +216,33 @@ function genOffice(tier, owned, seed){
   for (const t of wanted) placeFurniture(
     { W, H, grid:g, zone, desks, facilities, inbox, door:{x:doorX, y:H-1} }, t, rng, machineSide);
 
+  /* 바닥 잡동사니 — 현금 뭉치, 서류 가방. 기능은 없고 격자도 안 건드린다.
+     길찾기에 영향이 없어야 하니 걸어 다닐 수 있는 칸 위에 그림만 얹는다.
+     사무실이 "정리된 전시장"이 아니라 "일하는 곳"으로 보이게 하는 장치. */
+  const clutter = [];
+  {
+    const cand = [];
+    for (let y = 2; y <= H-3; y++)
+      for (let x = 1; x <= W-2; x++){
+        if (get(x, y) !== TILE.FLOOR) continue;
+        if (desks.some(d => d.seat.x === x && d.seat.y === y)) continue;
+        if (Math.abs(x - doorX) < 3 && y >= H-4) continue;
+        // 벽이나 가구에 기대어 있는 칸만 — 통로 한가운데 굴러다니면 이상하다
+        const leans = [[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy]) => {
+          const t = get(x+dx, y+dy);
+          return t !== TILE.FLOOR && t !== TILE.DOOR;
+        });
+        if (leans) cand.push({ x, y });
+      }
+    shuffle(cand);
+    const want = 2 + Math.floor(tier * 0.9);
+    for (let i = 0; i < cand.length && clutter.length < want; i++){
+      const c = cand[i];
+      if (clutter.some(p => Math.abs(p.x - c.x) <= 1 && Math.abs(p.y - c.y) <= 1)) continue;
+      clutter.push({ x:c.x, y:c.y, i: clutter.length + tier });
+    }
+  }
+
   /* 벽에 거는 것 — 액자·화이트보드는 바닥이 아니라 벽에 붙어야 한다.
      격자는 그대로 WALL로 두고 별도 목록으로 관리한다(길찾기에 영향 없음).
      위쪽 벽만 쓴다. 옆벽에 걸면 정면으로 그려진 그림이 옆을 보고 서 있는 꼴이 된다. */
@@ -241,7 +268,7 @@ function genOffice(tier, owned, seed){
     for (let i = 0; i < 2 + Math.floor(tier * 0.8); i++) put(TILE.DECOR, 1);
   }
 
-  const world = { W, H, grid:g, zone, wallDecor, machineSide, tier, desks, facilities, inbox, door:{x:doorX, y:H-1}, seed };
+  const world = { W, H, grid:g, zone, wallDecor, clutter, machineSide, tier, desks, facilities, inbox, door:{x:doorX, y:H-1}, seed };
 
   /* --- 연결성 검사: 문에서 못 가는 자리는 버린다 --- */
   const reach = floodFrom(world, { x:doorX, y:H-2 });
@@ -440,7 +467,7 @@ function worldFromGrid(saved){
   const w = {
     W, H, tier: saved.tier, seed: saved.seed, machineSide: saved.machineSide || 'left',
     grid: Uint8Array.from(saved.grid), zone: Uint8Array.from(saved.zone || []),
-    wallDecor: saved.wallDecor || [],
+    wallDecor: saved.wallDecor || [], clutter: saved.clutter || [],
     desks: [], facilities: {}, inbox: { x:1, y:H-2 }, door: { x:Math.floor(W/2), y:H-1 },
   };
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++){

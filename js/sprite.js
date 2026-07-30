@@ -223,7 +223,18 @@ const FURN_CAT = {};
 const cat = (tile, c) => { FURN_CAT[tile] = c; };
 
 /* 책상 위에 얹는 소품. 빈 나무판만 있으면 사무실로 안 보인다. */
-const DESK_TOPS = [[8,44], [9,44], [10,9], [11,9], [13,12], [3,12]];
+/* 책상 위 주 소품 — 모니터·노트북 (전부 1x1로 검증됨) */
+const DESK_TOPS = [[8,44], [9,44], [13,12], [15,12], [13,13], [15,13]];
+/* 곁들이는 작은 소품 — 서류·전화기·액자. 살짝 비켜 놓아 어수선하게 보이게 한다. */
+const DESK_SIDE = [[10,9], [11,9], [1,14], [3,12], [4,12], [12,45], [12,46]];
+/* 자리에 놓는 의자 (1x2). 앉을 칸은 계속 걸어 다닐 수 있어야 하므로 그림만 얹는다. */
+const CHAIRS = [[12,44], [13,44]];
+/* 바닥에 흩어 두는 잡동사니 — 현금 뭉치와 서류 가방. 하는 일이 하는 일이라. */
+const CLUTTER = [
+  { col:12, row:48, tall:2, wide:1 }, { col:13, row:48, tall:2, wide:1 },
+  { col:12, row:50, tall:2, wide:2 }, { col:8,  row:48, tall:2, wide:1 },
+  { col:10, row:48, tall:2, wide:1 },
+];
 
 /* 타일 → 시트 좌표 { col, row, tall?, wide? } 또는 { shape, pal } (시트에 없는 것) */
 const FURN = {};
@@ -324,6 +335,49 @@ function furnStyle(tile){
   return css;
 }
 
+/* 시트에서 한 칸을 잘라오는 공통 함수 */
+function sheetSlice(col, row, tall, wide){
+  const S = SHEET, step = (S.tile + S.margin) * S.scale;
+  const t = tall || 1, w = wide || 1;
+  return `background-image:url(${S.src});`
+       + `background-size:${S.w * S.scale}px ${S.h * S.scale}px;`
+       + `background-position:${-col * step}px ${-(row - t + 1) * step}px;`
+       + `background-repeat:no-repeat;`
+       + (t > 1 ? `height:${t * S.tile * S.scale}px;margin-top:${-(t-1) * S.tile * S.scale}px;` : '')
+       + (w > 1 ? `width:${w * S.tile * S.scale}px;` : '');
+}
+/* 자리에 놓을 의자 — 그림만. 게임 로직상 그 칸은 계속 빈 바닥이다. */
+function chairStyle(x, y){
+  const key = 'ch|' + x + ',' + y;
+  const hit = _cache.get(key);
+  if (hit) return hit;
+  const [c, r] = CHAIRS[(x * 5 + y * 11) % CHAIRS.length];
+  // 의자는 1x2지만 아래 절반(앉는 부분)만 쓴다. 2칸을 다 그리면 위 칸의 책상을 덮는다.
+  const css = sheetSlice(c, r, 1, 1);
+  _cache.set(key, css);
+  return css;
+}
+/* 책상에 곁들이는 작은 소품 */
+function deskSideStyle(x, y){
+  const key = 'ds|' + x + ',' + y;
+  const hit = _cache.get(key);
+  if (hit) return hit;
+  const [c, r] = DESK_SIDE[(x * 13 + y * 7) % DESK_SIDE.length];
+  const css = sheetSlice(c, r, 1, 1);
+  _cache.set(key, css);
+  return css;
+}
+/* 바닥 잡동사니 */
+function clutterStyle(i){
+  const key = 'cl|' + i;
+  const hit = _cache.get(key);
+  if (hit) return hit;
+  const d = CLUTTER[i % CLUTTER.length];
+  const css = sheetSlice(d.col, d.row, d.tall, d.wide);
+  _cache.set(key, css);
+  return css;
+}
+
 /* 책상 위 소품 — 책상 타일 위에 한 겹 더 얹는다. 좌표는 칸마다 고정(같은 자리는 늘 같은 물건). */
 function deskTopStyle(x, y){
   const key = 'dt|' + x + ',' + y;
@@ -334,6 +388,49 @@ function deskTopStyle(x, y){
   const css = `background-image:url(${S.src});`
     + `background-size:${S.w * S.scale}px ${S.h * S.scale}px;`
     + `background-position:${-c * step}px ${-r * step}px;background-repeat:no-repeat`;
+  _cache.set(key, css);
+  return css;
+}
+
+/* 시트에서 한 칸을 잘라오는 공통 함수 */
+function sheetSlice(col, row, tall, wide){
+  const S = SHEET, step = (S.tile + S.margin) * S.scale;
+  const t = tall || 1, w = wide || 1;
+  return `background-image:url(${S.src});`
+       + `background-size:${S.w * S.scale}px ${S.h * S.scale}px;`
+       + `background-position:${-col * step}px ${-(row - t + 1) * step}px;`
+       + `background-repeat:no-repeat;`
+       + (t > 1 ? `height:${t * S.tile * S.scale}px;margin-top:${-(t-1) * S.tile * S.scale}px;` : '')
+       + (w > 1 ? `width:${w * S.tile * S.scale}px;` : '');
+}
+/* 자리에 놓을 의자 — 그림만. 게임 로직상 그 칸은 계속 빈 바닥이다. */
+function chairStyle(x, y){
+  const key = 'ch|' + x + ',' + y;
+  const hit = _cache.get(key);
+  if (hit) return hit;
+  const [c, r] = CHAIRS[(x * 5 + y * 11) % CHAIRS.length];
+  // 의자는 1x2지만 아래 절반(앉는 부분)만 쓴다. 2칸을 다 그리면 위 칸의 책상을 덮는다.
+  const css = sheetSlice(c, r, 1, 1);
+  _cache.set(key, css);
+  return css;
+}
+/* 책상에 곁들이는 작은 소품 */
+function deskSideStyle(x, y){
+  const key = 'ds|' + x + ',' + y;
+  const hit = _cache.get(key);
+  if (hit) return hit;
+  const [c, r] = DESK_SIDE[(x * 13 + y * 7) % DESK_SIDE.length];
+  const css = sheetSlice(c, r, 1, 1);
+  _cache.set(key, css);
+  return css;
+}
+/* 바닥 잡동사니 */
+function clutterStyle(i){
+  const key = 'cl|' + i;
+  const hit = _cache.get(key);
+  if (hit) return hit;
+  const d = CLUTTER[i % CLUTTER.length];
+  const css = sheetSlice(d.col, d.row, d.tall, d.wide);
   _cache.set(key, css);
   return css;
 }
