@@ -114,7 +114,8 @@ function renderTiles(){
     for (let x = 0; x < w.W; x++){
       const t = tileAt(w, x, y);
       const st = `left:${x*TS}px;top:${y*TS}px`;
-      const floorCss = roomStyle(w.zone && w.zone[y*w.W + x] ? 'floor2' : 'floor');
+      const zn = w.zone ? w.zone[y*w.W + x] : 0;
+      const floorCss = roomStyle(zn === 1 ? 'floor2' : zn === 2 ? 'floor3' : zn === 3 ? 'floor4' : 'floor');
       // 가구도 액터와 같은 축으로 깊이를 매긴다. 안 그러면 2칸짜리 가구의
       // 윗부분을 고양이가 뚫고 지나가는 것처럼 보인다.
       const z = 10 + y * 4 - 2;

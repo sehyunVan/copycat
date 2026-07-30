@@ -124,7 +124,7 @@ function genOffice(tier, owned, seed){
   /* --- 휴게실: 한쪽 구석을 칸막이로 나눈다 ---
      타일셋 제작자의 예시 배치가 한 덩어리 방이 아니라 구역이 나뉜 사무실이라
      그 구조를 따라간다. 바닥재도 구역마다 다르게 깐다. */
-  const zone = new Uint8Array(W * H);          // 0 = 본 사무실, 1 = 휴게실
+  const zone = new Uint8Array(W * H);          // 0 본 사무실 · 1 휴게실 · 2 회의실 · 3 라운지
   const brW = Math.max(3, Math.min(6, Math.floor(W * 0.34)));
   const brH = Math.max(3, Math.min(5, Math.floor(H * 0.30)));
   const bx1 = brW, by0 = H - 1 - brH;          // 좌하단 구석
@@ -150,6 +150,38 @@ function genOffice(tier, owned, seed){
       for (let x = 1; x < W-1; x++)
         if (walkable(probe, x, y) && !reach.has(y*W + x)) return false;
     return true;
+  }
+
+  /* --- 회의실: 큰 사무실에만. 오른쪽 위 구석을 칸막이로 나눈다 --- */
+  let hasMeet = false;
+  if (tier >= 3 && W >= 17 && H >= 15){
+    const mw = Math.max(4, Math.min(6, Math.floor(W * 0.30)));
+    const mh = Math.max(3, Math.min(5, Math.floor(H * 0.26)));
+    const mx0 = W - 1 - mw, my1 = mh;
+    const before = g.slice();
+    for (let y = 1; y <= my1; y++)      set(mx0, y, TILE.WALL);   // 세로 칸막이
+    for (let x = mx0; x <= W-2; x++)    set(x, my1, TILE.WALL);   // 가로 칸막이
+    const doorY = 1 + Math.floor(rng() * Math.max(1, mh - 1));
+    set(mx0, Math.min(my1 - 1, doorY), TILE.FLOOR);               // 출입구
+    if (keepsConnectedAfterPartition()){
+      hasMeet = true;
+      for (let y = 1; y < my1; y++)
+        for (let x = mx0+1; x <= W-2; x++) zone[y*W + x] = 2;
+    } else g.set(before);
+  }
+
+  /* --- 라운지: 벽 없이 바닥재만 바꾼 구역. 이 팩엔 러그가 없어서 바닥으로 대신한다 --- */
+  if (tier >= 2){
+    const lw = Math.max(3, Math.min(5, Math.floor(W * 0.22)));
+    const lh = Math.max(2, Math.min(4, Math.floor(H * 0.20)));
+    const lx = W - 2 - lw, ly = Math.max(3, Math.floor(H * 0.55));
+    let clear = true;
+    for (let y = ly; y < ly + lh && clear; y++)
+      for (let x = lx; x < lx + lw; x++)
+        if (get(x, y) !== TILE.FLOOR || zone[y*W + x]){ clear = false; break; }
+    if (clear)
+      for (let y = ly; y < ly + lh; y++)
+        for (let x = lx; x < lx + lw; x++) zone[y*W + x] = 3;
   }
 
   /* --- 책상 배치: 2칸짜리 팀 섬(pod)을 여러 행에 고르게 --- */
@@ -394,7 +426,7 @@ function placeFurniture(w, tile, rnd, machineSide){
 
   /* 후보 자리. 벽면만 쓰면 상단 벽에 한 줄로 늘어서고,
      안쪽만 쓰면 통로 한가운데 물건이 선다. 둘을 섞는다. */
-  const breakSpots = [], wallSpots = [], innerSpots = [];
+  const breakSpots = [], wallSpots = [], innerSpots = [], meetSpots = [], loungeSpots = [];
   for (let y = 1; y <= H-2; y++){
     for (let x = 1; x <= W-2; x++){
       if (get(x, y) !== TILE.FLOOR) continue;
@@ -403,12 +435,15 @@ function placeFurniture(w, tile, rnd, machineSide){
       if (Math.abs(x - w.door.x) < 2 && y >= H-3) continue;
       const touchesWall = get(x-1,y) === TILE.WALL || get(x+1,y) === TILE.WALL
                        || get(x,y-1) === TILE.WALL || get(x,y+1) === TILE.WALL;
-      if (zone && zone[at(x,y)]){ if (touchesWall) breakSpots.push({ x, y }); }
+      const z = zone ? zone[at(x,y)] : 0;
+      if (z === 1){ if (touchesWall) breakSpots.push({ x, y }); }
+      else if (z === 2){ meetSpots.push({ x, y }); }
+      else if (z === 3){ loungeSpots.push({ x, y }); }
       else if (touchesWall) wallSpots.push({ x, y });
       else innerSpots.push({ x, y });
     }
   }
-  shuffle(wallSpots); shuffle(innerSpots);
+  shuffle(wallSpots); shuffle(innerSpots); shuffle(loungeSpots);
   const spots = breakSpots.slice();
   for (let i = 0; i < Math.max(wallSpots.length, innerSpots.length); i++){
     if (wallSpots[i]) spots.push(wallSpots[i]);
@@ -430,9 +465,11 @@ function placeFurniture(w, tile, rnd, machineSide){
   const machineSpots = bySide(ms).concat(bySide(ms === 'left' ? 'right' : 'left'), bySide('top'));
 
   const cat = (typeof FURN_CAT !== 'undefined') ? FURN_CAT[tile] : null;
-  const list = cat === 'break' || cat === 'rest' ? breakSpots.concat(wallOnly)
+  const list = cat === 'break' ? breakSpots.concat(wallOnly)
+             : cat === 'rest'  ? loungeSpots.concat(breakSpots, wallOnly)   // 쉬는 건 라운지 먼저
              : cat === 'machine' ? machineSpots.concat(wallOnly)
-             : cat === 'meet'    ? innerSpots.concat(spots)
+             : cat === 'meet'  ? meetSpots.concat(innerSpots, spots)        // 회의는 회의실 먼저
+             : cat === 'decor' ? loungeSpots.concat(spots)
              : (typeof FURN_BIG !== 'undefined' && FURN_BIG[tile]) ? wallOnly : spots;
   const spaced = cat !== 'machine';   // 설비는 벽을 따라 붙어 서는 게 맞다
 
