@@ -210,14 +210,24 @@ const ROOM = {
   wallTop:[8, 11],         // 맨 윗줄 (윗면 마감이 있는 타일)
 };
 
-/* 타일 → 시트 좌표 { col, row, tall? } 또는 { shape, pal } (시트에 없는 것) */
+/* 가로로 2칸을 쓰는 가구. 한 칸만 잘라 쓰면 반쪽이 나온다.
+   world.js가 이 표를 보고 오른쪽 칸을 FILLER로 예약한다. */
+const FURN_SPAN = {};
+
+/* 책상 위에 얹는 소품. 빈 나무판만 있으면 사무실로 안 보인다. */
+const DESK_TOPS = [[8,44], [9,44], [10,44], [11,44], [7,11], [7,9], [11,15]];
+
+/* 타일 → 시트 좌표 { col, row, tall?, wide? } 또는 { shape, pal } (시트에 없는 것) */
 const FURN = {};
-const sheetAt = (tile, col, row, tall) => { FURN[tile] = { col, row, tall: tall || 1 }; };
+const sheetAt = (tile, col, row, tall, wide) => {
+  FURN[tile] = { col, row, tall: tall || 1, wide: wide || 1 };
+  if (wide > 1) FURN_SPAN[tile] = wide;
+};
 function furn(tile, shape, a, b, d){ FURN[tile] = { shape, pal:{ o:'#3A2E28', a, b, d } }; }
 
 sheetAt(TILE.DESK,       5,  3, 2);   // 책상 (위 칸까지 2칸)
-sheetAt(TILE.MEETING,   13, 21);      // 원목 회의 테이블
-sheetAt(TILE.LEGAL,     15, 21);      // 짙은 원목 책상 — 법무팀 자리
+sheetAt(TILE.MEETING,   12, 21, 1, 2);// 원목 회의 테이블 (가로 2칸)
+sheetAt(TILE.LEGAL,     14, 21, 1, 2);// 원목 책상 — 법무팀 자리 (가로 2칸)
 sheetAt(TILE.COOLER,    12, 16, 2);   // 정수기
 sheetAt(TILE.PLANT,      6,  8);      // 잎 넓은 화분
 sheetAt(TILE.COFFEE,     2, 25, 2);   // 자판기 — 커피머신
@@ -229,9 +239,9 @@ sheetAt(TILE.GYM,        0, 24, 2);   // 라커 — 헬스장
 sheetAt(TILE.TOWER,      4, 16, 2);   // 안락의자 — 캣타워
 sheetAt(TILE.BED,        3, 16, 2);   // 안락의자 — 낮잠 자리
 sheetAt(TILE.SCRATCH,    6, 13);      // 키 큰 화분 — 긁는 곳
-sheetAt(TILE.WHITEBOARD, 9, 13);      // 차트 화이트보드
+sheetAt(TILE.WHITEBOARD, 9, 13, 1, 2);// 차트 화이트보드 (가로 2칸)
 sheetAt(TILE.DECOR,      5, 12);      // 액자
-sheetAt(TILE.SHELF,      7, 13);      // 책장
+sheetAt(TILE.SHELF,      7, 13, 1, 2);      // 책장
 sheetAt(TILE.INBOX,      7, 11);      // 결재 서류 뭉치
 // 시트에 대응물이 없어서 직접 그린 것
 furn(TILE.LITTER, F_BOX,     '#9AA3AD', '#C3CAD3', '#7D8894');
@@ -274,13 +284,16 @@ function furnStyle(tile){
   if (!def) return '';
   let css;
   if (def.col !== undefined){
-    const S = SHEET, step = (S.tile + S.margin) * S.scale, t = def.tall || 1;
-    // tall 가구는 위쪽 칸으로 넘겨 그린다. 차지하는 칸은 여전히 아래 한 칸.
+    const S = SHEET, step = (S.tile + S.margin) * S.scale;
+    const t = def.tall || 1, wd = def.wide || 1;
+    // tall은 위쪽 칸으로, wide는 오른쪽 칸으로 넘겨 그린다.
+    // 게임 로직이 차지하는 칸은 각각 아래 한 칸 / 왼쪽 한 칸이다.
     css = `background-image:url(${S.src});`
         + `background-size:${S.w * S.scale}px ${S.h * S.scale}px;`
         + `background-position:${-def.col * step}px ${-(def.row - t + 1) * step}px;`
         + `background-repeat:no-repeat;`
-        + (t > 1 ? `height:${t * S.tile * S.scale}px;margin-top:${-(t-1) * S.tile * S.scale}px;z-index:1;` : '');
+        + (t > 1 ? `height:${t * S.tile * S.scale}px;margin-top:${-(t-1) * S.tile * S.scale}px;` : '')
+        + (wd > 1 ? `width:${wd * S.tile * S.scale}px;` : '');
   } else {
     const cv = document.createElement('canvas');
     cv.width = FW * PXS; cv.height = FH * PXS;
@@ -288,6 +301,34 @@ function furnStyle(tile){
     css = `background-image:url(${cv.toDataURL()});background-size:${FW*PXS}px ${FH*PXS}px;`
         + `background-repeat:no-repeat`;
   }
+  _cache.set(key, css);
+  return css;
+}
+
+/* 책상 위 소품 — 책상 타일 위에 한 겹 더 얹는다. 좌표는 칸마다 고정(같은 자리는 늘 같은 물건). */
+function deskTopStyle(x, y){
+  const key = 'dt|' + x + ',' + y;
+  const hit = _cache.get(key);
+  if (hit) return hit;
+  const [c, r] = DESK_TOPS[(x * 7 + y * 13) % DESK_TOPS.length];
+  const S = SHEET, step = (S.tile + S.margin) * S.scale;
+  const css = `background-image:url(${S.src});`
+    + `background-size:${S.w * S.scale}px ${S.h * S.scale}px;`
+    + `background-position:${-c * step}px ${-r * step}px;background-repeat:no-repeat`;
+  _cache.set(key, css);
+  return css;
+}
+
+/* 책상 위 소품 — 책상 타일 위에 한 겹 더 얹는다. 좌표는 칸마다 고정(같은 자리는 늘 같은 물건). */
+function deskTopStyle(x, y){
+  const key = 'dt|' + x + ',' + y;
+  const hit = _cache.get(key);
+  if (hit) return hit;
+  const [c, r] = DESK_TOPS[(x * 7 + y * 13) % DESK_TOPS.length];
+  const S = SHEET, step = (S.tile + S.margin) * S.scale;
+  const css = `background-image:url(${S.src});`
+    + `background-size:${S.w * S.scale}px ${S.h * S.scale}px;`
+    + `background-position:${-c * step}px ${-r * step}px;background-repeat:no-repeat`;
   _cache.set(key, css);
   return css;
 }

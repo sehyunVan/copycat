@@ -9,7 +9,7 @@ const TILE = {
   BED:6, LITTER:7, COOLER:8, PLANT:9,
   COFFEE:10, COPIER:11, TOWER:12, SCRATCH:13, SERVER:14,
   FEEDER:15, MEETING:16, GYM:17, LAB:18, ROCKET:19, WHITEBOARD:20, LEGAL:21,
-  DECOR:22, SHELF:23,
+  DECOR:22, SHELF:23, FILLER:24, FILLER:24,
 };
 
 // 걸어 다닐 수 있는 타일
@@ -37,6 +37,8 @@ const TILE_INFO = {
   [TILE.LEGAL]:     { em:'⚖️', n:'법무팀 데스크', use:'legal' },
   [TILE.DECOR]:     { em:'🖼️', n:'사내 액자',   use:null     },
   [TILE.SHELF]:     { em:'🗄️', n:'문서 선반',   use:null     },
+  [TILE.FILLER]:    { em:'',   n:'',           use:null     },   // 여러 칸 가구가 차지하는 나머지 칸
+  [TILE.FILLER]:    { em:'',   n:'',           use:null     },   // 여러 칸 가구가 차지하는 나머지 칸
 };
 
 function mulberry32(a){
@@ -79,9 +81,7 @@ function genOffice(tier, owned, seed){
   for (let x = 0; x < W; x++){ set(x,0,TILE.WALL); set(x,H-1,TILE.WALL); }
   for (let y = 0; y < H; y++){ set(0,y,TILE.WALL); set(W-1,y,TILE.WALL); }
 
-  // 창문 (등급이 오를수록 많이)
-  const winStep = tier >= 4 ? 2 : tier >= 2 ? 3 : 4;
-  for (let x = 2; x < W-2; x += winStep) set(x, 0, TILE.WINDOW);
+  // 창문은 두지 않는다 — 이 타일셋에 맞는 창문 타일이 없어서 CSS로 그리면 혼자 겉돈다.
 
   // 출입문 + 결재함
   const doorX = Math.max(2, Math.min(W-3, Math.floor(W/2) + (rng()<.5?-1:1)));
@@ -234,12 +234,19 @@ function genOffice(tier, owned, seed){
      - 이미 놓인 시설의 진입로를 막아서도 안 된다 (안 그러면 서로를 가둔다)
      - 바닥 연결도 유지해야 한다 */
   function placeAmenity(x, y, t){
-    const prev = get(x, y);
+    const wide = (FURN_SPAN[t] || 1);              // 2칸짜리 가구는 오른쪽 칸까지 먹는다
+    if (wide > 1 && get(x+1, y) !== TILE.FLOOR) return false;
+    const prev = get(x, y), prevR = wide > 1 ? get(x+1, y) : null;
     set(x, y, t);
+    if (wide > 1) set(x+1, y, TILE.FILLER);
     const ok = freeAround({x,y}) > 0
             && placed.every(p => freeAround(p) > 0)
             && keepsConnected();
-    if (!ok){ set(x, y, prev); return false; }
+    if (!ok){
+      set(x, y, prev);
+      if (wide > 1) set(x+1, y, prevR);
+      return false;
+    }
     placed.push({ x, y });
     return true;
   }

@@ -115,14 +115,20 @@ function renderTiles(){
       const t = tileAt(w, x, y);
       const st = `left:${x*TS}px;top:${y*TS}px`;
       const floorCss = roomStyle(w.zone && w.zone[y*w.W + x] ? 'floor2' : 'floor');
+      // 가구도 액터와 같은 축으로 깊이를 매긴다. 안 그러면 2칸짜리 가구의
+      // 윗부분을 고양이가 뚫고 지나가는 것처럼 보인다.
+      const z = 10 + y * 4 - 2;
       if (t === TILE.WALL)        html += `<div class="t wall" style="${st};${roomStyle(y === 0 ? 'wallTop' : 'wall')}"></div>`;
-      else if (t === TILE.WINDOW) html += `<div class="t window" style="${st}"></div>`;
       else if (t === TILE.DOOR)   html += `<div class="t door" style="${st}"></div>`;
       else if (t === TILE.FLOOR)  html += `<div class="t floor" style="${st};${floorCss}"></div>`;
+      else if (t === TILE.FILLER) html += `<div class="t floor" style="${st};${floorCss}"></div>`;
       else {
         const inf = TILE_INFO[t] || { n:'' };
-        html += `<div class="t floor obj" style="${st};${floorCss}"></div>`
-             +  `<div class="t obj" style="${st};${furnStyle(t)}" title="${inf.n}"></div>`;
+        html += `<div class="t floor" style="${st};${floorCss}"></div>`
+             +  `<div class="t obj" style="${st};z-index:${z};${furnStyle(t)}" title="${inf.n}"></div>`;
+        // 책상에는 모니터·서류를 한 겹 더 얹는다
+        if (t === TILE.DESK)
+          html += `<div class="t obj" style="left:${x*TS}px;top:${(y-1)*TS}px;z-index:${z+1};${deskTopStyle(x,y)}"></div>`;
       }
     }
   }

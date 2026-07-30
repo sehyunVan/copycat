@@ -125,7 +125,6 @@ input{font-family:inherit}
 .t.floor{background:#C9CBD4;image-rendering:pixelated}
 .t.wall{background:#6B6F7E;image-rendering:pixelated}
 .t.door{background:#5E4531;box-shadow:inset 0 0 0 4px #7A5C41, inset 0 0 0 7px #4A3627}
-.t.window{background:#8FC4E8;box-shadow:inset 0 0 0 4px #8A6F55, inset -3px -3px 0 rgba(255,255,255,.35)}
 .t.obj{image-rendering:pixelated}
 #night{position:absolute;left:0;top:0;pointer-events:none;transition:background 1.6s}
 #floaties{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:60}
