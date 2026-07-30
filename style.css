@@ -131,11 +131,15 @@ input{font-family:inherit}
 #floaties{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:60}
 
 .actor{position:absolute;width:var(--ts);height:var(--ts);left:0;top:0;will-change:transform;cursor:pointer}
-.actor .sp{position:absolute;left:50%;bottom:3px;width:28px;height:26px;margin-left:-14px;
-  image-rendering:pixelated;background-repeat:no-repeat;background-size:56px 26px;
-  animation:spr .9s steps(2) infinite}
-.actor .sp.fast{animation-duration:.34s}
-@keyframes spr{from{background-position-x:0}to{background-position-x:-56px}}
+.actor .sp{position:absolute;left:50%;bottom:3px;width:32px;height:32px;margin-left:-16px;
+  image-rendering:pixelated;background-repeat:no-repeat}
+/* 프레임 전환. 시트 한 칸 = 32px, 가로로만 훑는다(세로 위치는 인라인 스타일). */
+.actor .sp.an3{animation:cat3 .85s steps(3) infinite}
+.actor .sp.an2-c1{animation:cat2c1 1.1s steps(2) infinite}
+.actor .sp.fast{animation-duration:.42s}
+@keyframes cat3{from{background-position-x:0}to{background-position-x:-96px}}
+@keyframes cat2c1{from{background-position-x:-32px}to{background-position-x:-96px}}
+.catpix{image-rendering:pixelated}
 .actor .badge{position:absolute;left:50%;top:-8px;transform:translateX(-50%);font-size:13px;
   filter:drop-shadow(0 1px 1px rgba(0,0,0,.4))}
 .actor .tagname{position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);font-size:9px;

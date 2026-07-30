@@ -10,15 +10,15 @@ const NAMES = ['치즈','나비','까망','두부','모카','호두','참치','�
   '감자','콩이','루비','코코','바닐라','쿠키','젤리','반달','구름','초코','밤톨','수리','포도','시루','만두','댕구',
   '유자','팥죽','호박','땅콩','마요','깨비','흑임자','라떼','참깨','도토리'];
 
+/* 시트 색상 4종. 검정은 화면에서 존재감이 커서 덜 나오게 가중치를 준다. */
 const FURS = [
-  { b:'#F5CE95', d:'#E0AE6C', e:'#FFC4C9' },
-  { b:'#FFFDF6', d:'#EFE3D0', e:'#FFC4C9' },
-  { b:'#5F5A57', d:'#494441', e:'#D89AA0' },
-  { b:'#C9C3BB', d:'#ABA49B', e:'#FFC4C9' },
-  { b:'#E3A96B', d:'#C98A4B', e:'#FFC4C9' },
-  { b:'#8D6E5A', d:'#715746', e:'#E7A9AE' },
-  { b:'#FFE3B0', d:'#F0C98A', e:'#FFC4C9' },
+  { n:'검정' }, { n:'갈색' }, { n:'치즈' }, { n:'백묘' },
 ];
+const FUR_POOL = [0, 1, 1, 1, 2, 2, 2, 3, 3];
+/* 4색만으로는 20마리를 구분 못 하므로 CSS 색조 회전을 곁들인다.
+   크게 돌리면 초록·분홍 고양이가 나오니 고양이로 읽히는 범위만 쓴다.
+   190도는 회청색(러시안블루처럼)이 된다. 검정·백묘는 채도가 낮아 거의 안 변한다. */
+const HUES = [0, 0, 0, 18, -18, 30, -28, 190];
 
 /* D&D식 6능력치. 이름만 사무직으로 갈아끼웠다. */
 const STAT_KEYS = ['str','dex','con','int','wis','cha'];
@@ -108,7 +108,8 @@ function newCat(seedName){
   return {
     id: 'c' + Math.random().toString(36).slice(2, 9),
     name: seedName || uniqueName(),
-    fur: Math.floor(Math.random()*FURS.length),
+    fur: FUR_POOL[Math.floor(Math.random()*FUR_POOL.length)],
+    hue: HUES[Math.floor(Math.random()*HUES.length)],
     acc: ACCS[Math.floor(Math.random()*ACCS.length)],
     trait: t.id,
     rank: 0,

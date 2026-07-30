@@ -156,6 +156,7 @@ const BADGE = { coffee:'☕', litter:'🚽', social:'💬', sleep:'💤', stamp:
 function animState(c){
   if (c.act.s === 'walk') return 'walk';
   if (c.act.s === 'sleep') return 'sleep';
+  if (c.act.s === 'work' || c.act.s === 'stamp') return 'sit';   // 책상 앞에서는 앉는다
   return 'idle';
 }
 
@@ -179,8 +180,8 @@ function syncActors(){
     const st = animState(c);
     const sig = catKey(c, st);
     if (a.sig !== sig){
-      a.sp.style.backgroundImage = `url(${catSheet(c, st)})`;
-      a.sp.classList.toggle('fast', st === 'walk');
+      a.sp.style.cssText = catStyle(c, st);
+      a.sp.className = 'sp ' + catAnimClass(st);
       a.sig = sig;
     }
     a.el.style.transform = `translate(${(c.x * TS).toFixed(1)}px, ${(c.y * TS).toFixed(1)}px)`;
@@ -291,8 +292,12 @@ function renderRight(){
 }
 
 function portrait(c, size){
-  return `<span class="pix" style="width:${size}px;height:${Math.round(size*SH/SW)}px;
-    background-image:url(${catPortrait(c)})"></span>`;
+  // 시트에서 앉은 프레임 하나를 잘라 쓴다. 배경 크기가 시트 전체 기준이라 배율을 맞춰준다.
+  const k = size / (CAT_SHEET.tile * CAT_SHEET.scale);
+  return `<span class="pix catpix" style="width:${size}px;height:${size}px;
+    ${catPortraitStyle(c)};background-size:${CAT_SHEET.cols*CAT_SHEET.tile*CAT_SHEET.scale*k}px `
+    + `${CAT_SHEET.rows*CAT_SHEET.tile*CAT_SHEET.scale*k}px;`
+    + `background-position:${-CAT_SHEET.tile*CAT_SHEET.scale*k}px ${-CAT_SHEET.tile*CAT_SHEET.scale*k}px"></span>`;
 }
 function needBars(c){
   const hc = !!(W && W.facilities.coffee);
@@ -426,7 +431,7 @@ function showCat(id){
         </div>
       </div>
       <div class="statgrid">${STAT_KEYS.map(statCell).join('')}</div>
-      <div class="tiny">입사 시 4d6 중 최저값 1개를 버려 굴린 값입니다. 장비로 보정할 수 있습니다.</div>
+      <div class="tiny">입사 시 4d6 중 최저값 1개를 버려 굴린 값입니다. 장비는 능력치에만 반영되고 겉모습은 안 바뀝니다.</div>
       <div class="slotrow">${SLOTS.map(slotHTML).join('')}</div>
       <div id="bagList"></div>
     </div>
