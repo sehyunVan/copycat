@@ -114,9 +114,8 @@ function renderTiles(){
     for (let x = 0; x < w.W; x++){
       const t = tileAt(w, x, y);
       const st = `left:${x*TS}px;top:${y*TS}px`;
-      const alt = (x + y) % 2 ? ' alt' : '';
-      const floorCss = roomStyle(alt ? 'floor2' : 'floor');
-      if (t === TILE.WALL)        html += `<div class="t wall" style="${st};${roomStyle('wall')}"></div>`;
+      const floorCss = roomStyle(w.zone && w.zone[y*w.W + x] ? 'floor2' : 'floor');
+      if (t === TILE.WALL)        html += `<div class="t wall" style="${st};${roomStyle(y === 0 ? 'wallTop' : 'wall')}"></div>`;
       else if (t === TILE.WINDOW) html += `<div class="t window" style="${st}"></div>`;
       else if (t === TILE.DOOR)   html += `<div class="t door" style="${st}"></div>`;
       else if (t === TILE.FLOOR)  html += `<div class="t floor" style="${st};${floorCss}"></div>`;
@@ -527,11 +526,12 @@ function showRaidEnd(d){
 function showHelp(){
   modal(`
     <div class="mhead"><div class="q">INTERNAL — DO NOT DISTRIBUTE</div><h3>Copycat 영업 지침</h3>
-      <p>우리는 남의 것을 아주 잘 베낍니다. 그게 사업입니다</p></div>
+      <p>서류상으로는 허브 유통업입니다</p></div>
     <div class="mbody helpwrap">
       <p style="background:#FFF6F7;border:2px solid #F0BCC4;padding:9px;line-height:1.7;margin-bottom:11px">
-         <b>회사 소개</b> — Copycat은 <b>짝퉁을 찍어내는 회사</b>입니다. 명품 가방도, 참치캔도, 남의 도안도
-         아주 잘 베낍니다. 그래서 이름이 Copycat이고, 그래서 <b>냥찰이 우리를 찾아옵니다.</b></p>
+         <b>회사 소개</b> — Copycat은 서류상 <b>허브 유통업체</b>입니다. 실제로는
+         <b>캣닢을 재배하고 정제해서 파는 회사</b>입니다. 3급을 1급 봉지에 담는 것도 우리 일입니다.
+         그래서 <b>냥찰이 우리를 찾아옵니다.</b></p>
       <p><b>1. 결재함</b> — 할 일을 올리고 완료 체크를 하면 <b>서류가 사무실 결재함에 실제로 떨어집니다</b>.
          가까운 고양이가 걸어와 물고 가서, 자기 자리에서 도장을 찍어야 보상이 들어옵니다.</p>
       <p><b>2. 고양이는 에이전트입니다</b> — 기력·재미·화장실·카페인 욕구가 있고, 스스로 커피머신·낮잠상자·정수기를 찾아갑니다.

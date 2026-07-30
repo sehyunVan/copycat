@@ -191,7 +191,7 @@ function boot(){
   renderAll();
 
   if (isNew){
-    pushLog('뒷골목 종이상자에서 <b>Copycat</b>을 차렸습니다. 직원은 치즈 하나, 사업은 짝퉁.', 'big');
+    pushLog('뒷골목 종이상자에서 <b>Copycat</b>을 차렸습니다. 직원은 치즈 하나, 품목은 캣닢.', 'big');
     setTimeout(showHelp, 450);
   } else {
     pushLog('출근했습니다. 고양이들이 기지개를 켭니다.', '');

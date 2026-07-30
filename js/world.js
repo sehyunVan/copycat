@@ -27,11 +27,11 @@ const TILE_INFO = {
   [TILE.COPIER]:    { em:'🖨️', n:'복사기',  use:'work'   },
   [TILE.TOWER]:     { em:'🗼', n:'캣타워',   use:'sleep'  },
   [TILE.SCRATCH]:   { em:'🪵', n:'스크래처', use:'social' },
-  [TILE.SERVER]:    { em:'🖥️', n:'서버룸',  use:'sleep'  },
+  [TILE.SERVER]:    { em:'🖥️', n:'건조실',  use:'sleep'  },
   [TILE.FEEDER]:    { em:'🍚', n:'자동급식기',use:'coffee' },
   [TILE.MEETING]:   { em:'🪑', n:'회의 테이블',use:'social'},
   [TILE.GYM]:       { em:'🏋️', n:'헬스장',  use:'social' },
-  [TILE.LAB]:       { em:'🔬', n:'냥연구소', use:'work'   },
+  [TILE.LAB]:       { em:'🔬', n:'정제실',   use:'work'   },
   [TILE.ROCKET]:    { em:'🚀', n:'사내 로켓', use:'social' },
   [TILE.WHITEBOARD]:{ em:'📋', n:'화이트보드',use:null     },
   [TILE.LEGAL]:     { em:'⚖️', n:'법무팀 데스크', use:'legal' },
@@ -49,14 +49,16 @@ function mulberry32(a){
 }
 
 /* ---------- 사무실 등급 ---------- */
+/* 방 비율은 정사각형에 가깝게 둔다. 타일셋 제작자의 예시 배치가 26x24, 32x34였고,
+   가로로 길쭉하면 가로가 먼저 꽉 차서 세로에 검은 여백만 남는다. */
 const TIERS = [
-  { name:'골목 종이상자 지점', w:13, h:9,  desks:2,  flavor:'비가 오면 젖는다. 그래도 사무실이다.' },
-  { name:'반지하 원룸 오피스', w:16, h:10, desks:4,  flavor:'창문이 발목 높이에 있다.' },
-  { name:'상가 2층 사무실',    w:19, h:11, desks:6,  flavor:'아래층 붕어빵 냄새가 올라온다.' },
-  { name:'냥코 소형 빌딩',     w:22, h:12, desks:9,  flavor:'드디어 엘리베이터가 생겼다.' },
-  { name:'냥코퍼레이션 사옥',  w:25, h:13, desks:12, flavor:'로비에 대형 캣타워가 서 있다.' },
-  { name:'냥타워',            w:28, h:14, desks:16, flavor:'야경이 보인다. 야근도 보인다.' },
-  { name:'달 지사 (Moon Br.)', w:31, h:15, desks:20, flavor:'중력이 약해서 다들 잘 뛴다.' },
+  { name:'골목 종이상자 지점', w:12, h:10, desks:2,  flavor:'비가 오면 젖는다. 그래도 사무실이다.' },
+  { name:'반지하 원룸 오피스', w:14, h:12, desks:4,  flavor:'창문이 발목 높이에 있다.' },
+  { name:'상가 2층 사무실',    w:16, h:14, desks:6,  flavor:'아래층 붕어빵 냄새가 올라온다.' },
+  { name:'냥코 소형 빌딩',     w:18, h:16, desks:9,  flavor:'드디어 엘리베이터가 생겼다.' },
+  { name:'냥코퍼레이션 사옥',  w:21, h:18, desks:12, flavor:'로비에 대형 캣타워가 서 있다.' },
+  { name:'냥타워',            w:23, h:20, desks:16, flavor:'야경이 보인다. 야근도 보인다.' },
+  { name:'달 지사 (Moon Br.)', w:26, h:22, desks:20, flavor:'중력이 약해서 다들 잘 뛴다.' },
 ];
 const TIER_AT_QUARTER = [1, 3, 6, 10, 15, 21, 28];
 const tierForQuarter = q => {
@@ -110,6 +112,37 @@ function genOffice(tier, owned, seed){
 
   set(inbox.x, inbox.y, TILE.INBOX);   // 결재함은 문 옆 고정 (통로를 막지 않는 위치)
 
+  /* --- 휴게실: 한쪽 구석을 칸막이로 나눈다 ---
+     타일셋 제작자의 예시 배치가 한 덩어리 방이 아니라 구역이 나뉜 사무실이라
+     그 구조를 따라간다. 바닥재도 구역마다 다르게 깐다. */
+  const zone = new Uint8Array(W * H);          // 0 = 본 사무실, 1 = 휴게실
+  const brW = Math.max(3, Math.min(6, Math.floor(W * 0.34)));
+  const brH = Math.max(3, Math.min(5, Math.floor(H * 0.30)));
+  const bx1 = brW, by0 = H - 1 - brH;          // 좌하단 구석
+  let hasBreak = false;
+  if (W >= 11 && H >= 10 && by0 > 3 && Math.abs(doorX - bx1) > 1){
+    const before = g.slice();
+    for (let y = by0; y <= H-2; y++) set(bx1, y, TILE.WALL);      // 세로 칸막이
+    for (let x = 1; x <= bx1; x++)   set(x, by0, TILE.WALL);      // 가로 칸막이
+    const doorY = by0 + 1 + Math.floor(rng() * Math.max(1, brH - 1));
+    set(bx1, Math.min(H-2, doorY), TILE.FLOOR);                   // 출입구
+    if (keepsConnectedAfterPartition()){
+      hasBreak = true;
+      for (let y = by0+1; y <= H-2; y++)
+        for (let x = 1; x < bx1; x++) zone[y*W + x] = 1;
+    } else {
+      g.set(before);                                              // 막히면 통째로 취소
+    }
+  }
+  function keepsConnectedAfterPartition(){
+    if (!walkable(probe, entry.x, entry.y)) return false;
+    const reach = floodFrom(probe, entry);
+    for (let y = 1; y < H-1; y++)
+      for (let x = 1; x < W-1; x++)
+        if (walkable(probe, x, y) && !reach.has(y*W + x)) return false;
+    return true;
+  }
+
   /* --- 책상 배치: 2칸짜리 팀 섬(pod)을 여러 행에 고르게 --- */
   const desks = [];
   const rowYs = [];
@@ -117,6 +150,7 @@ function genOffice(tier, owned, seed){
 
   const canDesk = (x, y) =>
     get(x, y) === TILE.FLOOR && get(x, y+1) === TILE.FLOOR &&
+    !zone[y*W + x] && !zone[(y+1)*W + x] &&           // 휴게실에는 책상을 두지 않는다
     !(x === inbox.x && Math.abs(y - inbox.y) < 2);
   const putDesk = (x, y) => {
     if (!tryPlace(x, y, TILE.DESK)) return false;
@@ -171,6 +205,16 @@ function genOffice(tier, owned, seed){
   for (let y = 2; y <= H-2; y += 2) left.push({x:1, y});
   for (let x = 2; x <= W-3; x += 3) top.push({x, y:1});
   const spots = [];
+  // 커피·급식기·정수기는 휴게실 안으로 (예시 배치의 탕비실 구조).
+  // 단 벽에 붙은 칸만 쓴다 — 방 한가운데를 채우면 서로의 진입로를 막는다.
+  if (hasBreak){
+    for (let y = by0+1; y <= H-2; y++)
+      for (let x = 1; x < bx1; x++){
+        if (get(x, y) !== TILE.FLOOR) continue;
+        const onEdge = (x === 1 || y === H-2 || x === bx1-1 || y === by0+1);
+        if (onEdge) spots.push({ x, y });
+      }
+  }
   for (let i = 0; i < Math.max(right.length, left.length, top.length); i++){
     if (right[i]) spots.push(right[i]);
     if (left[i])  spots.push(left[i]);
@@ -181,22 +225,39 @@ function genOffice(tier, owned, seed){
   for (let x = 2; x <= W-3; x++) spots.push({x, y:1});
 
   const facilities = {};
+  const placed = [];
+  const freeAround = p => [[1,0],[-1,0],[0,1],[0,-1]]
+    .filter(([dx,dy]) => get(p.x+dx, p.y+dy) === TILE.FLOOR).length;
+
+  /* 시설 배치 규칙
+     - 진입로가 최소 하나는 남아야 한다
+     - 이미 놓인 시설의 진입로를 막아서도 안 된다 (안 그러면 서로를 가둔다)
+     - 바닥 연결도 유지해야 한다 */
+  function placeAmenity(x, y, t){
+    const prev = get(x, y);
+    set(x, y, t);
+    const ok = freeAround({x,y}) > 0
+            && placed.every(p => freeAround(p) > 0)
+            && keepsConnected();
+    if (!ok){ set(x, y, prev); return false; }
+    placed.push({ x, y });
+    return true;
+  }
+
   let si = 0;
   for (const t of wanted){
     while (si < spots.length){
       const s = spots[si++];
       if (get(s.x, s.y) !== TILE.FLOOR) continue;
-      // 최소한 한 쪽은 비어 있어야 접근 가능
-      const free = [[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy]) => get(s.x+dx, s.y+dy) === TILE.FLOOR);
-      if (!free) continue;
-      if (!tryPlace(s.x, s.y, t)) continue;
+      if (freeAround(s) < 2) continue;              // 놓고 나서도 길이 남아야 한다
+      if (!placeAmenity(s.x, s.y, t)) continue;
       const use = TILE_INFO[t] && TILE_INFO[t].use;
       if (use){ (facilities[use] = facilities[use] || []).push({x:s.x, y:s.y}); }
       break;
     }
   }
 
-  const world = { W, H, grid:g, tier, desks, facilities, inbox, door:{x:doorX, y:H-1}, seed };
+  const world = { W, H, grid:g, zone, tier, desks, facilities, inbox, door:{x:doorX, y:H-1}, seed };
 
   /* --- 연결성 검사: 문에서 못 가는 자리는 버린다 --- */
   const reach = floodFrom(world, { x:doorX, y:H-2 });
