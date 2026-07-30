@@ -270,6 +270,15 @@ function legalDrag(){ return Math.max(0.40, 1 - 0.06 * (S.penalty || 0)); }
    "가만히 있으면 손해"를 시스템으로 만든 장치.
    ============================================================ */
 const RIVAL_MAX = 0.60;
+/* 분기 결산에 붙는 멍멍파 근황 — 점유율이 오를수록 노골적으로 */
+const RIVAL_NEWS = [
+  '멍멍파는 아직 우리 구역 밖에 있습니다.',
+  '멍멍파가 옆 골목에 개껌 노점을 냈습니다.',
+  '우리 단골 몇이 개껌으로 갈아탔다는 보고가 있습니다.',
+  '멍멍파 영업책이 우리 거래처에 명함을 돌리고 있습니다.',
+  '거래처 절반이 개껌을 같이 받고 있습니다. 곧 우리를 뺄 겁니다.',
+];
+const rivalNews = () => RIVAL_NEWS[Math.min(RIVAL_NEWS.length-1, Math.floor((S.rival||0) / 0.13))];
 /* 분기당 이 정도는 처리해야 본전 — 사무실이 클수록 기대치도 오른다 */
 const rivalPar = () => 3 + S.tier * 2;
 function rivalDrag(){ return 1 - Math.min(RIVAL_MAX, S.rival || 0); }
@@ -419,6 +428,8 @@ function closeQuarter(){
 
   // 경쟁사 정산 — 이번 분기에 얼마나 굴렸는지로 점유율이 오간다
   const rival = rivalShift(done);
+  // 점유율이 높으면 끄나풀이 문 앞을 기웃거린다
+  if (S.rival >= 0.25) setTimeout(sendRival, 1800);
   if (rival.delta > 0)
     pushLog(`분기 처리량이 par(${rival.par})에 못 미쳤습니다. <b>멍멍파</b>가 거래처를 가져갔습니다. `
       + `점유율 ${Math.round(rival.before*100)}% → ${Math.round(rival.after*100)}%`, 'bad');
@@ -442,7 +453,7 @@ function closeQuarter(){
 
   bus.emit('quarter:closed', {
     q, earned, done, evText, evGain, evHire, evDrop, moved, oldTier, bonus,
-    legal, back, raiding, penalty:S.penalty, rival,
+    legal, back, raiding, penalty:S.penalty, rival, rivalNews: rivalNews(),
   });
   save();
 }

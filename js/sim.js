@@ -238,7 +238,7 @@ const POLICE = [
   { name:'도 경찰', fur:0 },
   { name:'김 경찰', fur:1 },
 ];
-const NPC_NAMES = { legal: ['법무 정', '법무 윤', '법무 한'] };
+const NPC_NAMES = { legal: ['법무 정', '법무 윤', '법무 한'], rival: ['멍멍파 끄나풀'] };
 
 function spawnNpc(kind, count){
   const made = [];
@@ -250,7 +250,8 @@ function spawnNpc(kind, count){
     n.hue = 0;
     n.acc = kind === 'police' ? 'none' : 'tie';
     n.equip = kind === 'police' ? { head:'cap', neck:null, paw:null }
-                                : { head:'glasses', neck:null, paw:null };
+            : kind === 'rival' ? { head:null, neck:null, paw:null }
+                               : { head:'glasses', neck:null, paw:null };
     n.rank = 0;
     n.x = W.door.x; n.y = W.H - 1;
     n.job = { stage:'enter', t:0 };
@@ -263,6 +264,15 @@ function spawnNpc(kind, count){
 }
 
 function npcTarget(n){
+  if (n.npc === 'rival'){
+    // 문 근처만 어슬렁거린다. 안까지는 안 들어온다.
+    for (let i = 0; i < 12; i++){
+      const x = W.door.x + Math.floor(rngi(5)) - 2;
+      const y = W.H - 2 - Math.floor(rngi(2));
+      if (walkable(W, x, y)) return { x, y };
+    }
+    return null;
+  }
   if (n.npc === 'legal'){
     const desk = (W.facilities.legal && W.facilities.legal[0]) || W.inbox;
     const spots = adjacentFree(W, desk);
@@ -277,6 +287,8 @@ function npcTarget(n){
   return null;
 }
 
+const rngi = n => Math.floor(Math.random() * n);
+
 function npcStep(n, dt){
   const j = n.job;
   j.t += dt;
@@ -289,7 +301,7 @@ function npcStep(n, dt){
     return;
   }
   if (j.stage === 'work'){
-    const dur = n.npc === 'police' ? 8 : 7;
+    const dur = n.npc === 'police' ? 8 : n.npc === 'rival' ? 5 : 7;
     if (Math.random() < dt * 0.10) chat(n, n.npc);
     if (j.t > dur){
       if (n.npc === 'police' && RAID){        // 계속 다른 자리를 뒤진다
@@ -318,6 +330,12 @@ function startRaid(){
   spawnNpc('police', POLICE.length);
   bus.emit('raid:start');
 }
+/* 멍멍파가 점유율을 챙기러 문 앞을 기웃거린다 */
+function sendRival(){
+  if (NPCS.some(n => n.npc === 'rival')) return;
+  spawnNpc('rival', 1);
+}
+
 function sendLegal(){
   if (NPCS.some(n => n.npc === 'legal')) return;
   spawnNpc('legal', 1);

@@ -193,10 +193,15 @@ function syncActors(){
       actors.set(c.id, a);
     }
     const st = animState(c);
-    const sig = catKey(c, st);
+    const sig = (c.npc === 'rival' ? 'dog|' : '') + catKey(c, st);
     if (a.sig !== sig){
-      a.sp.style.cssText = catStyle(c, st);
-      a.sp.className = 'sp ' + catAnimClass(st);
+      if (c.npc === 'rival'){                 // 멍멍파는 개다
+        a.sp.style.cssText = dogStyle();
+        a.sp.className = 'sp an2dog';
+      } else {
+        a.sp.style.cssText = catStyle(c, st);
+        a.sp.className = 'sp ' + catAnimClass(st);
+      }
       a.sig = sig;
     }
     a.el.style.transform = `translate(${(c.x * TS).toFixed(1)}px, ${(c.y * TS).toFixed(1)}px)`;
@@ -204,7 +209,8 @@ function syncActors(){
     a.el.classList.toggle('sel', selCat === c.id);
 
     let badge = '';
-    if (c.npc === 'police') badge = '🚨';
+    if (c.npc === 'rival') badge = '🦴';
+    else if (c.npc === 'police') badge = '🚨';
     else if (c.npc === 'legal') badge = '💼';
     else if (c.doc) badge = '📄';
     else if (c.act.s === 'stamp') badge = BADGE.stamp;
@@ -494,6 +500,7 @@ function showQuarter(d){
       ${d.rival ? `<div class="rrow"><span>멍멍파 점유율</span><b class="${d.rival.delta>0?'bad':'good'}">
         ${Math.round(d.rival.before*100)}% → ${Math.round(d.rival.after*100)}%
         (처리 ${d.done}/${d.rival.par}건)</b></div>` : ''}
+      ${d.rivalNews ? `<div class="rivalbox"><span class="lbl">멍멍파 근황</span>${d.rivalNews}</div>` : ''}
       ${d.evGain?`<div class="rrow"><span>특별 손익</span><b class="${d.evGain>0?'good':'bad'}">${d.evGain>0?'+':'-'}🐟 ${fmt(Math.abs(d.evGain))}</b></div>`:''}
       ${d.legal?`<div class="rrow"><span>뒷수습 비용</span><b class="bad">-🐟 ${fmt(d.legal.fee)}</b></div>`:''}
 

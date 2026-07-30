@@ -241,6 +241,31 @@ function genOffice(tier, owned, seed){
   // 덩치 큰 물건은 벽에 붙여야 한다. 통로 한가운데 선 자판기는 사무실로 안 보인다.
   const wallOnly = breakSpots.concat(wallSpots);
 
+  /* 분류별 선호 구역. 같은 종류끼리 모여야 사무실로 읽힌다.
+     설비(서버·복합기 등)는 한쪽 벽면을 통째로 골라 거기에만 세운다. */
+  /* 어느 벽에 붙어 있는지. 위치만 보면 휴게실 칸막이에 붙은 안쪽 칸까지
+     바깥벽으로 분류돼서 설비가 방 한가운데 늘어선다. 실제로 닿은 벽을 본다. */
+  const side = p => {
+    if (p.y <= 2   && get(p.x, p.y-1) === TILE.WALL) return 'top';
+    if (p.x <= 2   && get(p.x-1, p.y) === TILE.WALL) return 'left';
+    if (p.x >= W-3 && get(p.x+1, p.y) === TILE.WALL) return 'right';
+    if (p.y >= H-3 && get(p.x, p.y+1) === TILE.WALL) return 'bottom';
+    return 'inner';
+  };
+  const machineSide = rng() < 0.5 ? 'left' : 'right';
+  const bySide = which => wallSpots.filter(p => side(p) === which)
+    .sort((a, b) => (a.y - b.y) || (a.x - b.x));
+  const other = machineSide === 'left' ? 'right' : 'left';
+  const machineSpots = bySide(machineSide).concat(bySide(other), bySide('top'));
+  const spotsFor = t => {
+    const c = (typeof FURN_CAT !== 'undefined') ? FURN_CAT[t] : null;
+    if (c === 'break') return breakSpots.concat(wallOnly);
+    if (c === 'rest')  return breakSpots.concat(wallOnly);
+    if (c === 'machine') return machineSpots.concat(wallOnly);
+    if (c === 'meet')  return innerSpots.concat(spots);
+    return (typeof FURN_BIG !== 'undefined' && FURN_BIG[t]) ? wallOnly : spots;
+  };
+
   const facilities = {};
   const placed = [];
   const freeAround = p => [[1,0],[-1,0],[0,1],[0,-1]]
@@ -274,13 +299,15 @@ function genOffice(tier, owned, seed){
   /* 두 번 훑는다. 1차는 서로 한 칸씩 띄우고, 못 놓은 건 2차에서 그 조건을 푼다. */
   for (const t of wanted){
     let done = false;
-    const list = (typeof FURN_BIG !== 'undefined' && FURN_BIG[t]) ? wallOnly : spots;
+    const list = spotsFor(t);
     for (const pass of [0, 1]){
       if (done) break;
       for (const sp of list){
         if (get(sp.x, sp.y) !== TILE.FLOOR) continue;
         if (freeAround(sp) < 2) continue;
-        if (pass === 0 && crowded(sp)) continue;
+        // 설비는 벽을 따라 줄지어 서는 게 맞다. 간격 규칙에서 뺀다.
+        const spaced = !(typeof FURN_CAT !== 'undefined' && FURN_CAT[t] === 'machine');
+        if (pass === 0 && spaced && crowded(sp)) continue;
         if (!placeAmenity(sp.x, sp.y, t)) continue;
         const use = TILE_INFO[t] && TILE_INFO[t].use;
         if (use){ (facilities[use] = facilities[use] || []).push({x:sp.x, y:sp.y}); }

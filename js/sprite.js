@@ -217,6 +217,11 @@ const FURN_SPAN = {};
    world.js가 이 표를 보고 벽 쪽에만 놓는다. */
 const FURN_BIG = {};
 
+/* 가구 분류. 아무 데나 흩뿌리면 사무실이 아니라 창고로 보인다.
+   같은 종류끼리 모여야 "저기가 탕비실, 저기가 설비 쪽"으로 읽힌다. */
+const FURN_CAT = {};
+const cat = (tile, c) => { FURN_CAT[tile] = c; };
+
 /* 책상 위에 얹는 소품. 빈 나무판만 있으면 사무실로 안 보인다. */
 const DESK_TOPS = [[8,44], [9,44], [10,9], [11,9], [13,12], [3,12]];
 
@@ -248,6 +253,15 @@ sheetAt(TILE.WHITEBOARD,  9, 13, 2, 2);  // 차트 화이트보드 (2x2)
 sheetAt(TILE.DECOR,       5, 12, 1, 1);  // 액자 (1x1)
 sheetAt(TILE.SHELF,       7, 14, 3, 2);  // 책장 (2x3)
 sheetAt(TILE.INBOX,       7, 11, 2, 1);  // 결재 서류 뭉치 (1x2)
+/* 분류 — break: 탕비실 / rest: 휴식 / machine: 설비 / meet: 회의 / decor: 장식 */
+cat(TILE.COFFEE,'break');  cat(TILE.FEEDER,'break');  cat(TILE.COOLER,'break');
+cat(TILE.BED,'rest');      cat(TILE.TOWER,'rest');    cat(TILE.LITTER,'rest');
+cat(TILE.SCRATCH,'rest');
+cat(TILE.SERVER,'machine');cat(TILE.LAB,'machine');   cat(TILE.COPIER,'machine');
+cat(TILE.GYM,'machine');   cat(TILE.ROCKET,'machine');
+cat(TILE.MEETING,'meet');  cat(TILE.LEGAL,'meet');
+cat(TILE.PLANT,'decor');   cat(TILE.SHELF,'decor');   cat(TILE.INBOX,'meet');
+
 // 시트에 대응물이 없어서 직접 그린 것
 furn(TILE.LITTER, F_BOX,     '#9AA3AD', '#C3CAD3', '#7D8894');
 furn(TILE.ROCKET, F_MACHINE, '#E4E9EE', '#FFFFFF', '#E2705C');
@@ -335,6 +349,45 @@ function deskTopStyle(x, y){
     + `background-size:${S.w * S.scale}px ${S.h * S.scale}px;`
     + `background-position:${-c * step}px ${-r * step}px;background-repeat:no-repeat`;
   _cache.set(key, css);
+  return css;
+}
+
+/* ---------- 멍멍파 ----------
+   경쟁사는 강아지 조직이다. 산 타일셋에 개가 없어서 직접 그린다.
+   고양이와 같은 16x16 격자, 2프레임. */
+const DOG_A = [
+  '................',
+  '.oo..........oo.',
+  'obbo........obbo',
+  'obbbo......obbbo',
+  'obbbboooooobbbbo',
+  '.obbbbbbbbbbbbo.',
+  '.obbbbbbbbbbbbo.',
+  '.obbweebbweebbo.',
+  '.obbeeebbeeebbo.',
+  '..obbbbbbbbbbo..',
+  '...obbmmmmbbo...',
+  '...obmmnnmmbo...',
+  '....obmmmmbo....',
+  '..oobbbbbbbboo..',
+  '..obbbbbbbbbbo..',
+  '..oo.oo..oo.oo..',
+];
+const DOG_B = ['................'].concat(DOG_A.slice(0, 15));
+const DOG_PAL = { o:'#3A2E28', b:'#B98A5E', m:'#E8D3B0', n:'#3A2E28', w:'#FFFFFF', e:'#3A2E28' };
+
+function dogStyle(){
+  const hit = _cache.get('dog');
+  if (hit) return hit;
+  const px = 16 * PXS;
+  const cv = document.createElement('canvas');
+  cv.width = px * 2; cv.height = px;
+  const g = cv.getContext('2d');
+  drawMap(g, DOG_A, DOG_PAL, 0, 0, PXS);
+  drawMap(g, DOG_B, DOG_PAL, px, 0, PXS);
+  const css = `background-image:url(${cv.toDataURL()});background-size:${px*2}px ${px}px;`
+            + `background-position-y:0px;`;
+  _cache.set('dog', css);
   return css;
 }
 

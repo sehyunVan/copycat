@@ -143,6 +143,9 @@ input{font-family:inherit}
 .actor .sp.fast{animation-duration:.42s}
 @keyframes cat3{from{background-position-x:0}to{background-position-x:-96px}}
 @keyframes cat2c1{from{background-position-x:-32px}to{background-position-x:-96px}}
+.actor .sp.an2dog{animation:dog2 .7s steps(2) infinite}
+@keyframes dog2{from{background-position-x:0}to{background-position-x:-64px}}
+.actor.npc-rival .tagname{background:#7A5C2E;color:#fff;border-color:#4A3618}
 .catpix{image-rendering:pixelated}
 .actor .badge{position:absolute;left:50%;top:-8px;transform:translateX(-50%);font-size:13px;
   filter:drop-shadow(0 1px 1px rgba(0,0,0,.4))}
@@ -193,6 +196,8 @@ input{font-family:inherit}
 .card.owned{background:#F1FAF6;border-color:#AEDDCE}
 .legalcard{background:#FFF6F7;border-color:#F0BCC4}
 .rivalcard{background:#FFF9EC;border-color:#EFD69B}
+.rivalbox{margin-top:13px;background:#FFF9EC;border:2px solid #EFD69B;padding:11px 13px;font-size:12.5px;line-height:1.6}
+.rivalbox .lbl{font-size:10px;letter-spacing:1.5px;color:#A9791E;font-weight:800;display:block;margin-bottom:4px}
 .crow{display:flex;align-items:center;gap:8px}
 .crow .em{font-size:20px;width:26px;text-align:center;flex:0 0 auto}
 .crow .info{flex:1;min-width:0}
