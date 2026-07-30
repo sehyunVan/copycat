@@ -226,7 +226,9 @@ function buyItem(id){
   if (!it || shopHas(id) || S.tier < it.tier || S.anchovy < it.cost) return false;
   S.anchovy -= it.cost;
   S.shop[id] = true;
-  buildWorld();                      // 비품은 실제로 사무실 안에 놓인다
+  // 산 가구 하나만 끼워 넣는다. 사무실을 다시 생성하면 기존 가구가 전부 이사한다.
+  const tile = SHOP_TILE[id];
+  if (tile) addFurniture(tile);
   pushLog(`사무실에 <b>${it.n}</b>${it.em} 이(가) 들어왔습니다.`, 'good');
   save();
   return true;
@@ -422,7 +424,7 @@ function closeQuarter(){
   if (newTier > oldTier){
     S.tier = newTier;
     S.seed = Math.floor(Math.random() * 1e9);   // 새 사무실은 새로 그린다
-    buildWorld();
+    buildWorld(true);
     moved = true;
   }
 

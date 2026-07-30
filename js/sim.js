@@ -30,9 +30,33 @@ function clockStr(){
   return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
 }
 
-/* ---------- 월드 구축 ---------- */
-function buildWorld(){
-  W = genOffice(S.tier, S.shop, S.seed);
+/* ---------- 월드 구축 ----------
+   배치는 한 번 정해지면 안 바뀌어야 한다. 비품 하나 샀다고, 혹은 게임을 다시 켰다고
+   가구가 전부 이사하면 내 사무실이라는 느낌이 사라진다. 그래서 격자를 저장해두고
+   그대로 되살린다. 새로 생성하는 건 창업할 때와 사무실을 옮길 때뿐이다. */
+function snapshotWorld(){
+  S.layout = {
+    tier: S.tier, seed: S.seed, w: W.W, h: W.H,
+    grid: Array.from(W.grid), zone: Array.from(W.zone || []),
+    wallDecor: W.wallDecor, machineSide: W.machineSide,
+  };
+}
+/* 가구 한 개를 지금 사무실에 끼워 넣는다. 기존 배치는 그대로 둔다. */
+function addFurniture(tile){
+  const spot = placeFurniture(W, tile, Math.random, W.machineSide);
+  if (spot) snapshotWorld();
+  bus.emit('world:rebuilt', W);
+  return spot;
+}
+function buildWorld(regenerate){
+  if (regenerate) S.layout = null;
+  const L = S.layout, T = TIERS[S.tier];
+  if (L && L.tier === S.tier && L.w === T.w && L.h === T.h){
+    W = worldFromGrid(L);
+  } else {
+    W = genOffice(S.tier, S.shop, S.seed);
+    snapshotWorld();
+  }
   assignDesks();
   DOCS.forEach(d => { if (d.state === 'inbox'){ d.x = W.inbox.x; d.y = W.inbox.y; } });
   bus.emit('world:rebuilt', W);

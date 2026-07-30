@@ -71,6 +71,13 @@ const tierForQuarter = q => {
   return Math.min(t, TIERS.length - 1);
 };
 
+/* 비품 id → 타일. 구매 시 이 표를 보고 그 가구 하나만 추가한다. */
+const SHOP_TILE = {
+  coffee:TILE.COFFEE, copier:TILE.COPIER, tower:TILE.TOWER, scratch:TILE.SCRATCH,
+  server:TILE.SERVER, feeder:TILE.FEEDER, meeting:TILE.MEETING, gym:TILE.GYM,
+  lab:TILE.LAB, rocket:TILE.ROCKET,
+};
+
 /* ---------- 생성 ---------- */
 function genOffice(tier, owned, seed){
   const T = TIERS[tier], W = T.w, H = T.h;
@@ -188,134 +195,26 @@ function genOffice(tier, owned, seed){
     }
   }
 
+  const facilities = {};
+  const machineSide = rng() < 0.5 ? 'left' : 'right';
+  const shuffle = a => {
+    for (let i = a.length - 1; i > 0; i--){
+      const j = Math.floor(rng() * (i + 1));
+      const t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  };
+
   /* --- 편의시설: 항상 있는 것 + 구매한 비품 --- */
   const wanted = [TILE.BED, TILE.LITTER, TILE.COOLER];
-  const SHOP_TILE = {
-    coffee:TILE.COFFEE, copier:TILE.COPIER, tower:TILE.TOWER, scratch:TILE.SCRATCH,
-    server:TILE.SERVER, feeder:TILE.FEEDER, meeting:TILE.MEETING, gym:TILE.GYM,
-    lab:TILE.LAB, rocket:TILE.ROCKET,
-  };
   Object.keys(SHOP_TILE).forEach(k => { if (owned[k]) wanted.push(SHOP_TILE[k]); });
   if (tier >= 1) wanted.push(TILE.LEGAL);        // 법무팀이 왔을 때 앉는 자리
   // 바닥에 놓는 장식 — 사무실이 텅 비어 보이지 않게 한다
   for (let i = 0; i < 2 + tier; i++) wanted.push(TILE.PLANT);
   for (let i = 0; i < 1 + Math.floor(tier * 0.6); i++) wanted.push(TILE.SHELF);
 
-  /* 후보 자리 만들기.
-     예시 배치를 보면 물건이 벽에만 붙어 있지 않다 — 책상 섬 사이, 구석, 통로 끝에도 있다.
-     벽면만 후보로 쓰면 상단 벽을 따라 한 줄로 빽빽하게 늘어선다. */
-  const shuffle = a => {
-    for (let i = a.length - 1; i > 0; i--){
-      const j = Math.floor(rng() * (i + 1));
-      const tmp = a[i]; a[i] = a[j]; a[j] = tmp;
-    }
-    return a;
-  };
-  const isSeat = (x, y) => desks.some(d => d.seat.x === x && d.seat.y === y);
-
-  const breakSpots = [], wallSpots = [], innerSpots = [];
-  for (let y = 1; y <= H-2; y++){
-    for (let x = 1; x <= W-2; x++){
-      if (get(x, y) !== TILE.FLOOR) continue;
-      if (isSeat(x, y)) continue;                       // 앉을 자리는 비워둔다
-      if (Math.abs(x - inbox.x) + Math.abs(y - inbox.y) < 2) continue;
-      if (Math.abs(x - doorX) < 2 && y >= H-3) continue; // 출입구 앞은 비워둔다
-      const touchesWall = get(x-1,y) === TILE.WALL || get(x+1,y) === TILE.WALL
-                       || get(x,y-1) === TILE.WALL || get(x,y+1) === TILE.WALL;
-      if (zone[y*W + x]){
-        if (touchesWall) breakSpots.push({ x, y });
-      } else if (touchesWall) {
-        wallSpots.push({ x, y });
-      } else {
-        innerSpots.push({ x, y });
-      }
-    }
-  }
-  shuffle(wallSpots); shuffle(innerSpots);
-  // 휴게실 먼저(커피·급식기), 그 다음 벽면과 안쪽을 번갈아 — 한쪽에 몰리지 않게
-  const spots = breakSpots.slice();
-  for (let i = 0; i < Math.max(wallSpots.length, innerSpots.length); i++){
-    if (wallSpots[i]) spots.push(wallSpots[i]);
-    if (innerSpots[i]) spots.push(innerSpots[i]);
-  }
-  // 덩치 큰 물건은 벽에 붙여야 한다. 통로 한가운데 선 자판기는 사무실로 안 보인다.
-  const wallOnly = breakSpots.concat(wallSpots);
-
-  /* 분류별 선호 구역. 같은 종류끼리 모여야 사무실로 읽힌다.
-     설비(서버·복합기 등)는 한쪽 벽면을 통째로 골라 거기에만 세운다. */
-  /* 어느 벽에 붙어 있는지. 위치만 보면 휴게실 칸막이에 붙은 안쪽 칸까지
-     바깥벽으로 분류돼서 설비가 방 한가운데 늘어선다. 실제로 닿은 벽을 본다. */
-  const side = p => {
-    if (p.y <= 2   && get(p.x, p.y-1) === TILE.WALL) return 'top';
-    if (p.x <= 2   && get(p.x-1, p.y) === TILE.WALL) return 'left';
-    if (p.x >= W-3 && get(p.x+1, p.y) === TILE.WALL) return 'right';
-    if (p.y >= H-3 && get(p.x, p.y+1) === TILE.WALL) return 'bottom';
-    return 'inner';
-  };
-  const machineSide = rng() < 0.5 ? 'left' : 'right';
-  const bySide = which => wallSpots.filter(p => side(p) === which)
-    .sort((a, b) => (a.y - b.y) || (a.x - b.x));
-  const other = machineSide === 'left' ? 'right' : 'left';
-  const machineSpots = bySide(machineSide).concat(bySide(other), bySide('top'));
-  const spotsFor = t => {
-    const c = (typeof FURN_CAT !== 'undefined') ? FURN_CAT[t] : null;
-    if (c === 'break') return breakSpots.concat(wallOnly);
-    if (c === 'rest')  return breakSpots.concat(wallOnly);
-    if (c === 'machine') return machineSpots.concat(wallOnly);
-    if (c === 'meet')  return innerSpots.concat(spots);
-    return (typeof FURN_BIG !== 'undefined' && FURN_BIG[t]) ? wallOnly : spots;
-  };
-
-  const facilities = {};
-  const placed = [];
-  const freeAround = p => [[1,0],[-1,0],[0,1],[0,-1]]
-    .filter(([dx,dy]) => get(p.x+dx, p.y+dy) === TILE.FLOOR).length;
-  // 시설끼리 딱 붙으면 벽을 따라 한 덩어리로 뭉쳐 보인다. 한 칸은 띄운다.
-  const crowded = p => placed.some(q => Math.abs(q.x - p.x) <= 1 && Math.abs(q.y - p.y) <= 1);
-
-  /* 시설 배치 규칙
-     - 진입로가 최소 하나는 남아야 한다
-     - 이미 놓인 시설의 진입로를 막아서도 안 된다 (안 그러면 서로를 가둔다)
-     - 바닥 연결도 유지해야 한다 */
-  function placeAmenity(x, y, t){
-    const wide = (FURN_SPAN[t] || 1);              // 2칸짜리 가구는 오른쪽 칸까지 먹는다
-    if (wide > 1 && get(x+1, y) !== TILE.FLOOR) return false;
-    if (wide > 1 && isSeat(x+1, y)) return false;
-    const prev = get(x, y), prevR = wide > 1 ? get(x+1, y) : null;
-    set(x, y, t);
-    if (wide > 1) set(x+1, y, TILE.FILLER);
-    const ok = freeAround({x,y}) > 0
-            && placed.every(p => freeAround(p) > 0)
-            && keepsConnected();
-    if (!ok){
-      set(x, y, prev);
-      if (wide > 1) set(x+1, y, prevR);
-      return false;
-    }
-    placed.push({ x, y });
-    return true;
-  }
-
-  /* 두 번 훑는다. 1차는 서로 한 칸씩 띄우고, 못 놓은 건 2차에서 그 조건을 푼다. */
-  for (const t of wanted){
-    let done = false;
-    const list = spotsFor(t);
-    for (const pass of [0, 1]){
-      if (done) break;
-      for (const sp of list){
-        if (get(sp.x, sp.y) !== TILE.FLOOR) continue;
-        if (freeAround(sp) < 2) continue;
-        // 설비는 벽을 따라 줄지어 서는 게 맞다. 간격 규칙에서 뺀다.
-        const spaced = !(typeof FURN_CAT !== 'undefined' && FURN_CAT[t] === 'machine');
-        if (pass === 0 && spaced && crowded(sp)) continue;
-        if (!placeAmenity(sp.x, sp.y, t)) continue;
-        const use = TILE_INFO[t] && TILE_INFO[t].use;
-        if (use){ (facilities[use] = facilities[use] || []).push({x:sp.x, y:sp.y}); }
-        done = true;
-        break;
-      }
-    }
-  }
+  for (const t of wanted) placeFurniture(
+    { W, H, grid:g, zone, desks, facilities, inbox, door:{x:doorX, y:H-1} }, t, rng, machineSide);
 
   /* 벽에 거는 것 — 액자·화이트보드는 바닥이 아니라 벽에 붙어야 한다.
      격자는 그대로 WALL로 두고 별도 목록으로 관리한다(길찾기에 영향 없음).
@@ -342,7 +241,7 @@ function genOffice(tier, owned, seed){
     for (let i = 0; i < 2 + Math.floor(tier * 0.8); i++) put(TILE.DECOR, 1);
   }
 
-  const world = { W, H, grid:g, zone, wallDecor, tier, desks, facilities, inbox, door:{x:doorX, y:H-1}, seed };
+  const world = { W, H, grid:g, zone, wallDecor, machineSide, tier, desks, facilities, inbox, door:{x:doorX, y:H-1}, seed };
 
   /* --- 연결성 검사: 문에서 못 가는 자리는 버린다 --- */
   const reach = floodFrom(world, { x:doorX, y:H-2 });
@@ -420,4 +319,138 @@ function nearestUse(w, use, from){
     }
   }
   return best;
+}
+
+
+/* ============================================================
+   가구 한 개를 기존 사무실에 놓는다.
+   생성할 때도, 비품을 새로 살 때도 같은 함수를 쓴다 —
+   비품 하나 샀다고 사무실을 새로 생성하면 기존 가구가 전부 이사한다.
+   ============================================================ */
+function placeFurniture(w, tile, rnd, machineSide){
+  const W = w.W, H = w.H, g = w.grid, zone = w.zone;
+  const at = (x, y) => y * W + x;
+  const get = (x, y) => (x<0||y<0||x>=W||y>=H) ? TILE.WALL : g[at(x,y)];
+  const set = (x, y, v) => { if (x>=0 && y>=0 && x<W && y<H) g[at(x,y)] = v; };
+  const rng = rnd || Math.random;
+  const probe = { W, H, grid:g };
+  const entry = { x:w.door.x, y:H-2 };
+
+  const keepsConnected = () => {
+    if (!walkable(probe, entry.x, entry.y)) return false;
+    const reach = floodFrom(probe, entry);
+    for (let y = 1; y < H-1; y++)
+      for (let x = 1; x < W-1; x++)
+        if (walkable(probe, x, y) && !reach.has(y*W + x)) return false;
+    return true;
+  };
+  const shuffle = a => {
+    for (let i = a.length - 1; i > 0; i--){
+      const j = Math.floor(rng() * (i + 1));
+      const t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  };
+  const isSeat = (x, y) => w.desks.some(d => d.seat.x === x && d.seat.y === y);
+  const freeAround = p => [[1,0],[-1,0],[0,1],[0,-1]]
+    .filter(([dx,dy]) => get(p.x+dx, p.y+dy) === TILE.FLOOR).length;
+
+  /* 이미 놓인 가구 — 이들의 진입로를 막으면 안 된다 */
+  const placed = [];
+  for (let y = 1; y < H-1; y++)
+    for (let x = 1; x < W-1; x++){
+      const t = g[at(x,y)];
+      if (t !== TILE.FLOOR && t !== TILE.WALL && t !== TILE.DOOR &&
+          t !== TILE.DESK && t !== TILE.DESK_R && t !== TILE.FILLER) placed.push({ x, y });
+    }
+  const crowded = p => placed.some(q => Math.abs(q.x - p.x) <= 1 && Math.abs(q.y - p.y) <= 1);
+
+  /* 후보 자리. 벽면만 쓰면 상단 벽에 한 줄로 늘어서고,
+     안쪽만 쓰면 통로 한가운데 물건이 선다. 둘을 섞는다. */
+  const breakSpots = [], wallSpots = [], innerSpots = [];
+  for (let y = 1; y <= H-2; y++){
+    for (let x = 1; x <= W-2; x++){
+      if (get(x, y) !== TILE.FLOOR) continue;
+      if (isSeat(x, y)) continue;
+      if (Math.abs(x - w.inbox.x) + Math.abs(y - w.inbox.y) < 2) continue;
+      if (Math.abs(x - w.door.x) < 2 && y >= H-3) continue;
+      const touchesWall = get(x-1,y) === TILE.WALL || get(x+1,y) === TILE.WALL
+                       || get(x,y-1) === TILE.WALL || get(x,y+1) === TILE.WALL;
+      if (zone && zone[at(x,y)]){ if (touchesWall) breakSpots.push({ x, y }); }
+      else if (touchesWall) wallSpots.push({ x, y });
+      else innerSpots.push({ x, y });
+    }
+  }
+  shuffle(wallSpots); shuffle(innerSpots);
+  const spots = breakSpots.slice();
+  for (let i = 0; i < Math.max(wallSpots.length, innerSpots.length); i++){
+    if (wallSpots[i]) spots.push(wallSpots[i]);
+    if (innerSpots[i]) spots.push(innerSpots[i]);
+  }
+  const wallOnly = breakSpots.concat(wallSpots);
+
+  /* 어느 벽에 닿았는지. 위치만 보면 칸막이에 붙은 안쪽 칸까지 바깥벽으로 샌다. */
+  const side = p => {
+    if (p.y <= 2   && get(p.x, p.y-1) === TILE.WALL) return 'top';
+    if (p.x <= 2   && get(p.x-1, p.y) === TILE.WALL) return 'left';
+    if (p.x >= W-3 && get(p.x+1, p.y) === TILE.WALL) return 'right';
+    if (p.y >= H-3 && get(p.x, p.y+1) === TILE.WALL) return 'bottom';
+    return 'inner';
+  };
+  const ms = machineSide || w.machineSide || 'left';
+  const bySide = which => wallSpots.filter(p => side(p) === which)
+    .sort((a, b) => (a.y - b.y) || (a.x - b.x));
+  const machineSpots = bySide(ms).concat(bySide(ms === 'left' ? 'right' : 'left'), bySide('top'));
+
+  const cat = (typeof FURN_CAT !== 'undefined') ? FURN_CAT[tile] : null;
+  const list = cat === 'break' || cat === 'rest' ? breakSpots.concat(wallOnly)
+             : cat === 'machine' ? machineSpots.concat(wallOnly)
+             : cat === 'meet'    ? innerSpots.concat(spots)
+             : (typeof FURN_BIG !== 'undefined' && FURN_BIG[tile]) ? wallOnly : spots;
+  const spaced = cat !== 'machine';   // 설비는 벽을 따라 붙어 서는 게 맞다
+
+  const tryAt = (x, y) => {
+    const wide = (typeof FURN_SPAN !== 'undefined' && FURN_SPAN[tile]) || 1;
+    if (wide > 1 && (get(x+1, y) !== TILE.FLOOR || isSeat(x+1, y))) return false;
+    const prev = get(x, y), prevR = wide > 1 ? get(x+1, y) : null;
+    set(x, y, tile);
+    if (wide > 1) set(x+1, y, TILE.FILLER);
+    const ok = freeAround({x,y}) > 0 && placed.every(p => freeAround(p) > 0) && keepsConnected();
+    if (!ok){ set(x, y, prev); if (wide > 1) set(x+1, y, prevR); return false; }
+    return true;
+  };
+
+  for (const pass of [0, 1]){
+    for (const sp of list){
+      if (get(sp.x, sp.y) !== TILE.FLOOR) continue;
+      if (freeAround(sp) < 2) continue;
+      if (pass === 0 && spaced && crowded(sp)) continue;
+      if (!tryAt(sp.x, sp.y)) continue;
+      const use = TILE_INFO[tile] && TILE_INFO[tile].use;
+      if (use) (w.facilities[use] = w.facilities[use] || []).push({ x:sp.x, y:sp.y });
+      return { x:sp.x, y:sp.y };
+    }
+  }
+  return null;
+}
+
+/* 저장된 격자만으로 월드를 되살린다. 배치가 절대 안 바뀌게 하는 핵심. */
+function worldFromGrid(saved){
+  const W = saved.w, H = saved.h;
+  const w = {
+    W, H, tier: saved.tier, seed: saved.seed, machineSide: saved.machineSide || 'left',
+    grid: Uint8Array.from(saved.grid), zone: Uint8Array.from(saved.zone || []),
+    wallDecor: saved.wallDecor || [],
+    desks: [], facilities: {}, inbox: { x:1, y:H-2 }, door: { x:Math.floor(W/2), y:H-1 },
+  };
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++){
+    const t = w.grid[y*W + x];
+    if (t === TILE.DESK || t === TILE.DESK_R){ w.desks.push({ desk:{x,y}, seat:{x, y:y+1} }); continue; }
+    if (t === TILE.INBOX){ w.inbox = { x, y }; continue; }
+    if (t === TILE.DOOR){ w.door = { x, y }; continue; }
+    const use = TILE_INFO[t] && TILE_INFO[t].use;
+    if (use) (w.facilities[use] = w.facilities[use] || []).push({ x, y });
+  }
+  w.desks.sort((a, b) => (a.desk.y - b.desk.y) || (a.desk.x - b.desk.x));
+  return w;
 }

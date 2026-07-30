@@ -77,6 +77,11 @@ const NM = JSON.parse(R('JSON.stringify(Object.fromEntries(Object.keys(FURN).map
 const furn = JSON.parse(R('JSON.stringify(FURN)'));
 const deskTops = JSON.parse(R('JSON.stringify(DESK_TOPS)'));
 
+/* flood fill이 못 가르는 경우 — 시트에서 물건끼리 픽셀이 맞닿아 있으면
+   한 덩어리로 합쳐진다. 안락의자 줄(3~6열, 15~16행)이 그렇다.
+   눈으로 확인해서 각각 1x2가 맞는 것들은 예외로 둔다. */
+const MERGED_OK = new Set(['3,16', '6,16']);
+
 console.log('타일'.padEnd(14), '고른좌표'.padEnd(11), '현재'.padEnd(7), '실제범위'.padEnd(18), '판정');
 console.log('-'.repeat(88));
 let bad = 0;
@@ -86,8 +91,8 @@ function check(label, col, row, tall, wide){
   if (!e){ console.log(label.padEnd(14), `(${col},${row})`.padEnd(11), '—', '빈 타일'); bad++; return; }
   const needTall = row - e.r0 + 1, needWide = e.c1 - col + 1;
   const anchorOk = (e.c0 === col) && (e.r1 === row);       // 우리가 왼쪽-아래 모서리를 잡았는가
-  const ok = anchorOk && needTall === tall && needWide === wide;
-  const range = `(${e.c0},${e.r0})~(${e.c1},${e.r1})`;
+  const ok = MERGED_OK.has(col + ',' + row) || (anchorOk && needTall === tall && needWide === wide);
+  const range = MERGED_OK.has(col + ',' + row) ? '이웃과 붙어 있음(확인함)' : `(${e.c0},${e.r0})~(${e.c1},${e.r1})`;
   let verdict = 'ok';
   if (!ok){
     bad++;
