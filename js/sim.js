@@ -232,17 +232,22 @@ function chat(c, kind, chance){
    외부인: 법무팀 · 냥찰
    직원과 같은 길찾기/이동 코드를 그대로 쓴다. 특권 없음.
    ============================================================ */
-const NPC_NAMES = {
-  legal:  ['법무 정', '법무 윤', '법무 한'],
-  police: ['냥찰 김', '냥찰 이', '냥찰 박'],
-};
+/* 냥찰청은 늘 같은 두 마리가 온다. 매번 다른 이름이 나오면 조직이 아니라
+   무작위 NPC로 읽힌다. 얼굴이 고정되어야 "또 왔네"가 된다. */
+const POLICE = [
+  { name:'도 경찰', fur:0 },
+  { name:'김 경찰', fur:1 },
+];
+const NPC_NAMES = { legal: ['법무 정', '법무 윤', '법무 한'] };
 
 function spawnNpc(kind, count){
   const made = [];
   for (let i = 0; i < count; i++){
-    const n = newCat(NPC_NAMES[kind][i % 3]);
+    const cop = kind === 'police' ? POLICE[i % POLICE.length] : null;
+    const n = newCat(cop ? cop.name : NPC_NAMES[kind][i % NPC_NAMES[kind].length]);
     n.npc = kind;
-    n.fur = kind === 'police' ? 3 : 2;
+    n.fur = cop ? cop.fur : 2;
+    n.hue = 0;
     n.acc = kind === 'police' ? 'none' : 'tie';
     n.equip = kind === 'police' ? { head:'cap', neck:null, paw:null }
                                 : { head:'glasses', neck:null, paw:null };
@@ -310,7 +315,7 @@ function npcStep(n, dt){
 function startRaid(){
   if (RAID) return;
   RAID = { t:0, dur:36 };
-  spawnNpc('police', 2);
+  spawnNpc('police', POLICE.length);
   bus.emit('raid:start');
 }
 function sendLegal(){

@@ -29,27 +29,29 @@ const HIRE_BASE = 140, HIRE_GROW = 1.72;
 const qTarget = q => Math.round(6 + 1.6 * Math.pow(q - 1, 1.45));
 
 /* 사건 표.
-   Copycat은 캣닢을 재배·정제해 파는 회사다. 좋은 일은 대체로 안 걸린 일이고,
-   나쁜 일은 대체로 흔적이 남은 일이다. */
+   캣닢은 냥법상 마약류이고, Copycat은 그걸 제조·유통한다.
+   좋은 일은 대체로 안 걸린 일이고, 나쁜 일은 대체로 흔적이 남은 일이다. */
 const EVENTS = [
-  { t:'건조기 온도를 잘못 맞춰 한 배치를 통째로 태웠다.',            k:'bad',  money:-0.06 },
-  { t:'「고양이 사료」로 신고한 컨테이너가 항구를 무사히 통과했다.',   k:'good', flat:2.5 },
+  { t:'건조 온도를 잘못 맞춰 한 배치를 통째로 태웠다. 순도가 안 나온다.',            k:'bad',  money:-0.06 },
+  { t:'「유기농 허브」로 신고한 컨테이너가 세관을 무사히 통과했다.',   k:'good', flat:2.5 },
   { t:'단속 일정을 미리 입수했다. 그날은 전 직원 연차를 썼다.',           k:'good', heat:-1 },
-  { t:'인턴 냥이가 3급을 1급 봉지에 담았다. 아무도 눈치 못 챘다.',   k:'good', flat:1.6 },
+  { t:'멍멍파 유통책이 검거됐다. 그쪽 거래처가 우리에게 넘어왔다.',        k:'good', rival:-0.08 },
+  { t:'멍멍파가 개껌 신제품을 냈다. 우리 단골이 몇 빠졌다.',              k:'bad',  rival:+0.06 },
+  { t:'인턴 냥이가 3급을 1급 봉지에 담았다. 구매자는 눈치 못 챘다.',   k:'good', flat:1.6 },
   { t:'창밖에 낯선 차가 이틀째 서 있다. 다들 조용히 일했다.',             k:'bad',  need:{ fun:-20 }, heat:1 },
-  { t:'재고 실사 중 전 직원이 시식에 참여했다. 생산성은 0이 되었다.',       k:'good', need:{ fun:100 }, money:-0.03 },
+  { t:'재고 실사 중 전 직원이 제품을 흡입했다. 그날 생산량은 0이었다.',       k:'good', need:{ fun:100 }, money:-0.03 },
   { t:'대표냥이 이중장부 위에서 잤다. 장부가 따뜻해졌다.',                k:'neutral' },
-  { t:'경쟁사 멍멍상사가 우리 구역에 물건을 풀었다. 다들 이를 갈았다.',            k:'bad',  money:-0.08, need:{ fun:-15 } },
-  { t:'「월간 캣워크」가 우리를 유기농 허브 스타트업으로 소개했다.', k:'good', flat:2.0, drop:1 },
+  { t:'멍멍파가 우리 구역에 개껌을 풀었다. 가격이 무너졌다.',              k:'bad',  money:-0.08, need:{ fun:-15 }, rival:+0.05 },
+  { t:'「월간 캣워크」가 우리를 유기농 허브 스타트업으로 소개했다. 아무도 확인 안 했다.', k:'good', flat:2.0, drop:1 },
   { t:'택배 상자가 도착했다. 송장에 적힌 이름은 우리 회사가 아니었다.',   k:'neutral', need:{ fun:40 } },
   { t:'세무 조사에서 회계 장부 대신 발자국이 발견되었다.',                k:'bad',  money:-0.05, heat:1 },
   { t:'신입 냥이가 문 앞에서 울고 있었다. 채용 공고도 안 냈는데.',        k:'hire' },
   { t:'전 직원 단체 그루밍 워크숍. 감식에 털이 안 남게 하는 요령도 배웠다.',k:'good', need:{ fun:50, energy:30 } },
-  { t:'투자자 미팅에서 골골송을 불렀다. 아무도 사업 내용을 묻지 않았다.', k:'good', flat:3.2, drop:1 },
+  { t:'투자자 미팅에서 골골송을 불렀다. 아무도 실제 품목을 묻지 않았다.', k:'good', flat:3.2, drop:1 },
   { t:'분실물 센터에서 「우리 것이 아닌」 물건을 찾아왔다.',              k:'good', drop:1 },
   { t:'건조실 온기 때문에 아무도 자리에 안 돌아왔다.',                    k:'neutral', need:{ energy:60 }, money:-0.02 },
   { t:'내부 고발 편지가 반송되어 돌아왔다. 주소를 잘못 썼더라.',          k:'good', heat:-1 },
-  { t:'창고 재고와 장부가 안 맞는다. 직원들이 조금씩 먹는 것 같다.',               k:'bad',  heat:1 },
+  { t:'창고 재고와 장부가 안 맞는다. 직원들이 조금씩 손대는 것 같다.',               k:'bad',  heat:1 },
 ];
 
 /* ---------- 상태 ---------- */
@@ -65,7 +67,7 @@ function newGame(){
     clock: 9 * 60, day: 1,
     cats: [first],
     todos: [], shop: {}, log: [], bag: [],
-    penalty: 0, jail: [], referred: 0,
+    penalty: 0, jail: [], referred: 0, rival: 0.10,
     stats: { done:0, totalKpi:0, totalEarned:0, qEarned:0, qDone:0, started:Date.now() },
     working: 0,
     last: Date.now(),
@@ -85,6 +87,7 @@ function loadSave(){
     // 구버전 저장에서 빠진 필드 보정
     d.bag = d.bag || []; d.log = d.log || []; d.shop = d.shop || {};
     d.penalty = d.penalty || 0; d.jail = d.jail || []; d.referred = d.referred || 0;
+    d.rival = typeof d.rival === 'number' ? d.rival : 0.10;
     d.todos = (d.todos || []).map(t => ({ ...t, q: t.q || 1 }));
     d.cats.forEach(c => {
       c.stats = c.stats || rollStats();
@@ -119,7 +122,7 @@ function catRate(c){
   const moodMul = 0.40 + 0.80 * (moodOf(c, hasCoffee) / 100);
   const office  = 1 + shopSum('prod') + teamProd();
   const tierMul = 1 + S.tier * 0.22;
-  const legalMul = legalDrag();
+  const legalMul = legalDrag() * rivalDrag();
   return Math.max(0.02, r.rate * m * Math.max(0.3, statMul) * moodMul * office * tierMul * legalMul);
 }
 /* 표시용: 지금 실제로 자리에 앉아 있는 고양이들의 합 */
@@ -260,6 +263,28 @@ const RAID_THRESHOLD = 5;   // 이 점수를 넘으면 영장이 나온다
 /* 혐의 1점당 생산 -6% — 다들 몸을 사린다. 압수수색 중엔 sim에서 추가 감산 */
 function legalDrag(){ return Math.max(0.40, 1 - 0.06 * (S.penalty || 0)); }
 
+/* ============================================================
+   경쟁사 — 멍멍파
+   마약 개껌을 만드는 강아지 조직. 우리가 분기마다 충분히 굴리지 않으면
+   그 사이에 거래처를 가져간다. 뺏긴 점유율만큼 수입이 줄어든다.
+   "가만히 있으면 손해"를 시스템으로 만든 장치.
+   ============================================================ */
+const RIVAL_MAX = 0.60;
+/* 분기당 이 정도는 처리해야 본전 — 사무실이 클수록 기대치도 오른다 */
+const rivalPar = () => 3 + S.tier * 2;
+function rivalDrag(){ return 1 - Math.min(RIVAL_MAX, S.rival || 0); }
+function rivalShift(done){
+  const par = rivalPar();
+  let d;
+  if (done <= 0)            d = +0.12;     // 한 건도 안 처리하면 크게 뺏긴다
+  else if (done < par)      d = +0.06;
+  else if (done < par * 1.6) d = -0.03;
+  else                       d = -0.07;    // 확실히 밀어붙인 분기는 되찾는다
+  const before = S.rival;
+  S.rival = Math.max(0, Math.min(RIVAL_MAX, S.rival + d));
+  return { before, after: S.rival, par, delta: S.rival - before };
+}
+
 function referToLegal(list){
   if (!list.length) return null;
   const points = list.reduce((a, t) => a + (t.size === 'l' ? 2 : 1), 0);
@@ -349,6 +374,7 @@ function closeQuarter(){
     });
   }
   if (ev.heat){ S.penalty = Math.max(0, S.penalty + ev.heat); }
+  if (ev.rival){ S.rival = Math.max(0, Math.min(RIVAL_MAX, S.rival + ev.rival)); }
   if (ev.drop || Math.random() < 0.35){
     const it = EQUIP[Math.floor(Math.random() * EQUIP.length)];
     S.bag.push(it.id);
@@ -391,6 +417,14 @@ function closeQuarter(){
     moved = true;
   }
 
+  // 경쟁사 정산 — 이번 분기에 얼마나 굴렸는지로 점유율이 오간다
+  const rival = rivalShift(done);
+  if (rival.delta > 0)
+    pushLog(`분기 처리량이 par(${rival.par})에 못 미쳤습니다. <b>멍멍파</b>가 거래처를 가져갔습니다. `
+      + `점유율 ${Math.round(rival.before*100)}% → ${Math.round(rival.after*100)}%`, 'bad');
+  else if (rival.delta < 0)
+    pushLog(`거래처를 되찾았습니다. 멍멍파 점유율 ${Math.round(rival.before*100)}% → ${Math.round(rival.after*100)}%`, 'good');
+
   const bonus = Math.round(Math.max(150, earned * 0.5) * (1 + S.tier * 0.4));
   S.anchovy += bonus;
   S.cats.forEach(c => { c.needs.fun = Math.min(100, c.needs.fun + 40); });
@@ -408,7 +442,7 @@ function closeQuarter(){
 
   bus.emit('quarter:closed', {
     q, earned, done, evText, evGain, evHire, evDrop, moved, oldTier, bonus,
-    legal, back, raiding, penalty:S.penalty,
+    legal, back, raiding, penalty:S.penalty, rival,
   });
   save();
 }

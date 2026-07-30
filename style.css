@@ -192,6 +192,7 @@ input{font-family:inherit}
 .card.locked{opacity:.55;background:#FBF6EE}
 .card.owned{background:#F1FAF6;border-color:#AEDDCE}
 .legalcard{background:#FFF6F7;border-color:#F0BCC4}
+.rivalcard{background:#FFF9EC;border-color:#EFD69B}
 .crow{display:flex;align-items:center;gap:8px}
 .crow .em{font-size:20px;width:26px;text-align:center;flex:0 0 auto}
 .crow .info{flex:1;min-width:0}

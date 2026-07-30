@@ -238,6 +238,8 @@ function genOffice(tier, owned, seed){
     if (wallSpots[i]) spots.push(wallSpots[i]);
     if (innerSpots[i]) spots.push(innerSpots[i]);
   }
+  // 덩치 큰 물건은 벽에 붙여야 한다. 통로 한가운데 선 자판기는 사무실로 안 보인다.
+  const wallOnly = breakSpots.concat(wallSpots);
 
   const facilities = {};
   const placed = [];
@@ -272,9 +274,10 @@ function genOffice(tier, owned, seed){
   /* 두 번 훑는다. 1차는 서로 한 칸씩 띄우고, 못 놓은 건 2차에서 그 조건을 푼다. */
   for (const t of wanted){
     let done = false;
+    const list = (typeof FURN_BIG !== 'undefined' && FURN_BIG[t]) ? wallOnly : spots;
     for (const pass of [0, 1]){
       if (done) break;
-      for (const sp of spots){
+      for (const sp of list){
         if (get(sp.x, sp.y) !== TILE.FLOOR) continue;
         if (freeAround(sp) < 2) continue;
         if (pass === 0 && crowded(sp)) continue;

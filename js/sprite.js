@@ -213,6 +213,9 @@ const ROOM = {
 /* 가로로 2칸을 쓰는 가구. 한 칸만 잘라 쓰면 반쪽이 나온다.
    world.js가 이 표를 보고 오른쪽 칸을 FILLER로 예약한다. */
 const FURN_SPAN = {};
+/* 덩치 큰 가구(자판기·대형 기기 등). 통로 한가운데 서 있으면 어색하니
+   world.js가 이 표를 보고 벽 쪽에만 놓는다. */
+const FURN_BIG = {};
 
 /* 책상 위에 얹는 소품. 빈 나무판만 있으면 사무실로 안 보인다. */
 const DESK_TOPS = [[8,44], [9,44], [10,9], [11,9], [13,12], [3,12]];
@@ -220,8 +223,10 @@ const DESK_TOPS = [[8,44], [9,44], [10,9], [11,9], [13,12], [3,12]];
 /* 타일 → 시트 좌표 { col, row, tall?, wide? } 또는 { shape, pal } (시트에 없는 것) */
 const FURN = {};
 const sheetAt = (tile, col, row, tall, wide) => {
-  FURN[tile] = { col, row, tall: tall || 1, wide: wide || 1 };
-  if (wide > 1) FURN_SPAN[tile] = wide;
+  const t = tall || 1, w = wide || 1;
+  FURN[tile] = { col, row, tall: t, wide: w };
+  if (w > 1) FURN_SPAN[tile] = w;
+  if (t * w >= 4 || t >= 3) FURN_BIG[tile] = true;   // 2x2 이상이면 큰 물건으로 본다
 };
 function furn(tile, shape, a, b, d){ FURN[tile] = { shape, pal:{ o:'#3A2E28', a, b, d } }; }
 

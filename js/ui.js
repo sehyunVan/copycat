@@ -330,6 +330,15 @@ function staffHTML(){
   const hc = hireCost();
   let h = '';
 
+  {
+    const pct = Math.round((S.rival || 0) * 100);
+    const par = rivalPar();
+    h += `<div class="card rivalcard"><div class="crow"><span class="em">🐶</span>
+      <div class="info"><b>멍멍파 점유율 ${pct}%</b><span>마약 개껌으로 우리 거래처를 노립니다<br>
+        전 직원 생산 ${Math.round((1-rivalDrag())*100)}% 감소 · 이번 분기 ${S.stats.qDone}/${par}건 처리</span></div>
+    </div>
+    <div class="hint" style="margin:7px 2px 0">분기에 ${par}건 넘게 처리하면 거래처를 되찾습니다.</div></div>`;
+  }
   if (S.penalty > 0){
     h += `<div class="card legalcard"><div class="crow"><span class="em">🔍</span>
       <div class="info"><b>수사 혐의 ${S.penalty}점</b><span>전 직원 생산
@@ -482,6 +491,9 @@ function showQuarter(d){
       <div class="rrow"><span>재직 직원</span><b>${S.cats.length} 냥</b></div>
       <div class="rrow"><span>평균 사기</span><b>${Math.round(avgMood())}%</b></div>
       <div class="rrow"><span>분기 배당</span><b class="good">+🐟 ${fmt(d.bonus)}</b></div>
+      ${d.rival ? `<div class="rrow"><span>멍멍파 점유율</span><b class="${d.rival.delta>0?'bad':'good'}">
+        ${Math.round(d.rival.before*100)}% → ${Math.round(d.rival.after*100)}%
+        (처리 ${d.done}/${d.rival.par}건)</b></div>` : ''}
       ${d.evGain?`<div class="rrow"><span>특별 손익</span><b class="${d.evGain>0?'good':'bad'}">${d.evGain>0?'+':'-'}🐟 ${fmt(Math.abs(d.evGain))}</b></div>`:''}
       ${d.legal?`<div class="rrow"><span>뒷수습 비용</span><b class="bad">-🐟 ${fmt(d.legal.fee)}</b></div>`:''}
 
@@ -527,7 +539,7 @@ function showRaidEnd(d){
     <div class="mhead police"><div class="q">SPECIAL INVESTIGATION</div>
       <h3>조사 결과 통지서</h3><p>냥찰청 특별사법경찰 3팀</p></div>
     <div class="mbody">
-      <div class="rrow"><span>혐의 내용</span><b>부정경쟁방지법 위반 등 (혐의 ${d.before}점)</b></div>
+      <div class="rrow"><span>혐의 내용</span><b>마약류관리법 위반 (혐의 ${d.before}점)</b></div>
       <div class="rrow"><span>과징금</span><b class="bad">-🐟 ${fmt(d.fine)}</b></div>
       <div class="rrow"><span>혐의 처리</span><b class="good">${d.before} → 0</b></div>
       ${d.taken?`<div class="raidbox"><div class="siren">🚔 참고인 연행</div>
@@ -542,12 +554,12 @@ function showRaidEnd(d){
 function showHelp(){
   modal(`
     <div class="mhead"><div class="q">INTERNAL — DO NOT DISTRIBUTE</div><h3>Copycat 영업 지침</h3>
-      <p>서류상으로는 허브 유통업입니다</p></div>
+      <p>등기부상 업종은 허브 유통업입니다</p></div>
     <div class="mbody helpwrap">
       <p style="background:#FFF6F7;border:2px solid #F0BCC4;padding:9px;line-height:1.7;margin-bottom:11px">
-         <b>회사 소개</b> — Copycat은 서류상 <b>허브 유통업체</b>입니다. 실제로는
-         <b>캣닢을 재배하고 정제해서 파는 회사</b>입니다. 3급을 1급 봉지에 담는 것도 우리 일입니다.
-         그래서 <b>냥찰이 우리를 찾아옵니다.</b></p>
+         <b>회사 소개</b> — 캣닢은 <b>냥법상 마약류</b>입니다. Copycat은 그걸
+         <b>재배하고 정제해서 유통하는 회사</b>입니다. 등기부상 업종은 허브 유통업이고,
+         그 서류가 우리를 지켜주는 유일한 것입니다. 그래서 <b>냥찰이 우리를 찾아옵니다.</b></p>
       <p><b>1. 결재함</b> — 할 일을 올리고 완료 체크를 하면 <b>서류가 사무실 결재함에 실제로 떨어집니다</b>.
          가까운 고양이가 걸어와 물고 가서, 자기 자리에서 도장을 찍어야 보상이 들어옵니다.</p>
       <p><b>2. 고양이는 에이전트입니다</b> — 기력·재미·화장실·카페인 욕구가 있고, 스스로 커피머신·낮잠상자·정수기를 찾아갑니다.
@@ -557,7 +569,10 @@ function showHelp(){
       <p><b>4. 흔적</b> — 분기 마감 시점에 <b>전 분기에 올려놓고 안 끝낸 건</b>은 정리되지 못한 채 밖으로 샙니다.
          뒷수습 비용이 나가고 <b>혐의</b>가 쌓입니다. 혐의 1점당 전 직원 생산이 6% 떨어집니다 —
          다들 몸을 사리기 때문입니다. 급하면 <b>무마</b>로 돈을 써서 1점씩 지울 수 있습니다.</p>
-      <p><b>5. 냥찰</b> — 혐의가 <b>${RAID_THRESHOLD}점</b>을 넘으면 영장이 나오고 압수수색이 들어옵니다.
+      <p><b>5. 멍멍파</b> — 마약 개껌을 만드는 강아지 조직입니다. 분기마다 우리가 처리한 건수가
+         기준치에 못 미치면 그 사이에 <b>거래처를 가져갑니다.</b> 뺏긴 점유율만큼 전 직원 생산이
+         줄어듭니다. 가만히 두면 계속 밀립니다.</p>
+      <p><b>6. 냥찰</b> — 혐의가 <b>${RAID_THRESHOLD}점</b>을 넘으면 영장이 나오고 압수수색이 들어옵니다.
          조사 중 생산 40%, 종료 시 과징금 15%, 확률적으로 직원 1명이 연행됩니다(다음 분기 복귀).
          흔적 없이 넘긴 분기는 혐의가 1점씩 소멸합니다.</p>
       <ul>

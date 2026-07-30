@@ -1,6 +1,6 @@
 # Copycat
 
-> Copycat is a **catnip operation staffed entirely by cats.**
+> Copycat is a **narcotics operation staffed entirely by cats.**
 > Finish your to-dos and the business grows. Leave paperwork lying around
 > and the Cat Police come for you.
 
@@ -23,7 +23,8 @@ and stamps it — and only then do you get paid. If every cat happens to be in t
 box, the paperwork just piles up.
 
 The reverse direction exists too. **Work you *didn't* do also creates events.**
-The company grows, refines and sells catnip, and files it as a herbal supplement.
+Catnip is a controlled substance here. The company grows it, refines it and moves it,
+and is registered as a herbal wholesaler.
 So paperwork left unfinished at quarter close doesn't just sit there: it leaks, and it
 becomes evidence. **Suspicion** accumulates. Cross the threshold and a warrant is issued
 and the Cat Police Special Investigation Unit raids the office. Sometimes they take an
