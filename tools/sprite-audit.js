@@ -107,4 +107,9 @@ function check(label, col, row, tall, wide){
 Object.keys(furn).forEach(t => { const d = furn[t]; if (d.col !== undefined) check(NM[t], d.col, d.row, d.tall, d.wide); });
 console.log('\n[책상 위 소품]');
 deskTops.forEach(([c,r]) => check('소품', c, r, 1, 1));
+JSON.parse(R('JSON.stringify(DESK_SIDE)')).forEach(([c,r]) => check('곁들이', c, r, 1, 1));
+
+console.log('\n[의자 · 잡동사니]');
+JSON.parse(R('JSON.stringify(CHAIRS)')).forEach(([c,r]) => check('의자', c, r, 2, 1));
+JSON.parse(R('JSON.stringify(CLUTTER)')).forEach(d => check('잡동사니', d.col, d.row, d.tall, d.wide));
 console.log('\n문제 ' + bad + '건');

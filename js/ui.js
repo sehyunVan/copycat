@@ -144,8 +144,9 @@ function renderTiles(){
   // 자리마다 의자 — 그림만 얹는다. 고양이가 그 위에 앉는다.
   w.desks.forEach(d => {
     const sy = d.seat.y;
+    // 책상(z = 10+4(sy-1)-2)보다 뒤, 고양이(z = 10+4sy)보다 앞
     html += `<div class="t obj" style="left:${d.seat.x*TS}px;top:${sy*TS}px;`
-         +  `z-index:${10 + sy*4 - 3};${chairStyle(d.seat.x, sy)}"></div>`;
+         +  `z-index:${10 + sy*4 - 7};${chairStyle(d.seat.x, sy)}"></div>`;
   });
   // 바닥 잡동사니
   (w.clutter || []).forEach(c => {

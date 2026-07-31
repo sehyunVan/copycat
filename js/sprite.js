@@ -354,8 +354,9 @@ function chairStyle(x, y){
   const hit = _cache.get(key);
   if (hit) return hit;
   const [c, r] = CHAIRS[(x * 5 + y * 11) % CHAIRS.length];
-  // 의자는 1x2지만 아래 절반(앉는 부분)만 쓴다. 2칸을 다 그리면 위 칸의 책상을 덮는다.
-  const css = sheetSlice(c, r, 1, 1);
+  // 등받이까지 온전히 그린다. 위 칸(책상)을 덮는 건 잘라서가 아니라
+  // 깊이 순서로 해결한다 — 의자를 책상보다 뒤에 두면 책상 밑으로 밀어넣은 것처럼 보인다.
+  const css = sheetSlice(c, r, 2, 1);
   _cache.set(key, css);
   return css;
 }
@@ -411,8 +412,9 @@ function chairStyle(x, y){
   const hit = _cache.get(key);
   if (hit) return hit;
   const [c, r] = CHAIRS[(x * 5 + y * 11) % CHAIRS.length];
-  // 의자는 1x2지만 아래 절반(앉는 부분)만 쓴다. 2칸을 다 그리면 위 칸의 책상을 덮는다.
-  const css = sheetSlice(c, r, 1, 1);
+  // 등받이까지 온전히 그린다. 위 칸(책상)을 덮는 건 잘라서가 아니라
+  // 깊이 순서로 해결한다 — 의자를 책상보다 뒤에 두면 책상 밑으로 밀어넣은 것처럼 보인다.
+  const css = sheetSlice(c, r, 2, 1);
   _cache.set(key, css);
   return css;
 }
