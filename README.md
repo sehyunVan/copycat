@@ -3,10 +3,14 @@
 > Copycat is a **narcotics operation staffed entirely by cats.**
 > Finish your to-dos and the business grows. Leave paperwork lying around
 > and the Cat Police come for you.
+> And the office runs on **your desktop clock** — at your noon the cats go to
+> lunch, and at 6 PM they see you off.
 
-A to-do list × idle management sim × multi-agent sandbox.
+A to-do list × idle management sim × multi-agent sandbox × **a companion that
+endures the workday with you**.
 Open `index.html` in a browser and it runs. No build step, no server, no dependencies
 (the office tileset is a purchased asset — see the install section).
+Available in 한국어 · English · 日本語 (⚙️ settings).
 
 🇰🇷 [한국어 README](README.ko.md)
 
@@ -15,6 +19,14 @@ Open `index.html` in a browser and it runs. No build step, no server, no depende
 ## The question this explores
 
 **What happens if "completing a task" is an input to a simulation rather than a score?**
+And — **if a game refuses to fast-forward and lives on real time instead, can it help
+someone get through the working hours?**
+
+This game is built for people to whom the workday feels very long. Instead of compressing
+time, it walks through the actual clock beside you. Completing tasks tidies real office
+work and creates events in the world; the clock chip shows a countdown to lunch or
+clock-out over a slowly filling gauge; every 50 minutes a cat reminds you to stretch.
+The bet is that enduring with company is different from enduring alone.
 
 Most gamified to-do apps do: check the box → +10 points. Here, checking the box
 **creates a physical event in the world.** A document drops into the office inbox.
@@ -69,6 +81,31 @@ Also from OpenMMO: new hires roll six stats using **4d6, drop the lowest**.
 Three equipment slots (head / neck / paw) modify stats. Equipment drops at quarter close.
 It affects stats only — see the pixel art section for why it no longer changes appearance.
 
+**The name and colour are yours to pick, in an interview window.** The dice decide the
+stats; the player decides the look and the name — twenty cats all wearing names someone
+else gave them never feel like your company.
+
+- **Name** — type it, or press 🎲 to draw one (only names nobody in the office uses). 12 chars max
+- **Colour** — 4 coats (black · brown · orange · white) × 6 tints. The swatches are
+  **actual cat portraits**, not labels; a colour name alone tells you nothing
+- **The applicant persists until hired** (it's in the save). Close the window and reopen
+  it and the same cat is waiting — if reopening rerolled the stats, 4d6 would mean nothing.
+  What the player picks is the name and colour, not the numbers
+
+**And every cat accumulates a record.** Nobody gets attached to a stat block; they get
+attached to an individual with a history. At the bottom of the employee file:
+
+| Line | What it holds |
+|---|---|
+| Joined | The quarter they were hired. Older saves read **Not on file** — a history that wasn't kept doesn't get invented |
+| Documents stamped | Lifetime total, and the breakdown by size |
+| Most-visited | Facility arrivals counted, top one shown. The cat who only ever goes for coffee becomes visible |
+| Detained | How many times the police took them, and the last quarter it happened |
+| First stamp | The quarter and the **title** of their first document — captured at the one moment that text still exists |
+
+The register is deliberately dry. A personnel file being dry is the joke, and it's also
+a little sad. Same tone as the cat who comes back cleared of charges and says nothing.
+
 ### 3. Procedurally generated offices
 
 When the quarter hits a milestone (3 · 6 · 10 · 15 · 21 · 28) the company relocates and
@@ -99,7 +136,31 @@ seed-plus-inventory rather than storage. The grid is now stored and restored ver
 Generation happens exactly twice — when you found the company, and when you relocate.
 Buying a piece places that one piece and leaves everything else alone.
 
-### 4. Suspicion, Legal and the Cat Police
+**And now you can move things yourself → next section.**
+
+### 4. Decorate mode — the generator lays it out, then it's your office
+
+Hit 🛋️ in the top bar to enter edit mode. Click the piece you want, click where it goes.
+Furniture and purchased equipment, **desks (two tiles wide plus the two seats below)**,
+the inbox, and wall-hung art and whiteboards all move. Doors and walls don't.
+
+Hovering tells you in advance: **green means it fits, red means it doesn't.**
+There are exactly two reasons for red:
+
+- **It would cut a path** — every floor tile must stay reachable from the door,
+  or a cat ends up walled into a corner
+- **It would strand a piece** — box the coffee machine in and nobody can use it
+
+These are the generator's own rules, unchanged. Exempting the human hand would only let
+you shoot yourself in the foot; the check exists because cats really did get trapped once.
+
+The implementation detail worth noting: every edit runs **copy the grid → apply the move →
+validate the whole thing → snapshot → rebuild via `worldFromGrid`**. Facility lists, desk
+seats and the inbox position are all **re-derived from the grid**, which structurally
+eliminates the "furniture moved but the facility list still points at the old tile" class
+of bug. Floor clutter a piece lands on is quietly cleared away.
+
+### 5. Suspicion, Legal and the Cat Police
 
 | Situation | Consequence |
 |---|---|
@@ -119,7 +180,7 @@ random NPCs rather than an institution.
 The suspicion meter is the real tension: you can grind clean quarters, or you can just pay.
 Paying is faster and it is also, unmistakably, a bribe.
 
-### 5. The rival
+### 6. The rival
 
 A dog outfit selling drug-laced chews, and it is a system rather than flavour text.
 
@@ -137,7 +198,52 @@ us soon"*.
 This is the piece the game was missing. Before it, doing nothing simply meant earning
 nothing. Now it costs you.
 
-### 6. Pixel art — three sources
+### 7. Real-time companionship — the clock is not compressed
+
+A day used to last 32 minutes. Now the game clock **is the desktop clock**.
+Quarters advance on KPI rather than time, so the economy is untouched — what changes
+is that "a day in the game" becomes "your day".
+
+- **Work 9–18, lunch 12–13** — at noon the cats physically head for the break room.
+  The implication is that you should go eat too.
+- **Countdowns in the clock chip** — time to lunch in the morning, time to clock-out in
+  the afternoon, over a thin gauge showing how much of today you've already gotten through
+- **Care announcements** — a morning hello (8:50), lunch (12:00), afternoon tea (15:00),
+  clock-out (18:00, with today's approval count), and at 10 PM it tells you to go to bed.
+  Work-schedule nudges fire on weekdays only.
+- **A stretch every 50 minutes** — shoulder rolls / 4-4-8 breathing / look-into-the-distance
+  / get some water, in rotation. The timer doesn't run during lunch.
+- **Desktop notifications (opt-in)** — while you work in another window (tab in the
+  background), care announcements arrive as browser notifications. rAF freezes in background
+  tabs, so the care system runs on its own 1-second timer.
+- **Background music** — `aquarium.wav`, a render from the sister project
+  [Major Aquarium](../major-aquarium/) (a generative ambient of C-major pentatonic kalimba
+  and bubble sounds, 2-minute loop). If the file is missing, the game falls back to a
+  **runtime-synthesised music-box lo-fi** built on the same principle as the sound effects —
+  72 BPM, a white-key progression (Cmaj7→Am7→Fmaj7→G6) under a probabilistic arpeggio, so
+  no four bars ever repeat exactly. Either way it plays at half volume at night and keeps
+  going when the tab is hidden.
+- **A brief for when you get back** — coming back gets you two or three sentences instead of
+  a single number: who earned the most (literally the ratio the offline total was divided by),
+  who is the most worn out, what is still sitting in the inbox. Everything is read off current
+  state and **nothing that didn't happen is ever claimed** — nobody visited while you were
+  gone, so the report says "unchanged" and stops there. Leftover items are counted, never
+  explained. The last line is always *"Take your time getting started."* The document only
+  opens after a long absence; flipping back to the tab gets one quiet line.
+
+> **Leaving the tab open used to be the worst way to play.** rAF freezes in a hidden tab, so
+> the cats stop working — but the 8-second autosave kept stamping "last time the simulation
+> ran", which zeroed out the offline payout. Close the tab entirely and you got 8 hours of
+> earnings; leave it open beside your work, as the game asks you to, and you got nothing.
+> The timestamp is now left alone while the tab is hidden.
+
+Language is selectable in ⚙️ settings: **한국어 / English / 日本語**. Since the project has
+no build step, there is no dictionary file — every string carries its three languages
+in place via `L({ko,en,ja})`, which makes key mismatches structurally impossible. Cat names
+come from per-language pools (치즈/Cheese/チーズ), and in the Japanese version the product
+is マタタビ (silver vine), the culturally correct cat narcotic.
+
+### 8. Pixel art — three sources
 
 **Cats come from [16-bit Kitties](https://mxmaze.itch.io/16-bit-kitties-pack)** by
 Maze.Bit.Boutique — 16×16, nine frames per colour, licensed **CC BY 4.0**. The sheet rows
@@ -172,12 +278,29 @@ around them.
 **The dog is drawn in code**, since the purchased pack has no dogs, on the same 16×16
 grid as everything else. So are a handful of objects the pack has no match for.
 
+**The camera doesn't show the whole grid.** The simulation uses a grid closed in by walls
+on all four sides, but rendering all of it feels like peering into a box. So the view crops:
+
+- **The side walls (x=0, W−1) aren't drawn** — the left and right open up and the office
+  reads as wider than it is
+- **The bottom wall row (y=H−1) isn't drawn either** — which takes the entrance door off
+  screen. The door is still alive as the NPC entry and exit point; it's just not visible
+- **Instead an extra wall row is added on top, making the back wall two tiles tall.**
+  One row alone looks paper-thin and doesn't read as a room
+
+World coordinates (x,y) map to screen tile (x−1, y+1). Rendering, cats, documents, effects
+and decorate-mode hit testing **all pass through the same single transform (`vpx`/`vpy`)**,
+so changing the camera can't leave one layer misaligned. Anything pushed off-screen
+(an NPC at the door, say) is clipped by `overflow:hidden`.
+
 Every tile coordinate is **measured, not eyeballed** — see `tools/sprite-audit.js` below.
-Sound effects are WebAudio-synthesised; no audio files.
+Sound effects are WebAudio-synthesised. The only audio file is the background music
+(`assets/music/aquarium.wav`, a self-made render), and even that falls back to runtime
+synthesis when absent.
 
-### 7. Everything else
+### 9. Everything else
 
-- Day/night cycle (32 real minutes per day): 09–18 work, 18–22 overtime (night owls only), sleep after 22
+- A real-time day: 09–18 work (12–13 lunch), 18–22 overtime (night owls only), sleep after 22 — all on your clock
 - Offline earnings up to 8 hours (16 with the auto-feeder)
 - 9 traits (night owl, napper, lucky, caffeine addict…), 8 ranks, 10 equipment purchases,
   9 wearable items, 20 quarterly events
@@ -195,16 +318,29 @@ copycat/
 ├── style.css           # pixel-flavored UI
 ├── assets/
 │   ├── cats_16bit/                 # CC BY cat sheets — ships with the repo
-│   └── modern_office/              # paid tileset — gitignored, see install section
+│   ├── music/aquarium.wav          # BGM — self-made render from the Major Aquarium project
+│   ├── atlas.png                   # the furniture sheet the game actually reads — generated, gitignored
+│   └── modern_office/              # paid tileset, the atlas's raw material — gitignored, see install
 ├── tools/
-│   └── sprite-audit.js             # verifies every tile coordinate against the sheet
+│   ├── png.js · gif.js · wav.js    # PNG codec, animated-GIF encoder, audio downmix — no dependencies
+│   ├── sprite-audit.js             # verifies every tile coordinate against the sheet
+│   ├── build-atlas.js              # extracts only the tiles used → atlas.png · js/atlas.js
+│   ├── pack-release.js             # the itch.io zip — with the checks that keep the paid pack out
+│   ├── pack-single.js              # the whole game inlined into one .html you can send someone
+│   └── capture-store.js            # drives the real game to shoot store screenshots + cover GIF
 └── js/
+    ├── assets.js       # asset-path indirection — the single-file build's only hook into the game
+    ├── atlas.js        # atlas coordinate table — generated, gitignored
+    ├── i18n.js         # language (한국어/English/日本語) · the L({ko,en,ja}) helper
     ├── world.js        # floor plans · furniture placement · BFS pathfinding
     ├── cats.js         # cat data · 4d6 stats · traits · equipment
     ├── sprite.js       # tilesheet slicing · code-drawn sprites · tile tables
-    ├── sim.js          # 20Hz simulation · agent state machine · event bus · NPCs
+    ├── sim.js          # 20Hz simulation · real-time clock · agent state machine · event bus · NPCs
     ├── game.js         # economy · inbox · quarters · suspicion · rival · saving
-    ├── ui.js           # rendering · modals
+    ├── ui.js           # rendering · modals · settings
+    ├── edit.js         # decorate mode — moving furniture · connectivity validation
+    ├── care.js         # real-time care — lunch · stretches · clock-out · desktop notifications
+    ├── music.js        # WebAudio-generated BGM (music-box lo-fi, no files)
     └── main.js         # boot · loop · input
 ```
 
@@ -215,7 +351,7 @@ by LimeZu**, a paid asset. Its license allows commercial use but forbids redistr
 asset itself, so it is **gitignored and never enters this repository**. A fresh clone will
 run but the office will be blank.
 
-To install: buy the pack, then copy these files into `assets/modern_office/`:
+To install: buy the pack, copy these files into `assets/modern_office/`, then **build the atlas once**:
 
 ```
 assets/modern_office/
@@ -224,12 +360,112 @@ assets/modern_office/
 └── LICENSE.txt                           # from the pack root
 ```
 
+```
+node tools/build-atlas.js
+```
+
 The cat sheets are CC BY and already in the repo. Sound and the code-drawn objects need
 nothing installed.
+
+## The game never reads the pack directly — the atlas
+
+That license splits on two lines:
+
+```
+YOU CAN:   Edit and use the asset in any commercial or non commercial project
+YOU CAN'T: Resell or distribute the asset to others
+```
+
+**Using it is fine; handing it out is not.** For a compiled game the distinction never comes
+up — the asset is buried in the package. Copycat has no build. Ship the original PNG and every
+player downloads the whole 16×53-tile pack; that stops being *selling a game* and becomes
+*handing out a tileset*.
+
+So `tools/build-atlas.js` extracts **only the tiles the game actually references** and repacks
+them into `assets/atlas.png` — 103 tiles, 256×128, 10KB. What comes out is not a pack; it's this
+game's sprite sheet.
+
+- The coordinates still live in exactly one place, `js/sprite.js`. The builder **executes
+  sprite.js** to read the tables out rather than keeping its own copy, because a second copy
+  eventually disagrees with the first.
+- Original → atlas translation happens in **one function, `pick()`**. Every slicing path goes
+  through it.
+- The builder reads its own output back and **compares it to the source pixel by pixel.**
+  Misread the anchor convention (bottom-left origin, `tall` grows upward) in one place and the
+  furniture shifts half a tile — which is very hard to see and very easy to ship.
+- Change a coordinate without rebuilding and that one tile silently disappears. So a missing
+  entry logs a console warning, and packaging **always rebuilds the atlas first.**
+
+`assets/atlas.png` and `js/atlas.js` are derived from paid pixels, so **neither goes in the
+repo.** Inside the game they are an asset used in a project; sitting in a repository on their
+own they are closer to an asset being distributed.
 
 ## Running it
 
 Double-click `index.html`. That's it — it works over `file://`.
+
+## Making a release build
+
+```
+node tools/pack-release.js [--light-audio]
+```
+
+Produces `dist/copycat-web.zip`. itch.io runs a zip with `index.html` at its root directly in
+the browser, so for a game with no build step, **zipping is the build.**
+
+What the tool mostly does is exclude rather than compress. Files are listed by whitelist, then
+swept once more against a banlist (`modern_office`, `Room_Builder`, `site/`, `tools/`, payment
+secrets). It also checks that every script `index.html` asks for actually made it in — a missing
+one is a white screen, and you find out after uploading.
+
+`--light-audio` downmixes the BGM to mono 22.05kHz (**18.4MB → 4.6MB**), low-passing before
+decimation so nothing aliases back as a metallic edge. The source file is untouched. That size
+difference matters a lot to someone opening the page for the first time; drop the flag if you'd
+rather keep the fidelity.
+
+## One file you can send someone
+
+```
+node tools/pack-single.js [--with-music]
+```
+
+Produces `dist/copycat.html` — **270KB, the entire game in a single file.** Markup, CSS, all
+twelve scripts, the atlas and the cat sheets are inlined; there is nothing beside it to load.
+Double-click and it runs, offline, with no unzipping and no install.
+
+This exists because a zip is three steps — download, extract, find `index.html`, double-click —
+and three steps is where people stop. One file is one step, and it fits in a chat message.
+
+The game is not aware of any of this. `js/assets.js` holds an empty table and a one-line
+resolver; in the normal build every path resolves to itself, and in the single-file build the
+bundler fills that table with data URIs. The alternative — regex-replacing paths in the source —
+breaks the moment a path is assembled at runtime, and the cat sheet's is (`dir + colour + .png`).
+So there is exactly one hook, and it is in the game rather than in the bundler.
+
+`--with-music` adds the BGM as well and writes `dist/copycat-music.html` (**7MB** — base64 costs
+a third on top, so the track is downmixed first). Without it the file carries no music track at
+all and `js/music.js` falls back to the runtime-synthesised music box, which is what that
+fallback was written for.
+
+## Store assets
+
+```
+node tools/capture-store.js
+```
+
+Writes five screenshots and an animated cover to `dist/store/`. It drives the **actual game**
+over CDP rather than assembling mockups — clears the save, adds real to-dos, ticks them off,
+and waits out the real clock until the record has something in it, because a fresh employee
+file reads "Not on file" on every line and sells nothing. Everything on screen is a number the
+simulation produced.
+
+The cover is a **630×500 GIF of a cat carrying a document**, because that is this game's one
+sentence and it should not need a caption. `tools/gif.js` is a from-scratch GIF89a encoder —
+no dependency gets added for one image. Each frame stores only the rectangle that changed, and
+inside it only the pixels that changed, which is why 40 frames of a 630×500 office come to
+87KB. The tool loads its own output back into the browser afterwards and fails if the decode
+doesn't come back at the right size: an encoder you wrote yourself isn't verified by looking
+at the file size.
 
 ## Testing
 
@@ -255,6 +491,14 @@ run through it rather than guessed.
 
 ## What could be added next
 
+- **More decorate mode** — rotating furniture, moving several pieces at once, undo,
+  a shop of purely decorative items (rugs, posters, lamps), and exporting/importing a layout
+- **Configurable work schedule** — 09–18 with a 12–13 lunch is hard-coded today. Shift work,
+  staggered hours and four-day weeks belong in settings.
+- **Personalised care** — custom stretch intervals and phrasing, a Pomodoro mode (25/5),
+  and a "rough day" button that raises care frequency and lowers intensity.
+- **A weekly report** — hours endured and items handled, folded into Friday's clock-out message.
+- **BGM moods** — arrangements by weather and hour (Rhodes piano on rainy days, slower at night).
 - **Relationships between cats** — intimacy accrues from bumping into each other at social
   facilities; sitting next to a friend boosts output, sitting next to a rival hurts it. Office politics.
 - **Actual LLM agents** — cats currently run on utility AI. Wire an LLM in and let them write
@@ -282,7 +526,8 @@ run through it rather than guessed.
   ship in `assets/cats_16bit/`.
 - Furniture, floors and walls: **[Modern Office - Revamped](https://limezu.itch.io/modernoffice)
   by [LimeZu](https://limezu.itch.io/)** — a paid asset. Commercial use is permitted;
-  redistributing the asset is not, so it is gitignored here. See the install section.
+  redistributing the asset is not, so it is kept out of both the repo and the release build.
+  What ships is an atlas of the 103 tiles this game draws — see the install and atlas sections.
 
 **Ideas**
 - [OpenMMO](https://github.com/Julian-adv/OpenMMO) — agent–human parity, procedural generation, 4d6-drop-lowest
@@ -290,10 +535,12 @@ run through it rather than guessed.
   before they were replaced. No GitAnimals asset is used.
 
 Only ideas were borrowed from those two projects, never code. No fonts, no libraries,
-no build step. Sound is synthesised at runtime. Two art packs are used: the cats ship with
-the repo under CC BY, the office tileset does not.
+no build step. Sound effects are synthesised at runtime; the background music is a
+self-made render from the sister project [Major Aquarium](../major-aquarium/) (with a
+synthesised fallback). Two art packs are used: the cats ship with the repo under CC BY,
+the office tileset does not.
 
 ## License
 
-All rights reserved. This is **not** open source — a commercial release (Steam) is being
-considered, so no reuse or redistribution without permission. Please ask first.
+All rights reserved. This is **not** open source — a paid release is planned (itch.io first,
+Steam later), so no reuse or redistribution without permission. Please ask first.
