@@ -1,0 +1,27 @@
+name = "copycat-pay"
+main = "worker.js"
+compatibility_date = "2026-01-15"
+
+# 공개 설정 — 비밀값은 여기 두지 않는다. `wrangler secret put` 을 쓴다.
+[vars]
+PAYPAL_ENV = "sandbox"                        # 실서비스 전환 시 "live"
+ALLOWED_ORIGINS = "http://localhost:8788"     # 배포 후 실제 사이트 오리진으로 교체
+PUBLIC_BASE_URL = ""                          # 예: "https://pay.copycat.example" (비우면 상대경로)
+
+# 주문 기록 · 액세스 토큰 캐시 · 다운로드 횟수
+# 생성: wrangler kv namespace create ORDERS
+[[kv_namespaces]]
+binding = "ORDERS"
+id = "PUT_YOUR_KV_NAMESPACE_ID_HERE"
+
+# 판매할 zip 이 들어가는 버킷
+# 생성: wrangler r2 bucket create copycat-builds
+[[r2_buckets]]
+binding = "BUILDS"
+bucket_name = "copycat-builds"
+
+# 필요한 시크릿 (wrangler secret put <NAME>)
+#   PAYPAL_CLIENT_ID
+#   PAYPAL_CLIENT_SECRET
+#   PAYPAL_WEBHOOK_ID
+#   DOWNLOAD_SECRET      — openssl rand -hex 32

@@ -1,0 +1,14 @@
+# 로컬 개발용 비밀값. `.dev.vars` 로 복사해서 채운다.
+# .dev.vars 는 절대 커밋하지 않는다 (.gitignore 에 등록되어 있다).
+# 값은 https://developer.paypal.com/dashboard/applications/sandbox 에서 발급한다.
+
+PAYPAL_CLIENT_ID="sandbox-client-id"
+PAYPAL_CLIENT_SECRET="sandbox-client-secret"
+
+# 웹훅을 등록한 뒤 발급되는 ID. 웹훅을 안 쓰면 비워도 되지만,
+# 그러면 브라우저가 결제 직후 닫혔을 때 주문이 기록되지 않는다.
+PAYPAL_WEBHOOK_ID=""
+
+# 다운로드 토큰 서명 키 — openssl rand -hex 32
+# 이 값이 새면 누구나 유효한 다운로드 링크를 만들 수 있다.
+DOWNLOAD_SECRET="replace-with-32-bytes-of-hex"
