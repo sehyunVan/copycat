@@ -17,30 +17,28 @@ const WALKABLE = new Set([TILE.FLOOR, TILE.DOOR]);
 
 // 가구 렌더 정보 { 이모지, 이름, 상호작용 종류 }
 const TILE_INFO = {
-  [TILE.DESK]:      { em:'💻', n:'책상',     use:'work'   },
-  [TILE.INBOX]:     { em:'📥', n:'결재함',   use:'inbox'  },
-  [TILE.BED]:       { em:'🧺', n:'낮잠 상자', use:'sleep'  },
-  [TILE.LITTER]:    { em:'🪣', n:'모래상자', use:'litter' },
-  [TILE.COOLER]:    { em:'🚰', n:'정수기',   use:'social' },
-  [TILE.PLANT]:     { em:'🪴', n:'화분',     use:'social' },
-  [TILE.COFFEE]:    { em:'☕', n:'커피머신', use:'coffee' },
-  [TILE.COPIER]:    { em:'🖨️', n:'복사기',  use:'work'   },
-  [TILE.TOWER]:     { em:'🗼', n:'캣타워',   use:'sleep'  },
-  [TILE.SCRATCH]:   { em:'🪵', n:'스크래처', use:'social' },
-  [TILE.SERVER]:    { em:'🖥️', n:'건조실',  use:'sleep'  },
-  [TILE.FEEDER]:    { em:'🍚', n:'자동급식기',use:'coffee' },
-  [TILE.MEETING]:   { em:'🪑', n:'회의 테이블',use:'social'},
-  [TILE.GYM]:       { em:'🏋️', n:'헬스장',  use:'social' },
-  [TILE.LAB]:       { em:'🔬', n:'정제실',   use:'work'   },
-  [TILE.ROCKET]:    { em:'🚀', n:'사내 로켓', use:'social' },
-  [TILE.WHITEBOARD]:{ em:'📋', n:'화이트보드',use:null     },
-  [TILE.LEGAL]:     { em:'⚖️', n:'법무팀 데스크', use:'legal' },
-  [TILE.DECOR]:     { em:'🖼️', n:'사내 액자',   use:null     },
-  [TILE.SHELF]:     { em:'🗄️', n:'문서 선반',   use:null     },
-  [TILE.FILLER]:    { em:'',   n:'',           use:null     },   // 여러 칸 가구가 차지하는 나머지 칸
-  [TILE.DESK_R]:    { em:'💻', n:'책상',       use:'work'   },   // 2칸 책상의 오른쪽 절반
-  [TILE.FILLER]:    { em:'',   n:'',           use:null     },   // 여러 칸 가구가 차지하는 나머지 칸
-  [TILE.DESK_R]:    { em:'💻', n:'책상',       use:'work'   },   // 2칸 책상의 오른쪽 절반
+  [TILE.DESK]:      { em:'💻', n: L({ ko:'책상',        en:'Desk',           ja:'デスク' }),               use:'work'   },
+  [TILE.INBOX]:     { em:'📥', n: L({ ko:'결재함',      en:'Inbox',          ja:'決裁箱' }),               use:'inbox'  },
+  [TILE.BED]:       { em:'🧺', n: L({ ko:'낮잠 상자',   en:'Nap Box',        ja:'昼寝箱' }),               use:'sleep'  },
+  [TILE.LITTER]:    { em:'🪣', n: L({ ko:'모래상자',    en:'Litter Box',     ja:'猫トイレ' }),             use:'litter' },
+  [TILE.COOLER]:    { em:'🚰', n: L({ ko:'정수기',      en:'Water Cooler',   ja:'ウォーターサーバー' }),   use:'social' },
+  [TILE.PLANT]:     { em:'🪴', n: L({ ko:'화분',        en:'Plant',          ja:'観葉植物' }),             use:'social' },
+  [TILE.COFFEE]:    { em:'☕', n: L({ ko:'커피머신',    en:'Coffee Machine', ja:'コーヒーマシン' }),       use:'coffee' },
+  [TILE.COPIER]:    { em:'🖨️', n: L({ ko:'복사기',     en:'Copier',         ja:'コピー機' }),             use:'work'   },
+  [TILE.TOWER]:     { em:'🗼', n: L({ ko:'캣타워',      en:'Cat Tower',      ja:'キャットタワー' }),       use:'sleep'  },
+  [TILE.SCRATCH]:   { em:'🪵', n: L({ ko:'스크래처',    en:'Scratcher',      ja:'爪とぎ' }),               use:'social' },
+  [TILE.SERVER]:    { em:'🖥️', n: L({ ko:'건조실',     en:'Drying Room',    ja:'乾燥室' }),               use:'sleep'  },
+  [TILE.FEEDER]:    { em:'🍚', n: L({ ko:'자동급식기',  en:'Auto Feeder',    ja:'自動給餌器' }),           use:'coffee' },
+  [TILE.MEETING]:   { em:'🪑', n: L({ ko:'회의 테이블', en:'Meeting Table',  ja:'会議テーブル' }),         use:'social' },
+  [TILE.GYM]:       { em:'🏋️', n: L({ ko:'헬스장',     en:'Gym',            ja:'ジム' }),                 use:'social' },
+  [TILE.LAB]:       { em:'🔬', n: L({ ko:'정제실',      en:'Refinery',       ja:'精製室' }),               use:'work'   },
+  [TILE.ROCKET]:    { em:'🚀', n: L({ ko:'사내 로켓',   en:'Company Rocket', ja:'社用ロケット' }),         use:'social' },
+  [TILE.WHITEBOARD]:{ em:'📋', n: L({ ko:'화이트보드',  en:'Whiteboard',     ja:'ホワイトボード' }),       use:null     },
+  [TILE.LEGAL]:     { em:'⚖️', n: L({ ko:'법무팀 데스크',en:'Legal Desk',    ja:'法務デスク' }),           use:'legal'  },
+  [TILE.DECOR]:     { em:'🖼️', n: L({ ko:'사내 액자',  en:'Office Art',     ja:'社内アート' }),           use:null     },
+  [TILE.SHELF]:     { em:'🗄️', n: L({ ko:'문서 선반',  en:'File Shelf',     ja:'書類棚' }),               use:null     },
+  [TILE.FILLER]:    { em:'',   n:'',  use:null   },   // 여러 칸 가구가 차지하는 나머지 칸
+  [TILE.DESK_R]:    { em:'💻', n: L({ ko:'책상', en:'Desk', ja:'デスク' }),  use:'work' },   // 2칸 책상의 오른쪽 절반
 };
 
 function mulberry32(a){
@@ -56,13 +54,20 @@ function mulberry32(a){
 /* 방 비율은 정사각형에 가깝게 둔다. 타일셋 제작자의 예시 배치가 26x24, 32x34였고,
    가로로 길쭉하면 가로가 먼저 꽉 차서 세로에 검은 여백만 남는다. */
 const TIERS = [
-  { name:'골목 종이상자 지점', w:12, h:10, desks:2,  flavor:'비가 오면 젖는다. 그래도 사무실이다.' },
-  { name:'반지하 원룸 오피스', w:14, h:12, desks:4,  flavor:'창문이 발목 높이에 있다.' },
-  { name:'상가 2층 사무실',    w:16, h:14, desks:6,  flavor:'아래층 붕어빵 냄새가 올라온다.' },
-  { name:'냥코 소형 빌딩',     w:18, h:16, desks:9,  flavor:'드디어 엘리베이터가 생겼다.' },
-  { name:'냥코퍼레이션 사옥',  w:21, h:18, desks:12, flavor:'로비에 대형 캣타워가 서 있다.' },
-  { name:'냥타워',            w:23, h:20, desks:16, flavor:'야경이 보인다. 야근도 보인다.' },
-  { name:'달 지사 (Moon Br.)', w:26, h:22, desks:20, flavor:'중력이 약해서 다들 잘 뛴다.' },
+  { name: L({ ko:'골목 종이상자 지점', en:'Alley Cardboard Branch',   ja:'路地裏ダンボール支店' }), w:12, h:10, desks:2,
+    flavor: L({ ko:'비가 오면 젖는다. 그래도 사무실이다.',    en:'It gets wet when it rains. Still an office.',        ja:'雨が降ると濡れる。それでもオフィスだ。' }) },
+  { name: L({ ko:'반지하 원룸 오피스', en:'Semi-basement Studio',     ja:'半地下ワンルームオフィス' }), w:14, h:12, desks:4,
+    flavor: L({ ko:'창문이 발목 높이에 있다.',                en:'The window is at ankle height.',                     ja:'窓が足首の高さにある。' }) },
+  { name: L({ ko:'상가 2층 사무실',    en:'2nd-floor Walk-up Office', ja:'商店街2階オフィス' }), w:16, h:14, desks:6,
+    flavor: L({ ko:'아래층 붕어빵 냄새가 올라온다.',          en:'The taiyaki smell drifts up from downstairs.',       ja:'下の階からたい焼きの匂いが上がってくる。' }) },
+  { name: L({ ko:'냥코 소형 빌딩',     en:'Nyanco Small Building',    ja:'ニャンコ小型ビル' }), w:18, h:16, desks:9,
+    flavor: L({ ko:'드디어 엘리베이터가 생겼다.',             en:'Finally, an elevator.',                              ja:'ついにエレベーターができた。' }) },
+  { name: L({ ko:'냥코퍼레이션 사옥',  en:'Nyancorporation HQ',       ja:'ニャンコーポレーション本社' }), w:21, h:18, desks:12,
+    flavor: L({ ko:'로비에 대형 캣타워가 서 있다.',           en:'A giant cat tower stands in the lobby.',             ja:'ロビーに巨大キャットタワーが立っている。' }) },
+  { name: L({ ko:'냥타워',            en:'Nyan Tower',               ja:'ニャンタワー' }), w:23, h:20, desks:16,
+    flavor: L({ ko:'야경이 보인다. 야근도 보인다.',           en:'You can see the night view. And the overtime.',      ja:'夜景が見える。残業も見える。' }) },
+  { name: L({ ko:'달 지사 (Moon Br.)', en:'Moon Branch',              ja:'月支社' }), w:26, h:22, desks:20,
+    flavor: L({ ko:'중력이 약해서 다들 잘 뛴다.',             en:'Low gravity. Everyone jumps beautifully.',           ja:'重力が弱くて、みんなよく跳ぶ。' }) },
 ];
 const TIER_AT_QUARTER = [1, 3, 6, 10, 15, 21, 28];
 const tierForQuarter = q => {

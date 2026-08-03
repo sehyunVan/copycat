@@ -16,15 +16,28 @@ let NPCS = [];             // 외부인(법무팀·냥찰) — 직원이 아니�
 let RAID = null;           // 압수수색 진행 상태
 const clampv = (v,a,b) => Math.max(a, Math.min(b, v));
 
-/* ---------- 시계 ---------- */
-const MIN_PER_SEC = 0.75;                    // 실시간 1초 = 게임 0.75분 (하루 = 32분)
+/* ---------- 시계 ----------
+   게임 시계는 데스크탑 시계 그 자체다. 예전에는 1초 = 0.75분(하루 32분)으로
+   돌렸지만, 이 게임은 진짜 근무 시간을 같이 견뎌주는 동행이라 시간을 감지 않는다.
+   당신의 12시에 고양이들도 밥을 먹으러 가고, 당신의 18시에 고양이들도 퇴근한다.
+   분기 진행은 시간이 아니라 성과(KPI)로 굴러가므로 경제는 그대로다. */
+function nowMin(){
+  const d = new Date();
+  return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
+}
+function dayKey(d){
+  d = d || new Date();
+  return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate();
+}
+const WORK = { start:9*60, lunch:12*60, lunchEnd:13*60, end:18*60 };
 function phaseOf(min){
   const h = min / 60;
+  if (h >= 12 && h < 13) return 'lunch';
   if (h >= 8 && h < 18) return 'day';
   if (h >= 18 && h < 22) return 'evening';
   return 'night';
 }
-const PHASE_MUL = { day:1, evening:0.80, night:0.35 };
+const PHASE_MUL = { day:1, lunch:0.60, evening:0.80, night:0.35 };
 function clockStr(){
   const h = Math.floor(S.clock/60) % 24, m = Math.floor(S.clock % 60);
   return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
@@ -114,6 +127,9 @@ function arrive(c){
   else if (then === 'stamp')c.act = { s:'stamp', t:0, use:null };
   else if (then === 'sleep')c.act = { s:'sleep', t:0, use };
   else                      c.act = { s:'idle',  t:0, use:null };
+  // 시설은 **도착한 순간**만 이용으로 친다. 가다가 마음이 바뀐 건 이용이 아니다.
+  if (use && (then === 'use' || then === 'sleep'))
+    bus.emit('cat:use', { cat:c, tile: tileAt(W, use.x, use.y) });
 }
 
 /* ---------- 문서 (결재 파이프라인) ---------- */
@@ -189,6 +205,12 @@ function decide(c){
     }
   }
 
+  // 점심시간: 다 같이 휴게실로 몰려간다. 밥이 먼저다.
+  if (p === 'lunch' && Math.random() < 0.75){
+    const f = nearestUse(W, 'social', c);
+    if (f && goTo(c, f.spot, 'use', f.target)){ chat(c, 'lunch', 0.3); return; }
+  }
+
   // 밤에는 잔다 (야근형 제외)
   if (p === 'night' && !tr.nocturnal){
     const bed = nearestUse(W, 'sleep', c);
@@ -259,10 +281,13 @@ function chat(c, kind, chance){
 /* 냥찰청은 늘 같은 두 마리가 온다. 매번 다른 이름이 나오면 조직이 아니라
    무작위 NPC로 읽힌다. 얼굴이 고정되어야 "또 왔네"가 된다. */
 const POLICE = [
-  { name:'도 경찰', fur:0 },
-  { name:'김 경찰', fur:1 },
+  { name: L({ ko:'도 경찰', en:'Officer Doh', ja:'ドー巡査' }), fur:0 },
+  { name: L({ ko:'김 경찰', en:'Officer Kim', ja:'キム巡査' }), fur:1 },
 ];
-const NPC_NAMES = { legal: ['법무 정', '법무 윤', '법무 한'], rival: ['멍멍파 끄나풀'] };
+const NPC_NAMES = {
+  legal: L({ ko:['법무 정','법무 윤','법무 한'], en:['Legal Jung','Legal Yoon','Legal Han'], ja:['法務ジョン','法務ユン','法務ハン'] }),
+  rival: L({ ko:['멍멍파 끄나풀'], en:['Woof Gang snoop'], ja:['ワンワン組の下っ端'] }),
+};
 
 function spawnNpc(kind, count){
   const made = [];
@@ -371,8 +396,9 @@ const NEED_SCALE = 0.35;   // 욕구가 닳는 전체 속도. 낮출수록 고�
 
 function simTick(dt){
   const p = phaseOf(S.clock);
-  S.clock = (S.clock + dt * MIN_PER_SEC) % 1440;
-  if (S.clock < dt * MIN_PER_SEC) { S.day++; bus.emit('day:new', S.day); }
+  S.clock = nowMin();                        // 데스크탑 시계와 동기
+  const dk = dayKey();
+  if (S.dateKey !== dk){ S.dateKey = dk; S.day++; bus.emit('day:new', S.day); }
 
   const hasCoffee = !!(W.facilities.coffee);
   const decayMul = shopMul('decay', 1);

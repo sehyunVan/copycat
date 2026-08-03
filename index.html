@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Copycat — 캣닢 만드는 고양이 조직</title>
-<link rel="stylesheet" href="style.css?v=8">
+<link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
 <div id="app">
@@ -14,21 +14,23 @@
       <div class="logo" id="logo"></div>
       <div>
         <h1>Copycat</h1>
-        <div class="tier" id="coTier">골목 종이상자 지점</div>
+        <div class="tier" id="coTier"></div>
       </div>
     </div>
 
-    <div class="stat"><span class="ico">🐟</span><div><b id="sAnchovy">0</b> <small id="sRate">+0/초</small></div></div>
-    <div class="stat"><span class="ico">🐾</span><div><b id="sCats">0</b> <small>냥</small></div></div>
-    <div class="stat pen" id="penChip"><span class="ico">🔍</span><div><b id="sPen">0</b> <small>혐의</small></div></div>
+    <div class="stat"><span class="ico">🐟</span><div><b id="sAnchovy">0</b> <small id="sRate">+0</small></div></div>
+    <div class="stat"><span class="ico">🐾</span><div><b id="sCats">0</b> <small id="lblCats">냥</small></div></div>
+    <div class="stat pen" id="penChip"><span class="ico">🔍</span><div><b id="sPen">0</b> <small id="lblPen">혐의</small></div></div>
 
     <div class="qwrap">
-      <div class="qhead"><span id="qLabel">Q1 · 1년차 1분기</span><span id="qNum">0 / 10 성과</span></div>
+      <div class="qhead"><span id="qLabel"></span><span id="qNum"></span></div>
       <div class="qbar"><i id="qFill"></i></div>
     </div>
 
     <div class="spacer"></div>
+    <button class="iconbtn" id="btnEdit" title="배치 모드">🛋️</button>
     <button class="iconbtn" id="btnSound" title="소리">🔊</button>
+    <button class="iconbtn" id="btnSettings" title="설정">⚙️</button>
     <button class="iconbtn" id="btnHelp" title="사규">❓</button>
     <button class="iconbtn" id="btnReset" title="처음부터">🗑️</button>
   </div>
@@ -37,15 +39,15 @@
 
     <!-- 결재함 -->
     <section class="panel">
-      <div class="ph"><span>📋</span><h2>결재함</h2><span class="sub" id="todoSub">0건 대기</span></div>
+      <div class="ph"><span>📋</span><h2 id="phInbox">결재함</h2><span class="sub" id="todoSub"></span></div>
       <div class="addbox">
-        <input id="todoInput" placeholder="할 일을 올리면 고양이가 가지러 옵니다…" maxlength="80" autocomplete="off">
+        <input id="todoInput" placeholder="" maxlength="80" autocomplete="off">
         <div class="sizes" id="sizes">
-          <button class="size on" data-size="s"><b>작음</b>+1 성과</button>
-          <button class="size" data-size="m"><b>보통</b>+3 성과</button>
-          <button class="size" data-size="l"><b>큼</b>+7 성과</button>
+          <button class="size on" data-size="s"></button>
+          <button class="size" data-size="m"></button>
+          <button class="size" data-size="l"></button>
         </div>
-        <button class="addbtn" id="btnAdd">결재 상신</button>
+        <button class="addbtn" id="btnAdd"></button>
       </div>
       <div class="pb" id="todoList"></div>
     </section>
@@ -53,8 +55,8 @@
     <!-- 사무실 -->
     <section class="stagewrap">
       <div id="viewport">
-        <div class="clockchip" id="clock">Day 1 · 09:00 · 근무</div>
-        <div class="raidbanner" id="raidBanner">🚨 압수수색 진행 중 — 생산 40% · 남은 시간 <b>0초</b></div>
+        <div class="clockchip" id="clock"></div>
+        <div class="raidbanner" id="raidBanner"></div>
         <div id="world">
           <div id="tiles"></div>
           <div id="docs"></div>
@@ -62,13 +64,15 @@
           <div id="warm"></div>
           <div id="night"></div>
           <div id="floaties"></div>
+          <div id="editLayer" style="display:none"><div id="editSel"></div><div id="editGhost"></div></div>
         </div>
+        <div class="edithint" id="editHint" style="display:none"></div>
       </div>
       <div class="stagefoot">
-        <span class="kv">🪑 근무 <b id="fWork">0/0</b></span>
-        <span class="kv">😺 사기 <b id="fMood">100</b>%</span>
-        <span class="kv">📄 대기 <b id="fDocs">0</b></span>
-        <span class="kv">✅ 누적 <b id="fDone">0</b></span>
+        <span class="kv">🪑 <span id="lblWork">근무</span> <b id="fWork">0/0</b></span>
+        <span class="kv">😺 <span id="lblMood">사기</span> <b id="fMood">100</b>%</span>
+        <span class="kv">📄 <span id="lblDocs">대기</span> <b id="fDocs">0</b></span>
+        <span class="kv">✅ <span id="lblDone">누적</span> <b id="fDone">0</b></span>
         <span id="ticker"></span>
       </div>
     </section>
@@ -86,12 +90,20 @@
   </div>
 </div>
 
-<script src="js/world.js?v=8"></script>
-<script src="js/cats.js?v=8"></script>
-<script src="js/sprite.js?v=8"></script>
-<script src="js/sim.js?v=8"></script>
-<script src="js/game.js?v=8"></script>
-<script src="js/ui.js?v=8"></script>
-<script src="js/main.js?v=8"></script>
+<script src="js/assets.js?v=9"></script>
+<script src="js/i18n.js?v=9"></script>
+<script src="js/world.js?v=9"></script>
+<script src="js/cats.js?v=9"></script>
+<!-- 자동 생성 (node tools/build-atlas.js). 유료 팩에서 실제로 쓰는 칸만 뽑은 좌표표라
+     저장소에는 없다 — 없으면 가구가 안 보인다. tools/build-atlas.js 주석 참고. -->
+<script src="js/atlas.js?v=9"></script>
+<script src="js/sprite.js?v=9"></script>
+<script src="js/sim.js?v=9"></script>
+<script src="js/game.js?v=9"></script>
+<script src="js/ui.js?v=9"></script>
+<script src="js/edit.js?v=9"></script>
+<script src="js/care.js?v=9"></script>
+<script src="js/music.js?v=9"></script>
+<script src="js/main.js?v=9"></script>
 </body>
 </html>
