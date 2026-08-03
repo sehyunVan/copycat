@@ -1,48 +1,9 @@
 // 타일에서 시작해 이어진 픽셀 덩어리를 추적 → 스프라이트의 진짜 경계를 구한다.
-const fs = require('fs'), zlib = require('zlib'), vm = require('vm');
+const fs = require('fs'), vm = require('vm'), path = require('path');
+const { decodePNG } = require('./png.js');
 
-function decodePNG(file){
-  const d = fs.readFileSync(file);
-  let p = 8, w=0, h=0, bd=0, ct=0, idat=[], plte=null, trns=null;
-  while (p < d.length){
-    const len = d.readUInt32BE(p), type = d.toString('ascii', p+4, p+8);
-    const data = d.subarray(p+8, p+8+len);
-    if (type==='IHDR'){ w=data.readUInt32BE(0); h=data.readUInt32BE(4); bd=data[8]; ct=data[9]; }
-    else if (type==='IDAT') idat.push(data);
-    else if (type==='PLTE') plte=data;
-    else if (type==='tRNS') trns=data;
-    else if (type==='IEND') break;
-    p += 12 + len;
-  }
-  const ch = {0:1,2:3,3:1,4:2,6:4}[ct];
-  const raw = zlib.inflateSync(Buffer.concat(idat));
-  const stride = w*ch, out = Buffer.alloc(h*stride);
-  const paeth=(a,b,c)=>{const pp=a+b-c,pa=Math.abs(pp-a),pb=Math.abs(pp-b),pc=Math.abs(pp-c);
-    return (pa<=pb&&pa<=pc)?a:(pb<=pc?b:c);};
-  for (let y=0;y<h;y++){
-    const ft = raw[y*(stride+1)];
-    const line = raw.subarray(y*(stride+1)+1, y*(stride+1)+1+stride);
-    for (let i=0;i<stride;i++){
-      const a = i>=ch ? out[y*stride+i-ch] : 0;
-      const b = y>0 ? out[(y-1)*stride+i] : 0;
-      const c = (i>=ch&&y>0) ? out[(y-1)*stride+i-ch] : 0;
-      let v = line[i];
-      if (ft===1) v+=a; else if (ft===2) v+=b; else if (ft===3) v+=(a+b)>>1; else if (ft===4) v+=paeth(a,b,c);
-      out[y*stride+i] = v & 0xff;
-    }
-  }
-  const alpha = new Uint8Array(w*h);
-  for (let i=0;i<w*h;i++){
-    if (ct===6) alpha[i]=out[i*4+3];
-    else if (ct===4) alpha[i]=out[i*2+1];
-    else if (ct===3){ const idx=out[i]; alpha[i]= trns && idx<trns.length ? trns[idx] : 255; }
-    else alpha[i]=255;
-  }
-  return { w, h, alpha };
-}
-
-const ROOT = 'c:/Users/sehyu/playground/copycat/';
-const src = ['js/world.js','js/cats.js','js/sprite.js'].map(f=>fs.readFileSync(ROOT+f,'utf8')).join('\n');
+const ROOT = path.join(__dirname, '..') + '/';
+const src = ['js/i18n.js','js/world.js','js/cats.js','js/sprite.js'].map(f=>fs.readFileSync(ROOT+f,'utf8')).join('\n');
 const ctx = { console, Math, Object, Map, Set, Array, String, Number,
   document:{createElement:()=>({width:0,height:0,getContext:()=>({fillRect(){}}),toDataURL:()=>'data:,'})} };
 vm.createContext(ctx); vm.runInContext(src, ctx);
@@ -50,7 +11,7 @@ const R = e => vm.runInContext(e, ctx);
 
 const S = decodePNG(ROOT + 'assets/modern_office/Modern_Office_Shadowless_16x16.png');
 const T = 16;
-const on = (x,y) => x>=0 && y>=0 && x<S.w && y<S.h && S.alpha[y*S.w+x] > 8;
+const on = (x,y) => x>=0 && y>=0 && x<S.w && y<S.h && S.rgba[(y*S.w+x)*4+3] > 8;
 
 /* 타일 안의 모든 채워진 픽셀에서 8방향 flood fill → 이어진 덩어리의 바운딩 박스 */
 function extent(col, row){

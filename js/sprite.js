@@ -31,7 +31,7 @@ const CAT_ANIM = {
   sit:   { row: 1, col: 1, n: 2 },
   sleep: { row: 2, col: 0, n: 3 },
 };
-const catSrc = c => CAT_SHEET.dir + '16x16-' + CAT_SHEET.colors[(c.fur || 0) % CAT_SHEET.colors.length] + '.png';
+const catSrc = c => assetURL(CAT_SHEET.dir + '16x16-' + CAT_SHEET.colors[(c.fur || 0) % CAT_SHEET.colors.length] + '.png');
 
 /* 색상 4종만으로는 직원 20마리를 구분할 수 없다.
    캔버스로 색을 바꾸면 file:// 에서 오염 문제가 생기므로 CSS 필터로 돌린다. */
@@ -66,8 +66,10 @@ function catPortraitStyle(c){
        + `background-position:${-1 * px}px ${-1 * px}px;`
        + (f ? `filter:${f};` : '');
 }
+/* 액터 DOM을 다시 칠할지 정하는 지문 — catStyle/catFilter 가 실제로 보는 값만 모은다.
+   장비는 능력치만 바꾸고 겉모습은 안 바꾸므로 넣지 않는다. */
 function catKey(c, state){
-  return [c.fur, c.hue || 0, c.npc || '', state].join('|');
+  return [c.fur, c.hue || 0, c.acc, c.npc || '', state].join('|');
 }
 
 /* ---------- 가구 ---------- */
@@ -182,15 +184,21 @@ const F_DOC = [
 
 /* ============================================================
    가구 타일셋 — LimeZu "Modern Office - Revamped" (구매 에셋)
-   assets/modern_office/  · 16x16 타일, 마진 0
    라이선스: 상업/비상업 프로젝트 사용 가능, 에셋 자체의 재판매·재배포 금지.
-   그래서 이 폴더는 .gitignore 로 저장소에서 제외한다 — README 설치 안내 참고.
+
+   그래서 게임은 원본 시트를 열지 않는다. 아래 좌표들은 원본 기준으로 적혀 있지만
+   실제로 화면에 붙는 이미지는 assets/atlas.png — 여기서 참조하는 칸만 뽑아
+   재배치한 이 게임 전용 시트다 (tools/build-atlas.js 가 만든다).
+   좌표 변환은 pick() 한 곳에서만 일어난다.
+
+   좌표를 고치거나 새 칸을 쓰기 시작했으면 반드시 `node tools/build-atlas.js` 를
+   다시 돌려야 한다. 안 돌리면 그 칸만 조용히 안 보인다 (콘솔에 경고가 뜬다).
 
    이 팩은 가구가 1x2칸(책상·정수기·자판기)인 게 많다. tall:2 로 표시하면
    위쪽 칸까지 넘겨 그린다. 게임 로직상 점유하는 칸은 여전히 아래 한 칸이다.
    ============================================================ */
 const SHEET = {
-  src: 'assets/modern_office/Modern_Office_Shadowless_16x16.png',
+  src: 'assets/modern_office/Modern_Office_Shadowless_16x16.png',   // 아틀라스의 재료. 배포본엔 없다
   w: 256, h: 848,          // 16 x 53 타일
   tile: 16, margin: 0,
   scale: PXS,
@@ -298,13 +306,6 @@ function drawMap(g, map, pal, ox, oy, px){
 
 
 
-function catKey(c, state){
-  return [c.fur, c.acc, c.npc || '', state,
-          c.equip ? c.equip.head + ',' + c.equip.neck + ',' + c.equip.paw : ''].join('|');
-}
-
-
-
 /* 가구 한 칸을 그리는 CSS 배경 선언을 돌려준다.
    시트에서 잘라오는 쪽은 캔버스를 안 쓴다 — file:// 에서 외부 이미지를 캔버스에
    그리면 캔버스가 오염돼 toDataURL()이 막히기 때문. CSS 배경 슬라이싱은 그 제약이 없다. */
@@ -316,16 +317,9 @@ function furnStyle(tile){
   if (!def) return '';
   let css;
   if (def.col !== undefined){
-    const S = SHEET, step = (S.tile + S.margin) * S.scale;
-    const t = def.tall || 1, wd = def.wide || 1;
     // tall은 위쪽 칸으로, wide는 오른쪽 칸으로 넘겨 그린다.
     // 게임 로직이 차지하는 칸은 각각 아래 한 칸 / 왼쪽 한 칸이다.
-    css = `background-image:url(${S.src});`
-        + `background-size:${S.w * S.scale}px ${S.h * S.scale}px;`
-        + `background-position:${-def.col * step}px ${-(def.row - t + 1) * step}px;`
-        + `background-repeat:no-repeat;`
-        + (t > 1 ? `height:${t * S.tile * S.scale}px;margin-top:${-(t-1) * S.tile * S.scale}px;` : '')
-        + (wd > 1 ? `width:${wd * S.tile * S.scale}px;` : '');
+    css = sheetSlice(def.col, def.row, def.tall, def.wide);
   } else {
     const cv = document.createElement('canvas');
     cv.width = FW * PXS; cv.height = FH * PXS;
@@ -337,16 +331,32 @@ function furnStyle(tile){
   return css;
 }
 
-/* 시트에서 한 칸을 잘라오는 공통 함수 */
-function sheetSlice(col, row, tall, wide){
-  const S = SHEET, step = (S.tile + S.margin) * S.scale;
+/* 원본 좌표 → 실제로 화면에 붙일 좌표.
+   배포본에는 유료 팩이 들어가지 않고 assets/atlas.png 만 들어간다. 시트에서 칸을
+   잘라 쓰는 코드는 전부 여기를 지나므로, 갈아끼우는 지점이 이 함수 하나뿐이다. */
+function pick(sheet, col, row, tall, wide){
   const t = tall || 1, w = wide || 1;
-  return `background-image:url(${S.src});`
-       + `background-size:${S.w * S.scale}px ${S.h * S.scale}px;`
-       + `background-position:${-col * step}px ${-(row - t + 1) * step}px;`
+  const A = typeof ATLAS !== 'undefined' ? ATLAS : null;
+  const hit = A && A.map[sheet + '|' + col + ',' + row + ',' + w + ',' + t];
+  if (hit) return { src: A.src, sw: A.w, sh: A.h, col: hit[0], row: hit[1], t, w };
+  // 아틀라스에 없는 칸 = 좌표를 고치고 빌더를 안 돌렸다는 뜻. 개발 중엔 원본으로 버티되
+  // 배포본에선 원본이 없어 그 칸만 안 보이므로, 조용히 넘어가지 않고 알린다.
+  if (A) console.warn('[atlas] 빠진 칸', sheet, col, row, `w${w} t${t}`, '— node tools/build-atlas.js 를 다시 돌릴 것');
+  const S = sheet === 'room' ? ROOM : SHEET;
+  return { src: S.src, sw: S.w, sh: S.h, col, row, t, w };
+}
+
+/* 시트에서 한 칸을 잘라오는 공통 함수.
+   (col,row)는 왼쪽-아래 칸이고 tall만큼 위로, wide만큼 오른쪽으로 뻗는다. */
+function sheetSlice(col, row, tall, wide, sheet){
+  const p = pick(sheet || 'office', col, row, tall, wide);
+  const step = FW * PXS;
+  return `background-image:url(${assetURL(p.src)});`
+       + `background-size:${p.sw * PXS}px ${p.sh * PXS}px;`
+       + `background-position:${-p.col * step}px ${-(p.row - p.t + 1) * step}px;`
        + `background-repeat:no-repeat;`
-       + (t > 1 ? `height:${t * S.tile * S.scale}px;margin-top:${-(t-1) * S.tile * S.scale}px;` : '')
-       + (w > 1 ? `width:${w * S.tile * S.scale}px;` : '');
+       + (p.t > 1 ? `height:${p.t * step}px;margin-top:${-(p.t - 1) * step}px;` : '')
+       + (p.w > 1 ? `width:${p.w * step}px;` : '');
 }
 /* 자리에 놓을 의자 — 그림만. 게임 로직상 그 칸은 계속 빈 바닥이다. */
 function chairStyle(x, y){
@@ -387,68 +397,7 @@ function deskTopStyle(x, y){
   const hit = _cache.get(key);
   if (hit) return hit;
   const [c, r] = DESK_TOPS[(x * 7 + y * 13) % DESK_TOPS.length];
-  const S = SHEET, step = (S.tile + S.margin) * S.scale;
-  const css = `background-image:url(${S.src});`
-    + `background-size:${S.w * S.scale}px ${S.h * S.scale}px;`
-    + `background-position:${-c * step}px ${-r * step}px;background-repeat:no-repeat`;
-  _cache.set(key, css);
-  return css;
-}
-
-/* 시트에서 한 칸을 잘라오는 공통 함수 */
-function sheetSlice(col, row, tall, wide){
-  const S = SHEET, step = (S.tile + S.margin) * S.scale;
-  const t = tall || 1, w = wide || 1;
-  return `background-image:url(${S.src});`
-       + `background-size:${S.w * S.scale}px ${S.h * S.scale}px;`
-       + `background-position:${-col * step}px ${-(row - t + 1) * step}px;`
-       + `background-repeat:no-repeat;`
-       + (t > 1 ? `height:${t * S.tile * S.scale}px;margin-top:${-(t-1) * S.tile * S.scale}px;` : '')
-       + (w > 1 ? `width:${w * S.tile * S.scale}px;` : '');
-}
-/* 자리에 놓을 의자 — 그림만. 게임 로직상 그 칸은 계속 빈 바닥이다. */
-function chairStyle(x, y){
-  const key = 'ch|' + x + ',' + y;
-  const hit = _cache.get(key);
-  if (hit) return hit;
-  const [c, r] = CHAIRS[(x * 5 + y * 11) % CHAIRS.length];
-  // 등받이까지 온전히 그린다. 위 칸(책상)을 덮는 건 잘라서가 아니라
-  // 깊이 순서로 해결한다 — 의자를 책상보다 뒤에 두면 책상 밑으로 밀어넣은 것처럼 보인다.
-  const css = sheetSlice(c, r, 2, 1);
-  _cache.set(key, css);
-  return css;
-}
-/* 책상에 곁들이는 작은 소품 */
-function deskSideStyle(x, y){
-  const key = 'ds|' + x + ',' + y;
-  const hit = _cache.get(key);
-  if (hit) return hit;
-  const [c, r] = DESK_SIDE[(x * 13 + y * 7) % DESK_SIDE.length];
   const css = sheetSlice(c, r, 1, 1);
-  _cache.set(key, css);
-  return css;
-}
-/* 바닥 잡동사니 */
-function clutterStyle(i){
-  const key = 'cl|' + i;
-  const hit = _cache.get(key);
-  if (hit) return hit;
-  const d = CLUTTER[i % CLUTTER.length];
-  const css = sheetSlice(d.col, d.row, d.tall, d.wide);
-  _cache.set(key, css);
-  return css;
-}
-
-/* 책상 위 소품 — 책상 타일 위에 한 겹 더 얹는다. 좌표는 칸마다 고정(같은 자리는 늘 같은 물건). */
-function deskTopStyle(x, y){
-  const key = 'dt|' + x + ',' + y;
-  const hit = _cache.get(key);
-  if (hit) return hit;
-  const [c, r] = DESK_TOPS[(x * 7 + y * 13) % DESK_TOPS.length];
-  const S = SHEET, step = (S.tile + S.margin) * S.scale;
-  const css = `background-image:url(${S.src});`
-    + `background-size:${S.w * S.scale}px ${S.h * S.scale}px;`
-    + `background-position:${-c * step}px ${-r * step}px;background-repeat:no-repeat`;
   _cache.set(key, css);
   return css;
 }
@@ -498,10 +447,7 @@ function roomStyle(kind){
   const hit = _cache.get(key);
   if (hit) return hit;
   const [c, r] = ROOM[kind] || ROOM.floor;
-  const step = (ROOM.tile + ROOM.margin) * ROOM.scale;
-  const css = `background-image:url(${ROOM.src});`
-    + `background-size:${ROOM.w * ROOM.scale}px ${ROOM.h * ROOM.scale}px;`
-    + `background-position:${-c * step}px ${-r * step}px;background-repeat:no-repeat`;
+  const css = sheetSlice(c, r, 1, 1, 'room');
   _cache.set(key, css);
   return css;
 }

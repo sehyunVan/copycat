@@ -29,3 +29,16 @@ scratch/
 /Modern_Office_Revamped_v1.2/
 *.zip
 /cat/
+
+# 위 팩에서 파생된 것들. 배포본(게임 안)에는 들어가지만 저장소에는 넣지 않는다 —
+# 게임과 분리된 픽셀 뭉치를 올려 두는 건 "에셋 배포"에 해당한다.
+# 만드는 법: node tools/build-atlas.js
+/assets/atlas.png
+/js/atlas.js
+
+# 결제 시크릿 — 새면 누구나 다운로드 링크를 위조할 수 있고 PayPal 계정이 노출된다.
+# 값은 `wrangler secret put` 으로만 넣는다. site/pay/README.md 참고.
+site/pay/.dev.vars
+site/pay/.wrangler/
+.dev.vars
+*.pem
