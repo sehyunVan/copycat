@@ -103,6 +103,7 @@ function applyStatic(){
   $('[data-tab="staff"]').textContent = '🐈 ' + L({ ko:'직원', en:'Staff', ja:'スタッフ' });
   $('[data-tab="shop"]').textContent  = '🛒 ' + L({ ko:'비품', en:'Supplies', ja:'備品' });
   $('[data-tab="log"]').textContent   = '📰 ' + L({ ko:'사보', en:'News', ja:'社報' });
+  $('#btnCard').title     = L({ ko:'근무 기록증 — 함께한 시간', en:'Time card — how long we have been at it', ja:'勤務記録証——一緒にいた時間' });
   $('#btnEdit').title     = L({ ko:'배치 모드 — 가구 옮기기', en:'Decorate — move furniture', ja:'模様替え——家具を動かす' });
   $('#btnSound').title    = L({ ko:'소리 (효과음+음악)', en:'Sound (sfx + music)', ja:'サウンド（効果音＋音楽）' });
   $('#btnSettings').title = L({ ko:'설정', en:'Settings', ja:'設定' });

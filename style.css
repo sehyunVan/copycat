@@ -212,6 +212,12 @@ input{font-family:inherit}
 .buy[disabled]{background:#E7DBC6;color:#A2917E;box-shadow:0 3px 0 #D6C8B2;cursor:not-allowed}
 .buy.alt{background:var(--mint);color:#12503F;box-shadow:0 3px 0 #46A088}
 .buy.alt[disabled]{background:#E7DBC6;color:#A2917E;box-shadow:0 3px 0 #D6C8B2}
+/* 근무 기록증 — 모달 안에서는 줄여 보여주고, 저장되는 건 항상 1200x630 원본이다 */
+.cardimg{display:block;width:100%;height:auto;border:3px solid var(--ink);
+  box-shadow:0 4px 0 var(--shadow);image-rendering:auto;margin-bottom:12px}
+.cardacts{display:flex;gap:8px;margin-bottom:6px}
+.cardacts .buy{flex:1;padding:10px;font-size:12.5px}
+
 .hint{font-size:10.5px;color:var(--soft);margin:-2px 2px 8px}
 .hintbad{font-size:11px;color:var(--red);margin-top:7px}
 .okmark{font-size:12px;color:#2F7A64;font-weight:800}

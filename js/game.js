@@ -117,6 +117,22 @@ const EVENTS = [
 /* ---------- 상태 ---------- */
 let S = null;
 
+/* 함께한 시간.
+   이 게임이 스스로에게 물어야 하는 질문은 "얼마나 벌었나"가 아니라 "며칠을 같이
+   버텼나"다. 그런데 그걸 세는 칸이 어디에도 없었다 — 분기도 성과도 게임 안 숫자지
+   사람이 실제로 옆에 있었던 시간이 아니다.
+     days  창을 연 적 있는 날짜의 수 (하루에 몇 번을 열든 1)
+     sec   창이 열려 있던 실제 초
+     work  그중 평일 근무시간(점심 제외)에 해당하는 초 — 같이 견딘 몫
+     since 처음 만난 날
+   초는 틱 수가 아니라 벽시계 차이로 센다. 배경 탭의 setInterval 은 크롬이 분당
+   한 번까지 늦추기 때문에, 틱을 세면 정작 배경에 켜 둔 사람의 시간이 사라진다. */
+const newTogether = () => ({ days: 0, sec: 0, work: 0, since: null });
+const normTogether = t => ({
+  days: (t && t.days) || 0, sec: (t && t.sec) || 0,
+  work: (t && t.work) || 0, since: (t && t.since) || null,
+});
+
 function newGame(){
   const first = newCat(L({ ko:'치즈', en:'Cheese', ja:'チーズ' }));
   first.fur = 0; first.acc = 'tie'; first.trait = 'steady';
@@ -131,6 +147,7 @@ function newGame(){
     candidate: null,                                 // 문 앞에서 기다리는 지원자
     penalty: 0, jail: [], referred: 0, rival: 0.10,
     stats: { done:0, totalKpi:0, totalEarned:0, qEarned:0, qDone:0, started:Date.now() },
+    together: newTogether(),
     working: 0,
     last: Date.now(),
   };
@@ -157,6 +174,7 @@ function loadSave(){
     d.rival = typeof d.rival === 'number' ? d.rival : 0.10;
     d.dateKey = d.dateKey || dayKey();   // 32분-하루 시절 저장 보정
     d.candidate = d.candidate || null;
+    d.together = normTogether(d.together);   // 함께한 시간도 나중에 생긴 칸이다
     d.todos = (d.todos || []).map(t => ({ ...t, q: t.q || 1 }));
     d.cats.forEach(c => {
       c.stats = c.stats || rollStats();

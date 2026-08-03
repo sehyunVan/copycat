@@ -14,6 +14,9 @@ try { notifOn = localStorage.getItem(NOTIF_KEY) === '1'; } catch(e){}
 
 /* 근무 스케줄 관련 알림(출근·스트레칭·티타임·퇴근)은 평일에만,
    점심·밤 인사는 요일 없이 챙긴다. */
+/* 기록증을 언급하는 날. 첫날은 빼 둔다 — 하루 만에 자랑거리를 내밀면 값이 싸 보인다. */
+const CARD_MILESTONES = [3, 5, 10, 20, 30, 50, 100, 200, 365];
+
 const CARE_BEATS = [
   { id:'morning', at: 8*60+50, span:100, weekday:true, msg: () => L({
       ko:'☀️ 출근 도장 찍었다냥. 오늘도 옆에서 같이 버텨줄게.',
@@ -33,10 +36,17 @@ const CARE_BEATS = [
       ja:'🍵 15時。お水を一杯、窓の外もちょっと見ようにゃ。' }) },
   { id:'end', at: WORK.end, span:30, weekday:true, msg: () => {
       const n = (S.careDay && S.careDay.done) || 0;
-      return L({
+      const base = L({
         ko:`🌆 18시, 퇴근 시간이다냥! 오늘 하루를 버텨냈다. 결재 ${n}건 — 나머지는 내일의 고양이가 맡는다.`,
         en:`🌆 6 PM — clock-out time! You made it through today. ${n} approvals done — tomorrow’s cats will take the rest.`,
         ja:`🌆 18時、退勤にゃ！今日も乗り切った。決裁${n}件——残りは明日の猫にまかせよう。` });
+      // 마디가 되는 날에만 기록증 얘기를 꺼낸다. 매일 하면 그건 권유가 아니라 잔소리다.
+      const d = normTogether(S.together).days;
+      if (!CARD_MILESTONES.includes(d)) return base;
+      return base + ' ' + L({
+        ko:`그리고 오늘로 ${d}일째다냥. 🪪 에 적어 뒀어.`,
+        en:`Also — that makes ${d} days. It’s written down under 🪪.`,
+        ja:`それと、今日で${d}日目にゃ。🪪 に書いておいた。` });
     } },
   { id:'night', at: 22*60, span:30, weekday:false, msg: () => L({
       ko:'🌙 밤 10시. 오늘은 여기까지 하자냥. 잘 자.',
@@ -64,9 +74,29 @@ let stretchAcc = 0;
 
 function careDayOf(){
   const dk = dayKey();
-  if (!S.careDay || S.careDay.date !== dk)
+  if (!S.careDay || S.careDay.date !== dk){
     S.careDay = { date: dk, fired: {}, done: 0, stretchIdx: 0 };
+    // 날짜가 바뀐 걸 여기서 처음 안다 → 함께한 날 +1. 하루에 몇 번을 열든 한 번만 는다.
+    const t = S.together || (S.together = newTogether());
+    t.days++;
+    if (!t.since) t.since = dk;
+  }
   return S.careDay;
+}
+
+/* 창이 열려 있던 실제 시간. 틱을 세지 않고 벽시계 차이를 더한다 — 배경 탭에서는
+   1초 타이머가 분 단위까지 늦춰지므로, 틱을 세면 배경에 켜 둔 사람의 시간이 사라진다.
+   반대로 노트북을 덮어 둔 8시간까지 "함께"로 칠 수는 없으니 큰 구멍은 버린다. */
+let lastBeat = 0;
+const BEAT_GAP_MAX = 5 * 60 * 1000;   // 이보다 벌어졌으면 자거나 닫혀 있었던 것
+function togetherTick(working){
+  const now = Date.now();
+  const gap = lastBeat ? now - lastBeat : 0;
+  lastBeat = now;
+  if (gap <= 0 || gap > BEAT_GAP_MAX) return;
+  const t = S.together || (S.together = newTogether());
+  t.sec += gap / 1000;
+  if (working) t.work += gap / 1000;
 }
 
 /* 오늘 도장 찍은 건수 — 퇴근 인사에 쓴다 */
@@ -110,6 +140,7 @@ function careTick(){
   // 스트레칭 타이머 — 평일 근무 시간(점심 제외)에만 흐른다
   const working = weekday && mins >= WORK.start && mins < WORK.end
     && !(mins >= WORK.lunch && mins < WORK.lunchEnd);
+  togetherTick(working);
   if (working){
     stretchAcc += 1;
     if (stretchAcc >= STRETCH_EVERY){

@@ -243,7 +243,36 @@ in place via `L({ko,en,ja})`, which makes key mismatches structurally impossible
 come from per-language pools (치즈/Cheese/チーズ), and in the Japanese version the product
 is マタタビ (silver vine), the culturally correct cat narcotic.
 
-### 8. Pixel art — three sources
+### 8. The time card — the only instrument this game is allowed
+
+A companion game lives or dies on whether anyone keeps it open, and this one is offline
+by design: no server, no account, nothing phoning home. There is no way to know.
+
+Adding telemetry would answer the question and break the thing it was measuring. A game
+whose whole premise is *sitting beside you* cannot also be *watching you*.
+
+So it goes the other way. 🪪 draws a **1200×630 card** — days clocked in together, hours
+spent, hours endured inside actual working time, documents stamped, and the one cat that
+carried the most of it, by name and with its record. Save it or copy it to the clipboard.
+When someone posts one, the number on it *is* the retention data, and what gets shared is
+the player's decision rather than something taken from them. The card is also the only
+honest advertisement this game has, since it can only ever say something true.
+
+The counters live in `S.together` and are measured in wall-clock deltas, not tick counts —
+Chrome throttles a background tab's one-second timer down to once a minute, and counting
+ticks would erase exactly the people who leave it running in another tab. Gaps over five
+minutes are dropped, so a laptop left shut overnight does not become companionship.
+
+At clock-out on days 3, 5, 10, 20, 30, 50, 100, 200 and 365 a cat mentions the card once.
+Every day would not be an offer, it would be nagging.
+
+Drawing it hits the same `file://` canvas-tainting wall as everything else here: the cat
+sheet is a cross-origin image, so `toDataURL()` throws. The card probes for that, uses the
+real sprite where it can and an emoji where it cannot, and says plainly in the dialog that
+saving needs the packaged build. Both single-file and web builds serve same-origin, so
+both export fine.
+
+### 9. Pixel art — three sources
 
 **Cats come from [16-bit Kitties](https://mxmaze.itch.io/16-bit-kitties-pack)** by
 Maze.Bit.Boutique — 16×16, nine frames per colour, licensed **CC BY 4.0**. The sheet rows
@@ -298,7 +327,7 @@ Sound effects are WebAudio-synthesised. The only audio file is the background mu
 (`assets/music/aquarium.wav`, a self-made render), and even that falls back to runtime
 synthesis when absent.
 
-### 9. Everything else
+### 10. Everything else
 
 - A real-time day: 09–18 work (12–13 lunch), 18–22 overtime (night owls only), sleep after 22 — all on your clock
 - Offline earnings up to 8 hours (16 with the auto-feeder)
@@ -339,6 +368,7 @@ copycat/
     ├── game.js         # economy · inbox · quarters · suspicion · rival · saving
     ├── ui.js           # rendering · modals · settings
     ├── edit.js         # decorate mode — moving furniture · connectivity validation
+    ├── card.js         # the time card — days together, drawn to a shareable 1200x630 PNG
     ├── care.js         # real-time care — lunch · stretches · clock-out · desktop notifications
     ├── music.js        # WebAudio-generated BGM (music-box lo-fi, no files)
     └── main.js         # boot · loop · input

@@ -135,6 +135,7 @@ function bindInput(){
     music.sync();
     if (soundOn) sfx.meow();
   };
+  $('#btnCard').onclick = showCard;
   $('#btnSettings').onclick = showSettings;
   $('#btnHelp').onclick = showHelp;
   $('#btnReset').onclick = () => {
