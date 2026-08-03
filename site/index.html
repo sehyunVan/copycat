@@ -253,7 +253,7 @@ footer p{margin:0;font-size:12px;color:var(--soft);line-height:1.8}
     <div class="statchip"><span>🐟</span><div><b>합법</b> <small>멸치로 계산</small></div></div>
     <div class="statchip"><span>🔍</span><div><b>0</b> <small>혐의 (아직은)</small></div></div>
     <div class="spacer"></div>
-    <a class="navbtn" href="#buy">구매하기</a>
+    <a class="navbtn" href="https://sehyunvan.itch.io/copycat" rel="noopener">무료로 받기</a>
   </div>
 </header>
 
@@ -268,10 +268,9 @@ footer p{margin:0;font-size:12px;color:var(--soft);line-height:1.8}
         그리고 이 사무실의 시계는 당신의 시계다 — <b>당신의 12시에 고양이들도 밥을 먹으러 간다.</b>
       </p>
       <div class="ctarow">
-        <a class="cta buy" href="#buy">$4.99에 데려가기</a>
-        <!-- TODO: 데모를 올린 주소로 교체 -->
-        <a class="cta demo" href="#buy">무료 데모</a>
-        <span class="ctanote">브라우저에서 바로 실행 · 설치 없음 · 계정 없음 · DRM 없음</span>
+        <a class="cta buy" href="https://sehyunvan.itch.io/copycat" rel="noopener">무료로 시작하기</a>
+        <a class="cta demo" href="#buy">뭐가 들어있나</a>
+        <span class="ctanote">브라우저에서 바로 실행 · 설치 없음 · 계정 없음 · 후원은 원하는 만큼</span>
       </div>
     </div>
 
@@ -342,62 +341,45 @@ footer p{margin:0;font-size:12px;color:var(--soft);line-height:1.8}
       <h3>사장님 자리가 비어 있습니다</h3>
     </div>
     <div class="buybox">
-      <div class="bh"><h3>Copycat 정식판</h3><span class="badge">DRM-FREE</span></div>
+      <div class="bh"><h3>Copycat</h3><span class="badge">무료</span></div>
       <div class="price">
-        <!-- 청구 통화는 USD. PayPal 은 KRW 를 거래 통화로 지원하지 않는다 (pay/README.md 참고).
-             금액을 바꿀 때는 pay/worker.js 의 PRODUCTS 도 함께 바꿔야 한다 — 서버가 원본이다. -->
-        <span class="won">$4.99</span><span class="per">약 ₩6,900 · 1회 구매 · 평생 소장</span>
+        <span class="won">무료</span><span class="per">원하면 후원 · 안 해도 전부 열립니다</span>
       </div>
       <ul class="includes">
-        <li><b>압축 풀고 더블클릭</b> — 설치도, 서버도, 계정도 없다. 오프라인에서도 돈다</li>
+        <li><b>브라우저에서 바로, 또는 파일 하나 받아서</b> — 설치도, 서버도, 계정도 없다. 오프라인에서도 돈다</li>
         <li>한국어 · English · 日本語 지원 (일본어판의 품목은 문화적으로 올바른 マタタビ)</li>
         <li>실시간 케어 — 점심·스트레칭·퇴근 방송, 데스크탑 알림(옵트인)</li>
         <li>생성 앰비언트 BGM 「장조 수족관」 렌더 수록</li>
+        <li>근무 기록증 — 며칠째 같이 출근했는지 이미지로 저장</li>
         <li>자동 저장(localStorage) · 오프라인 수익 최대 8시간</li>
-        <li>정식판 업데이트 평생 무료</li>
       </ul>
       <div class="act">
-        <!-- PayPal 블록 전체. SDK 를 못 불러오면 이 div 를 감추고 아래 itch.io 버튼을
-             주 버튼으로 승격시킨다 — 같은 버튼이 두 개 보이지 않게. -->
-        <div id="payPaypal">
+        <!-- 직접 결제(site/pay/)는 코드만 남겨 두고 꺼 두었다. 유료로 돌릴 때
+             window.COPYCAT_PAY_API 를 지정하면 아래 스크립트가 다시 살아난다. -->
+        <div id="payPaypal" hidden>
           <div id="ppbtn" class="loading">결제 수단을 불러오는 중…</div>
-          <p class="paynote" id="ppnote">
-            PayPal 계정 또는 해외 결제 가능한 카드로 결제합니다. 결제 후 <b>바로 다운로드 링크가 나옵니다.</b>
-          </p>
-          <div class="paysplit">국내 카드로 결제하신다면</div>
+          <p class="paynote" id="ppnote"></p>
+          <div class="paysplit">또는</div>
         </div>
 
-        <!-- TODO: itch.io 페이지 개설 후 실제 주소로 교체 -->
-        <a class="cta demo big" id="itchBtn" href="#" data-store="itch">itch.io 에서 구매하기</a>
+        <a class="cta buy big" id="itchBtn" href="https://sehyunvan.itch.io/copycat" rel="noopener" data-store="itch">itch.io 에서 무료로 받기</a>
 
         <p class="paynote" id="itchNote">
-          PayPal 은 <b>한국 계정 사이의 결제를 처리하지 않습니다.</b> 국내 카드나 계좌로 결제하시려면
-          itch.io 를 이용해 주세요. 받는 게임은 완전히 같습니다.
+          받는 데 돈이 들지 않습니다. 결제창에 <b>0을 넣어도 그대로 내려받습니다.</b>
+          그럴 마음이 들었을 때만, 원하는 만큼 얹어 주세요.
         </p>
       </div>
 
       <!-- 결제 결과. 스크린리더가 갱신을 읽도록 live region 으로 둔다. -->
       <div class="payresult" id="payResult" role="status" aria-live="polite"></div>
 
-      <details class="recover">
-        <summary>결제했는데 다운로드 링크를 잃어버렸어요</summary>
-        <p class="paynote" style="margin-top:8px">
-          결제에 사용한 PayPal 이메일 또는 주문번호를 넣으면 링크를 다시 만들어 드립니다.
-        </p>
-        <form class="recform" id="recForm">
-          <input type="email" id="recEmail" placeholder="결제한 PayPal 이메일" autocomplete="email">
-          <button type="submit" id="recBtn">링크 재발급</button>
-        </form>
-        <p class="paynote" id="recMsg" style="margin-top:8px"></p>
-      </details>
-
       <p class="fine">
-        <span id="fineDirect">판매자가 직접 판매하며 결제는 PayPal 이 처리합니다. 다운로드 링크는 발급 후
-        <b>72시간 · 5회</b>까지 유효하고, 만료되면 위에서 다시 받을 수 있습니다.</span><br>
-        <b>환불</b> — 디지털 상품이라 다운로드 후에는 원칙적으로 환불이 어렵습니다. 다만 게임이 실행되지
-        않거나 설명과 다른 경우 <a href="mailto:sehyun@labq.kr">sehyun@labq.kr</a> 로 연락 주시면
-        전액 환불해 드립니다. 다운로드 전이라면 사유 없이 환불됩니다.<br>
-        <b>사양</b> — 모던 브라우저(Chrome/Edge/Firefox/Safari)가 있는 모든 PC. 권장 해상도 1280px 이상.
+        <span id="fineDirect">배포와 후원은 itch.io 가 처리합니다. 받은 기록은 itch.io 라이브러리에 남고,
+        계정 없이 받으셨다면 이 페이지에서 언제든 다시 받을 수 있습니다.</span><br>
+        <b>후원</b> — 후원은 게임을 여는 조건이 아니라 이미 열려 있는 것에 대한 인사입니다.
+        기능 차이도, 나중에 잠기는 것도 없습니다.<br>
+        <b>사양</b> — 모던 브라우저(Chrome/Edge/Firefox/Safari)가 있는 모든 PC. 권장 해상도 1280px 이상.<br>
+        문의 — <a href="mailto:sehyun@labq.kr">sehyun@labq.kr</a>
       </p>
     </div>
   </div>
@@ -480,6 +462,12 @@ footer p{margin:0;font-size:12px;color:var(--soft);line-height:1.8}
   var PAY_API   = window.COPYCAT_PAY_API   || '';  /* 예: 'https://copycat-pay.내계정.workers.dev' */
   var CLIENT_ID = window.COPYCAT_PAYPAL_ID || '';  /* PayPal 앱의 client-id (공개값) */
   var PRODUCT   = 'copycat-full';
+
+  /* 지금은 무료 배포라 결제가 꺼져 있다. 주소를 안 넣으면 여기서 끝난다 —
+     아래 코드는 유료로 돌릴 때를 위해 남겨 둔 것이고, 그때 하는 일은
+     window.COPYCAT_PAY_API 와 window.COPYCAT_PAYPAL_ID 를 넣어 주는 것뿐이다.
+     DOM 을 건드리기 전에 빠져나가므로, 결제용 마크업이 페이지에 없어도 안전하다. */
+  if (!PAY_API || !CLIENT_ID) return;
 
   var $btn   = document.getElementById('ppbtn'),
       $block = document.getElementById('payPaypal'),

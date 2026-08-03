@@ -1,16 +1,21 @@
-# copycat/site — 판매 페이지
+# copycat/site — 소개 페이지
 
-게임 본편(`../index.html`)을 파는 랜딩페이지와, 실제로 파는 데 필요한 절차 문서.
+게임 본편(`../index.html`)으로 사람을 보내는 랜딩페이지와, 내보내는 데 필요한 절차 문서.
+
+스토어는 **https://sehyunvan.itch.io/copycat** 이고 **무료 + Donation** 이다.
+목표가 매출이 아니라 "남이 근무시간 내내 켜 두는가"라서, 표본을 가장 빨리 모으는 쪽을 골랐다.
 
 | 파일 | 무엇 |
 |---|---|
-| `index.html` | 판매 랜딩페이지 + PayPal 결제 UI. 정적 파일 하나 |
+| `index.html` | 랜딩페이지. 정적 파일 하나 |
+| `STORE.md` | itch.io 페이지 원고 — 한 줄 소개·태그·본문, 3개 국어 |
 | `SELLING.md` | 스토어 개설 → 배포 → 등급분류 → 세금까지의 순서 |
-| `pay/` | PayPal 직접 결제 백엔드 (Cloudflare Worker). 설정법은 `pay/README.md` |
+| `pay/` | PayPal 직접 결제 백엔드 (Cloudflare Worker). **지금은 꺼져 있다** — `pay/README.md` |
 | `shot.mjs` | CDP 렌더 검증 도구 — 기기 폭을 강제해 오버플로를 측정한다 |
 
-결제를 설정하지 않으면 페이지는 **조용히 itch.io 버튼으로 폴백한다.** 빈 자리도, 같은 버튼
-두 개도 남기지 않고, 약관 문구까지 "itch.io가 처리합니다"로 바뀐다.
+유료로 팔던 흔적은 코드로만 남아 있다. 결제 스크립트는 주소가 없으면 **DOM을 건드리기 전에
+빠져나가고**, 마크업의 PayPal 블록은 `hidden` 이다. 되살리는 데 필요한 건 값 두 개뿐이라,
+지우는 대신 꺼 두는 쪽이 싸다.
 
 ## 로컬에서 보기
 
@@ -40,11 +45,13 @@
 1. ~~유료 타일셋 재배포 문제~~ → **해결됨.** 게임은 이제 원본 시트를 안 읽고
    `tools/build-atlas.js` 가 만든 전용 아틀라스(103칸·10KB)만 읽는다. 배포본은
    `node tools/pack-release.js --light-audio` 로 만든다. 자세한 건 `SELLING.md` 0단계.
-2. `index.html` 의 `TODO` 주석(히어로 데모 링크, itch.io 버튼)을 실제 주소로 교체한다.
-3. **가격은 세 곳에 있다** — 히어로 CTA(`$4.99에 데려가기`), 구매 박스(`$4.99`),
-   그리고 `pay/worker.js` 의 `PRODUCTS`. **서버가 유일한 진짜 원본이고** 앞의 둘은
-   표시용 문자열이다. 바꿀 때 셋을 같이 바꿔야 한다.
-4. 청구 통화는 **USD** 다. PayPal이 KRW를 거래 통화로 지원하지 않는다.
+2. 스토어 링크는 https://sehyunvan.itch.io/copycat 로 이미 연결돼 있다.
+3. **지금은 무료 + Donation 이라 페이지에 금액이 없다.** 유료로 돌린다면 금액이 생기는
+   자리는 세 곳이다 — 히어로 CTA, 구매 박스, 그리고 `pay/worker.js` 의 `PRODUCTS`.
+   **서버가 유일한 진짜 원본이고** 앞의 둘은 표시용 문자열이다.
+4. 결제를 다시 켜는 방법은 `window.COPYCAT_PAY_API` 와 `window.COPYCAT_PAYPAL_ID` 를
+   넣어 주는 것뿐이다. 결제 스크립트는 지우지 않고 맨 앞에서 빠져나가게만 해 뒀다.
+   청구 통화는 **USD** 다 — PayPal이 KRW를 거래 통화로 지원하지 않는다.
 
 ## 검증
 
