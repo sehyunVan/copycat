@@ -25,7 +25,10 @@ const music = (() => {
   }
 
   /* ---------- 1순위: 파일 재생 ---------- */
-  const FILE_VOL = 0.45;
+  /* 0.45로 깔아 뒀더니 다른 창에서 일하는 동안엔 거의 안 들렸다.
+     배경에 켜 두는 게 이 게임의 사용법이라 그 자리에서 들리는 크기여야 한다.
+     밤에는 nightMul()이 절반으로 줄이고, 전체 음소거는 🔊 버튼이 따로 있다. */
+  const FILE_VOL = 0.7;
   let audio = null;            // HTMLAudioElement
   let fileBroken = false;      // 파일이 없거나 못 읽으면 true → 생성 엔진으로
   let volTimer = null;
@@ -77,7 +80,9 @@ const music = (() => {
       const lp = ctx.createBiquadFilter();
       lp.type = 'lowpass'; lp.frequency.value = 3200; lp.Q.value = 0.5;
       master = ctx.createGain();
-      master.gain.value = 0.9;
+      // 파일 재생 쪽과 같은 비율로 올린다 — 폴백이 눈에 띄게 조용하면 다른 게임처럼 들린다.
+      // 개별 음의 진폭이 0.05 언저리라 여기서 1.5를 곱해도 합이 1.0 근처에 못 간다.
+      master.gain.value = 1.5;
       master.connect(lp); lp.connect(ctx.destination);
       hiss();
       return true;
