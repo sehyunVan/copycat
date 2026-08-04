@@ -30,6 +30,38 @@ Reddit이 외부 링크 포스트의 노출을 눌러서, 링크 포스트로 �
 
 ---
 
+## 0.4. r/incremental_games 규칙 (2026-08-03 확인)
+
+```
+1  No game/autoclicker requests or IGM games
+2  Be Nice
+3  Do not post about your own content more than 1 time per 30 days
+4  Posts about your own game must refer to playable content
+5  Generative AI disclosure is required for game posts
+6  No spam
+7  Specify game name
+8  No games using cryptocurrencies, NFTs, or blockchain
+9  Follow the expectations and guidelines
+```
+
+우리에게 실제로 걸리는 건 셋이다.
+
+**Rule 3 — 30일에 한 번.** 이게 제일 무겁다. 자기 콘텐츠 게시는 한 달에 한 번뿐이라
+**이번 한 방이 한 달치**다. 봇에게 지워진 글은 아무에게도 노출되지 않았고 봇이 재게시를
+지시했으므로 다시 올리는 것 자체는 문제없다. 다만 그래서 더욱, 올리기 전에 규칙을 전부
+통과하는지 확인하고 가야 한다. 반응이 아쉽다고 다음 주에 또 올릴 수 없다.
+
+**Rule 5 — AI 공개문.** 아래 0.5절.
+
+**Rule 7 — 게임 이름 명시.** 제목에 `Copycat` 이 들어가야 한다 (2절 제목안 참고).
+첫 초안에는 없었다.
+
+Rule 4(플레이 가능한 콘텐츠)는 브라우저에서 바로 도는 링크라 통과. 1·6·8은 무관.
+**Rule 9 의 "expectations and guidelines" 는 사이드바에 링크된 별도 문서다** —
+30일에 한 번뿐이니 그것도 눈으로 한 번 훑고 갈 것.
+
+---
+
 ## 0.5. ⚠️ Rule 5 — AI 공개문이 **없으면 자동 삭제된다**
 
 2026-08-03 첫 게시가 이걸로 봇에게 잘렸다. r/incremental_games 는 **생성형 AI를 안 썼더라도**
@@ -65,8 +97,11 @@ AI disclosure: <여기에 사실대로>
 ## 1. 올리기 전 5분 점검
 
 - [ ] 서브레딧 사이드바의 **Rules 를 직접 읽는다** (자기 게임 게시 관련 조항, 요일 규칙, 플레어)
-- [ ] **`AI disclosure:` 문단이 본문에 있다** (0.5절 — 없으면 봇이 자동으로 지운다)
+- [ ] **제목에 `Copycat` 이 들어 있다** (Rule 7)
+- [ ] **`AI disclosure:` 문단이 본문에 있다** (Rule 5 · 0.5절 — 없으면 봇이 자동으로 지운다)
 - [ ] itch 페이지의 AI 표기가 그 공개문과 **모순되지 않는다**
+- [ ] 플레이 가능한 링크가 본문 첫 줄에 있다 (Rule 4)
+- [ ] 지난 30일 안에 이 서브레딧에 자기 글을 올린 적 없다 (Rule 3)
 - [ ] 내 계정 카르마와 나이를 확인한다 (프로필에서 보인다)
 - [ ] `dist/store/cover.gif` 를 손에 준비 (630×500, 87KB)
 - [ ] itch 페이지가 **Public** 인지 확인 — Draft 면 남이 못 연다
@@ -81,16 +116,16 @@ AI disclosure: <여기에 사실대로>
 
 ## 2. 제목
 
-Reddit 제목은 최대 300자다. 후보 둘:
+Reddit 제목은 최대 300자다. **Rule 7 때문에 게임 이름이 반드시 들어가야 한다.**
 
 **A (권장)**
 ```
-I made an idle game where ticking off a to-do makes a cat physically walk over and carry the paperwork to its desk
+Copycat — an idle game where ticking off a to-do makes a cat physically walk over and carry the paperwork to its desk
 ```
 
 **B (더 정확하지만 모험)**
 ```
-My idle office game refuses to fast-forward — it runs on your real clock, 9 to 18, lunch at noon
+Copycat — an idle office game that refuses to fast-forward. It runs on your real clock, 9 to 18, lunch at noon
 ```
 
 A로 걸고 실시간 시계는 본문의 반전으로 두는 걸 권한다. 이 커뮤니티는 **메커닉을 먼저 본다.**
