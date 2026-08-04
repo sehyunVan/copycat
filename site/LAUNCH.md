@@ -18,15 +18,28 @@
 **플레어(flair)** — 글머리 분류 태그. 많은 서브레딧이 필수로 걸어 둔다.
 안 달면 자동 삭제되는 곳도 있다. 게시 화면에서 고르게 되어 있다.
 
-**게시 형식** — 링크 포스트 / 텍스트 포스트 / 이미지·비디오 포스트가 있다.
-**우리는 이미지(GIF) 포스트로 올리고 링크는 본문에 넣는다.**
-Reddit이 외부 링크 포스트의 노출을 눌러서, 링크 포스트로 올리면 커버 GIF가
-피드에서 안 움직이고 이 게임의 가장 강한 무기가 통째로 사라진다.
+**게시 형식 — 반드시 텍스트 포스트여야 한다.** ⚠️
+
+Reddit 게시 형식은 링크 / 텍스트 / 이미지·비디오 셋인데,
+**이미지·비디오 포스트에는 본문 칸이 없다.** 그런데 Rule 5 는 `AI disclosure:` 를
+**본문에서** 찾는다. 즉 이미지 포스트로 올리면 규칙을 지킬 방법이 없고 봇이 무조건 지운다.
+
+> 이 안내서의 초판이 "GIF 를 이미지 포스트로 올려라"라고 적어 두었다. 그 조합으로는
+> 몇 번을 올려도 통과할 수 없다. 2026-08-03 반복 삭제의 원인이 이것이었다.
+
+**GIF 는 본문 안에 넣는다.** 텍스트 포스트 작성창의 이미지 아이콘으로 본문에 인라인 삽입이
+되는 서브레딧이 있고, 안 되면 **게시 직후 첫 댓글에 GIF 를 올린다.** 노출은 조금 손해지만
+지워지는 것보다 낫다.
 
 **제목은 수정이 안 된다.** 본문은 나중에 고칠 수 있지만 제목은 영영 그대로다.
 올리기 전에 두 번 읽자.
 
-**지우고 다시 올리지 않는다.** 반응이 시원찮다고 삭제 후 재게시하면 스팸으로 잡힌다.
+**봇이 지운 것과 내가 지운 것은 다르다.** 봇이 사유를 알려주며 재게시를 지시한 경우는
+다시 올려도 된다. 반응이 시원찮다고 스스로 지우고 다시 올리는 건 스팸으로 잡힌다.
+
+**그래도 또 지워지면 재게시하지 말고 modmail 을 보낸다.** 같은 글을 반복해서 올리면
+Rule 3(30일 1회)이나 Reddit 자체 스팸 필터에 걸려 상황이 더 나빠진다.
+모더레이터에게 "이 사유로 지워졌는데 무엇을 고쳐야 하는지" 물어보는 편이 빠르다.
 
 ---
 
@@ -97,6 +110,7 @@ AI disclosure: <여기에 사실대로>
 ## 1. 올리기 전 5분 점검
 
 - [ ] 서브레딧 사이드바의 **Rules 를 직접 읽는다** (자기 게임 게시 관련 조항, 요일 규칙, 플레어)
+- [ ] **텍스트 포스트로 쓰고 있다** — 이미지 포스트는 본문이 없어서 Rule 5 를 지킬 수 없다
 - [ ] **제목에 `Copycat` 이 들어 있다** (Rule 7)
 - [ ] **`AI disclosure:` 문단이 본문에 있다** (Rule 5 · 0.5절 — 없으면 봇이 자동으로 지운다)
 - [ ] itch 페이지의 AI 표기가 그 공개문과 **모순되지 않는다**
@@ -179,7 +193,12 @@ Saves to localStorage. There is also a single-file HTML download that works full
 **What I would genuinely like to know:** does it survive a second day? It is built to be
 left open next to your work, and that is the one thing I cannot tell from my own machine.
 The game has no analytics of any kind — comments here are literally my only feedback.
+
+AI disclosure: <<< 이 줄을 0.5절을 보고 본인이 직접 쓴 문장으로 바꾼다. 지우면 안 된다 >>>
 ```
+
+⚠️ **마지막 줄을 비운 채로 붙여 넣지 말 것.** 봇은 본문에서 `AI disclosure:` 를 찾는다.
+초판에는 이 줄이 아예 없어서, 0.5절을 읽고 따로 챙기지 않으면 그대로 삭제당하는 구조였다.
 
 ### 한국어 요약 (무슨 말인지 확인용, 올리지 않음)
 
@@ -194,16 +213,17 @@ The game has no analytics of any kind — comments here are literally my only fe
 ## 4. 올리는 절차
 
 1. `reddit.com/r/incremental_games` 접속 → 로그인
-2. **사이드바 Rules 를 읽는다** (여기서 요일 규칙이나 플레어 필수를 확인)
-3. **Create Post** → **Images & Video** 탭 선택
-4. `cover.gif` 업로드
-5. 제목 붙여넣기 → 본문 붙여넣기
-6. **Flair 선택** (있으면 반드시. 보통 `Game Completed` / `Update` / `HTML` 류)
-7. 게시
-8. **시크릿 창으로 New 탭에서 내 글이 보이는지 확인** — 안 보이면 자동 필터다.
-   그때는 삭제하지 말고 모더레이터에게 modmail 을 보낸다
-9. 게시 직후 본인 댓글로 한 줄 덧붙인다 (선택):
+2. **사이드바 Rules 와 Rule 9 가 가리키는 가이드라인 문서를 읽는다**
+3. **Create Post** → **Text** 탭 선택 ← 이미지 탭이 아니다. 본문이 있어야 Rule 5 를 지킨다
+4. 제목 붙여넣기 (`Copycat` 포함 확인)
+5. 본문 붙여넣기 → **맨 아래 `AI disclosure:` 줄을 본인 문장으로 교체**
+6. 본문 편집기의 이미지 아이콘으로 `cover.gif` 를 본문에 삽입
+   (아이콘이 없으면 건너뛰고 9번에서 댓글로)
+7. **Flair 선택** — 자기 게임용 플레어여야 한다. 봇이 "wrong flair" 를 삭제 사유로 든다
+8. 게시 → **시크릿 창으로 New 탭에서 보이는지 확인**
+9. 본문에 GIF 를 못 넣었으면 첫 댓글에 올린다. 덧붙일 한 줄(선택):
    `Single-file offline build is on the same page if you'd rather not play in a tab.`
+10. **또 지워지면 다시 올리지 말고 modmail.** 반복 게시는 Rule 3 과 스팸 필터를 건드린다
 
 ---
 
