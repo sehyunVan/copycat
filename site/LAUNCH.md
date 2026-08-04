@@ -59,10 +59,18 @@ Rule 3(30일 1회)이나 Reddit 자체 스팸 필터에 걸려 상황이 더 나
 
 우리에게 실제로 걸리는 건 셋이다.
 
-**Rule 3 — 30일에 한 번.** 이게 제일 무겁다. 자기 콘텐츠 게시는 한 달에 한 번뿐이라
-**이번 한 방이 한 달치**다. 봇에게 지워진 글은 아무에게도 노출되지 않았고 봇이 재게시를
-지시했으므로 다시 올리는 것 자체는 문제없다. 다만 그래서 더욱, 올리기 전에 규칙을 전부
-통과하는지 확인하고 가야 한다. 반응이 아쉽다고 다음 주에 또 올릴 수 없다.
+**Rule 3 — 30일에 한 번. ⚠️ 재시도가 여기에 걸린다.**
+자기 콘텐츠 게시는 한 달에 한 번뿐이다. 봇이 사유를 알려주며 재게시를 지시한 경우는
+다시 올려도 된다고 생각하기 쉬운데, **automod 는 지워진 글까지 세는 경우가 많다.**
+그러면 Rule 5·7 을 다 고쳐도 이번엔 Rule 3 에 걸려 계속 지워진다 —
+2026-08-03 의 반복 삭제가 이 모양이었을 가능성이 크다.
+
+**규칙 하나를 발견할 때마다 다시 올리는 방식으로는 빠져나올 수 없다.**
+두 번째 삭제부터는 올리지 말고 modmail 로 물어본다. 모더레이터는 삭제 로그를 다 보고
+있으므로 재시도한 사실을 숨기지 말고 그대로 쓴다 — 숨기면 스팸으로 분류된다.
+
+**플레어는 플랫폼 태그다.** 통과한 글의 플레어가 `Steam` 이었다. 우리는 브라우저 게임이니
+`HTML5` / `Web` / `Browser` 계열을 고른다. 봇이 "wrong flair" 를 삭제 사유로 언급한다.
 
 **Rule 5 — AI 공개문.** 아래 0.5절.
 
@@ -199,6 +207,33 @@ AI disclosure: <<< 이 줄을 0.5절을 보고 본인이 직접 쓴 문장으로
 
 ⚠️ **마지막 줄을 비운 채로 붙여 넣지 말 것.** 봇은 본문에서 `AI disclosure:` 를 찾는다.
 초판에는 이 줄이 아예 없어서, 0.5절을 읽고 따로 챙기지 않으면 그대로 삭제당하는 구조였다.
+
+### 짧은 판 — 통과한 글들과 같은 길이
+
+실제로 통과한 글(`Kin and Conquest`, 2026-08)은 **90단어 · 굵은 글씨 없음 · 문단 셋 ·
+링크 하나 · 마지막 줄에 disclosure** 였다. 위 긴 판이 계속 걸린다면 이 형태로 간다.
+서식이 적을수록 automod 가 트집 잡을 표면이 줄어든다.
+
+```markdown
+Hello!
+
+I made a small incremental game called Copycat. It's a to-do list crossed with an idle
+office sim: you add a real task, and when you tick it off a document drops into the office
+inbox. One of the cats walks over on its own, carries it to a desk, and stamps it — that's
+when you get paid. Leave paperwork unfinished at quarter close and it becomes evidence,
+suspicion builds, and the Cat Police show up.
+
+The odd part is that it runs on your system clock instead of a compressed game clock —
+9 to 18, lunch at noon. Progression is on KPI, not on time, so nothing is gated behind
+waiting. It's free and runs in the browser, no account or install:
+
+https://sehyunvan.itch.io/copycat
+
+I'd love to know whether it survives a second day — it's built to be left open next to
+your work, and that's the one thing I can't tell from my own machine.
+
+AI Disclosure: <<< 0.5절을 보고 본인이 직접 쓴 문장으로 교체 >>>
+```
 
 ### 한국어 요약 (무슨 말인지 확인용, 올리지 않음)
 
