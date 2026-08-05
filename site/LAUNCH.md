@@ -94,6 +94,65 @@ AI disclosure: <여기에 사실대로>
 
 봇이 이 문자열을 찾으므로 `AI disclosure:` 로 시작해야 하고, 본문 안에 있어야 한다.
 
+**⚠️ 한 단어로 때우면 또 지워진다.** `AI Disclosure: Used` 로 올렸다가
+"no/**incomplete** gen ai disclosure" 사유로 삭제됐다.
+
+### 공지 원문이 요구하는 것 (2026-08 시행)
+
+- **"AI Disclosure" 라벨이 붙은 섹션**이 게시글 안에 있어야 한다
+- 그 안에 셋을 답해야 한다:
+  1. **generative AI 를 썼는가**
+  2. **무엇에 썼는가**
+  3. **어느 정도로 썼는가**
+- **짧아도 된다.** 툴 이름도, 왜 썼는지에 대한 변명도 요구하지 않는다
+- 안 썼더라도 섹션 자체는 있어야 한다 ("안 썼다"고 적는다)
+
+`Used` 가 잘린 이유가 이걸로 설명된다 — 1번만 답하고 2·3번이 없었다.
+
+정확성은 **본인의 정직함에 맡긴다**는 게 공지의 입장이다. 대신 거짓이 증명되면 조치한다.
+그러니 채우기 위한 문장이 아니라 사실을 쓴다.
+
+### 초안 (한 줄씩 확인하고 고쳐 쓸 것)
+
+```
+AI Disclosure
+
+Yes, generative AI was used.
+
+What: the code, and some of the in-game English and Japanese text.
+
+Extent: most of the code was written with an AI assistant. I designed the game, decided
+what it should be, reviewed the work, and did the testing and the release. Text was
+drafted with AI and edited by me; the Korean is my own.
+
+Not AI: all art and audio. The office tileset is a paid human-made pixel art pack
+(LimeZu's "Modern Office - Revamped"), the cats are "16-bit Kitties" by Maze.Bit.Boutique
+(CC BY 4.0), and a few objects are drawn pixel-by-pixel in code. The music is an
+algorithmic render from another project of mine and the sound effects are synthesised at
+runtime — no models involved.
+```
+
+`Not AI` 문단은 의무가 아니다. 그래도 넣는 게 낫다 — 이 규칙이 생긴 이유가
+"링크를 누르기 전에 알고 싶다"이고, 그림과 소리가 사람 손이라는 건 그들이 실제로
+알고 싶어 하는 정보다.
+
+**`most` 라는 단어가 곧 3번 답이다.** 실제 비중에 맞는 단어를 고른다.
+일본어를 직접 썼다면 그 문장도 고친다. **부정확한 disclosure 는 빈 것보다 나쁘다.**
+
+### itch 와 말이 달라지면 안 된다
+
+itch 페이지에 `No generative AI was used` 태그가 붙어 있는 상태로 이 글을 올리면
+같은 사람의 두 진술이 정면으로 충돌한다. **글보다 태그를 먼저 정리하고**,
+itch 본문 하단에도 같은 내역을 넣어 양쪽을 일치시킨다.
+
+### 막히면 — Feedback Friday
+
+공지에 이런 줄이 있다: *"This is not required for responses within the weekly Feedback
+Friday post."* 주간 Feedback Friday 스레드에 **댓글로** 참여하는 건 disclosure 의무가 없고,
+30일 1회 제한(Rule 3)과도 별개다. 노출은 본 게시글보다 적지만 **피드백을 주려고 모인
+사람들**이라, "둘째 날에도 켜 두는가"를 묻기에는 오히려 표본이 정확하다.
+본 게시글과 병행할 것.
+
 **이건 대신 써 줄 수 있는 글이 아니다.** 사실관계는 만든 사람만 확정할 수 있고,
 부정확한 공개문은 없느니만 못하다. 아래는 이 프로젝트의 사실을 정리한 것이고,
 쓰기 전에 한 줄씩 지금도 맞는지 확인해야 한다.
