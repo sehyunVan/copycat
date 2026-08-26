@@ -637,11 +637,18 @@ function renderTodos(){
     const parent = kids.length > 0;
     const r = todoReward(t.size);
     const od = isOverdue(t) || !!t.late;
-    /* 부모에는 체크 칸이 없다. 잎이 도장을 받으면 부모는 저절로 닫힌다(game.js) —
-       여기에 체크 칸을 두면 같은 일로 서류가 두 번 나간다. 그 자리는 접기 손잡이다. */
-    const lead = parent && !t.done
-      ? `<button class="fold" data-act="fold" title="${L({ ko:'접기·펼치기', en:'Fold', ja:'折りたたみ' })}">${t.fold ? '▸' : '▾'}</button>`
-      : `<button class="chk" data-act="toggle" title="${L({ ko:'완료 처리 — 고양이가 서류를 가져갑니다', en:'Mark done — a cat fetches the papers', ja:'完了処理——猫が書類を取りに来ます' })}">✓</button>`;
+    /* **부모에도 체크 칸이 있다** (2026-08-26). 원래는 접기 손잡이만 두고 「잎이 다
+       끝나면 저절로 닫힌다」로 갔는데, 큰 건을 한 번에 끝내는 길이 없어서 잎을 하나씩
+       눌러야 했다. 부모를 누르면 **열린 잎을 전부 끝낸다**(completeGroup) — 서류도
+       보상도 잎에서 나오므로 도장은 잎 수만큼이고, 같은 일로 두 번 받지 않는다.
+       접기 손잡이는 글줄 앞으로 옮겼다. 둘 다 왼쪽에 두면 체크 칸이 반으로 줄어든다. */
+    const lead = `<button class="chk" data-act="toggle" title="${
+      parent && !t.done
+        ? L({ ko:'묶음 완료 — 밑의 줄을 한 번에 끝냅니다', en:'Finish the group — closes every line under it', ja:'まとめて完了——下の行を一度に終えます' })
+        : L({ ko:'완료 처리 — 고양이가 서류를 가져갑니다', en:'Mark done — a cat fetches the papers', ja:'完了処理——猫が書類を取りに来ます' })}">✓</button>`;
+    const foldChip = parent && !t.done
+      ? `<button class="foldi" data-act="fold" title="${L({ ko:'접기·펼치기', en:'Fold', ja:'折りたたみ' })}">${t.fold ? '▸' : '▾'}</button>`
+      : '';
     /* 부모 줄에는 보상을 안 적는다 — 그 몫은 잎이 낸다. 대신 뭐가 남았는지를 적는다. */
     const pay = parent
       ? `<span>${left ? L({ ko:`남은 ${left}건`, en:`${left} left`, ja:`残り${left}件` })
@@ -650,7 +657,7 @@ function renderTodos(){
                : `<span>+${r.kpi} ${L({ ko:'성과', en:'KPI', ja:'成果' })} · 🐟${fmt(r.money)}</span>`;
     return `<div class="todo ${t.done?'done':''} ${od?'overdue':''} ${kid?'kid':''} ${parent?'group':''}" data-id="${t.id}">
       ${lead}
-      <div class="txt">${esc(t.text)}
+      <div class="txt">${foldChip}${esc(t.text)}
         <div class="meta">${kid ? '' : `<span class="tag ${t.size}">${SIZE_INFO[t.size].label}</span>`}
         ${t.rt ? `<span class="rt" title="${L({ ko:'루틴이 놓은 건', en:'placed by a routine', ja:'ルーティンが置いた件' })}">🔁</span>` : ''}
         ${pay}
@@ -759,7 +766,7 @@ function showSubs(id){
           ${k.done ? '<span class="ok">✓</span>' : '<span class="dot">·</span>'}
           <span class="tx">${esc(k.text)}</span>
           <span class="tiny">${SIZE_INFO[k.size].label}</span>
-          ${k.done ? '' : `<button class="del" data-del="${k.id}">✕</button>`}</div>`).join('')
+          <button class="del" data-del="${k.id}">✕</button></div>`).join('')
       : `<div class="hint">${L({
           ko:'아직 나눈 줄이 없습니다. 아래에 적으면 이 건은 <b>묶음</b>이 됩니다.',
           en:'Nothing split out yet. Write below and this becomes a <b>group</b>.',

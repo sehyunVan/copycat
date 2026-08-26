@@ -1,14 +1,16 @@
-/* 안개를 기본으로 켠 뒤, **뺐던 이유가 실제로 문제인지** 잰다.  node spike/serve.js 먼저.
+/* **안개는 2026-08-26 에 껐다.** 이 검사는 그 결정이 지켜지는지와, 껐을 때 뒤쪽이
+   실제로 잘 보이는지를 잰다.  node spike/serve.js 먼저.
 
-   뺀 이유(eerie.js 머리말): 위에서 내려다보는 사무실에 안개를 끼우면 뒤쪽 자리가 사라진다.
-   고양이가 20마리까지 늘어나는데 절반이 안 보이면 그건 분위기가 아니라 정보 손실이다.
+   원래 이 파일은 반대 질문이었다 — 「안개를 켰는데 정보가 안 지워지나」. 답은 계속
+   아슬아슬했고(뒤쪽 고양이 대비가 안개 없을 때의 절반 언저리), 결국 다른 데서 값을
+   치렀다: 34번에서 가구 톤 아홉을 벌릴 때 안개가 절반을 먹었고, 35번에서 문 표시
+   네 안을 잴 때 **발광 테두리가 픽셀 단위로 0** 이었다. 분위기 한 겹을 얻고 정보를
+   여러 겹 잃고 있었다.
 
-   그래서 분위기를 재지 않고 **정보 손실**을 잰다: 큰 사무실(냥타워)에 고양이를 꽉 채우고
-   **맨 뒤 줄의 고양이가 배경과 얼마나 구별되는지**를 픽셀로 센다. 안개를 켠 화면과 끈
-   화면을 같은 프레임에서 번갈아 찍어 비교한다 — 두 판을 따로 부팅하면 조명·시각이 달라진다.
-
-   판정: 뒤쪽 줄의 대비가 안개 없을 때의 **절반 이상**이면 통과. 절반 밑이면 그건
-   "약한 안개" 가 아니라 정보 손실이고, 시간대표의 fog 값을 낮춰야 한다.
+   그래서 질문을 뒤집는다. 재는 것은 그대로다 — 큰 사무실에 고양이를 꽉 채우고
+   **맨 뒤 줄의 고양이가 배경과 얼마나 구별되는지**를 픽셀로 센다. 다만 이제는
+   안개를 켠 쪽이 기준선이 아니라 **비교 대상**이다: 켜면 얼마나 잃는지가 이 파일이
+   남기는 기록이고, 스위치(`R3E.fog`)는 그 비교를 위해 남겨 뒀다.
 */
 const fs = require('fs'), path = require('path'), { spawn } = require('child_process');
 const PORT = 9710;
@@ -109,31 +111,32 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   console.log('\n── 안개 상태 ──');
   const st = await ev(`JSON.stringify({ 켜짐: R3E.fog(), 거리: R3.debug().fog })`);
   const S1 = JSON.parse(st);
-  ok(S1.켜짐 === true, '기본으로 켜져 있다', JSON.stringify(S1));
+  ok(S1.켜짐 === false, '기본으로 꺼져 있다', JSON.stringify(S1));
 
-  console.log('\n── 뒤쪽 줄의 국부 대비 (정보 손실 판정) ──');
+  console.log('\n── 뒤쪽 줄의 국부 대비 ──');
+  const noFog = await contrast();
+  await shot('off');
+  /* 켜서 얼마나 잃는지 기록으로 남긴다 — 스위치를 남겨 둔 이유가 이 비교다 */
+  await ev(`R3E.fog(true)`);
+  await sleep(500);
   const withFog = await contrast();
   await shot('on');
   await ev(`R3E.fog(false)`);
-  await sleep(500);
-  const noFog = await contrast();
-  await shot('off');
-  await ev(`R3E.fog(true)`);
   await sleep(400);
 
   const ratio = noFog > 0 ? withFog / noFog : 0;
-  console.log(`  안개 켬 ${withFog} · 끔 ${noFog} · 비율 ${(ratio * 100).toFixed(0)}%`);
-  ok(ratio >= 0.5, '뒤쪽 고양이가 배경에 안 녹는다 (끈 것의 절반 이상)', `${(ratio*100).toFixed(0)}%`);
+  console.log(`  안개 끔 ${noFog} · 켬 ${withFog} · 켜면 ${(ratio * 100).toFixed(0)}% 로 준다`);
+  ok(noFog > 0, '뒤쪽 고양이가 배경과 구별된다', `대비 ${noFog}`);
 
-  /* 시간대마다 안개 세기가 다르다 — 제일 진한 시간대에서도 버텨야 한다 */
-  console.log('\n── 시간대별 ──');
+  /* 시간대가 바뀌어도 뒤쪽이 읽혀야 한다. 안개가 없으므로 이제 이건 **조명**의 검사다 —
+     밤이 제일 어렵고, 거기서 무너지면 시간대표의 hemi/lamp 를 봐야 한다. */
+  console.log('\n── 시간대별 (안개 없음) ──');
   for (const id of ['morning', 'day', 'evening', 'night']){
     await ev(`setSkyForce('${id}')`);
     await sleep(600);
     const c = await contrast();
-    const f = await ev(`JSON.stringify(R3.debug().fog)`);
     const r = noFog > 0 ? c / noFog : 0;
-    ok(r >= 0.45, `${id}`, `대비 ${c} (${(r*100).toFixed(0)}%) · 거리 ${f}`);
+    ok(c >= 2, `${id}`, `대비 ${c} (낮 대비 ${(r*100).toFixed(0)}%)`);
     await shot(id);
   }
   await ev(`setSkyForce('')`);
@@ -141,6 +144,6 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   console.log('\n오류: ' + (errs.length ? errs.slice(0,3).join(' | ') : '없음'));
   if (errs.length) fail++;
   console.log('  그림: spike/ui/fog-*.png');
-  console.log(fail ? `\n${fail}건 실패` : '\n전부 통과 — 안개가 정보를 지우지 않는다');
+  console.log(fail ? `\n${fail}건 실패` : '\n전부 통과 — 안개 없이 뒤쪽까지 읽힌다');
   ws.close(); chrome.kill(); process.exit(fail ? 1 : 0);
 })().catch(e => { console.error(e); process.exit(1); });

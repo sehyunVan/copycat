@@ -215,6 +215,33 @@ const ok = (name, good, detail) => {
   ok('49 가구 밑에 깔려도 가구가 먼저 잡힌다', m2.가구칸 === 'desk');
   ok('49 빈 바닥에서는 러그가 잡힌다', m2.바닥칸 === 'rug');
 
+
+  /* ---- 가구 밑에 깔린 러그도 잡힌다 (2026-08-26) ----
+     러그는 바닥에 까는 것이라 책상 밑에도 깔린다. 위의 가구가 늘 먼저 잡히면
+     그 러그는 영영 못 옮긴다 — 한 칸에 겹쳐 있으면 **누를 때마다 번갈아** 잡아야 한다. */
+  const under = await ev(`(() => {
+    toggleEdit(true);
+    const r = decorState().rugs[0];
+    const d = W.desks[0].desk;
+    r.x = d.x; r.y = d.y; r.rot = 0;
+    /* 첫 번째 — 가구 */
+    const a = unitAt(d.x, d.y);
+    /* 그 가구를 고른 상태에서 한 번 더 — 밑의 러그 */
+    EDIT.sel = a;
+    const b = unitAt(d.x, d.y, 'rug');
+    /* 러그를 고른 채로 옮겨 본다 — 가구가 있어도 놓여야 한다 */
+    EDIT.sel = b;
+    const moved = editApply(b, d.x, d.y);
+    const now = decorState().rugs[0];
+    toggleEdit(false);
+    return { 첫번째: a && a.kind, 두번째: b && b.kind,
+             옮김: moved === true, 자리:[now.x, now.y] };
+  })()`);
+  console.log('   ' + JSON.stringify(under));
+  ok('49 겹친 칸은 가구가 먼저 잡힌다', under.첫번째 === 'furn' || under.첫번째 === 'desk', under.첫번째);
+  ok('49 한 번 더 누르면 밑의 러그가 잡힌다', under.두번째 === 'rug');
+  ok('49 가구가 있어도 러그는 놓인다', under.옮김 === true, JSON.stringify(under.자리));
+
   /* ---- 이사 — 좁은 사무실로 옮겨도 남고, 방 밖으로 안 나간다 ---- */
   const mv = await ev(`(() => {
     const before = decorState().rugs.length;

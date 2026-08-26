@@ -480,8 +480,33 @@ function delTodo(id){
   gone.forEach(x => { if (x.late) S.penalty = Math.max(0, S.penalty - x.late); });
   const ids = new Set(gone.map(x => x.id));
   S.todos = S.todos.filter(x => !ids.has(x.id));
+  /* **지운 잎이 마지막 열린 잎이었으면 부모를 닫는다.**
+     이게 없으면 「끝난 잎 하나 + 열린 잎 하나」에서 열린 쪽을 지웠을 때, 부모는 잎이
+     남아 있으므로 계속 묶음이고(체크 칸 대신 접기 손잡이가 붙는다) 열린 잎이 없으므로
+     completeTodo 도 안 받는다 — **닫을 방법이 없는 줄**이 목록에 남았다.
+     잎이 하나도 안 남았으면 닫지 않는다. 그건 다시 보통 업무로 돌아가는 것이다. */
+  if (t.parent){
+    const p = S.todos.find(x => x.id === t.parent);
+    if (p && !p.done && kidsOf(p.id).length && !openKids(p.id).length){
+      p.done = true; p.doneDay = bizToday();
+      bus.emit('todo:done', p);
+    }
+  }
   save();
   return gone.length;
+}
+
+/* 묶음을 한 번에 끝낸다 — 부모의 체크 칸이 이걸 부른다.
+   **잎을 하나씩 끝내는 것과 같은 일이다**: 서류도 보상도 잎에서 나오고(도장 N번),
+   마지막 잎이 부모를 닫는다. 부모에만 done 을 찍으면 잎들이 안 끝난 채로 남아
+   목록과 결재함이 갈린다. */
+function completeGroup(id){
+  const p = S.todos.find(x => x.id === id);
+  if (!p || p.done) return false;
+  const kids = openKids(p.id);
+  if (!kids.length) return completeTodo(id);
+  kids.forEach(k => completeTodo(k.id));
+  return true;
 }
 
 /* 날짜를 옮긴다(미루기) · 기한을 걸거나 뗀다.

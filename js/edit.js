@@ -68,9 +68,15 @@ function rugTargetOK(unit, tx, ty){
 }
 
 /* (x,y)에 있는 "옮길 수 있는 한 덩어리"를 찾는다 */
-function unitAt(x, y){
+function unitAt(x, y, prefer){
   if (!W) return null;
   const t = tileAt(W, x, y);
+  /* 러그를 달라고 했으면 **다른 무엇보다 먼저** 준다. 아래의 책상·두 칸짜리 분기가
+     일찍 돌려보내므로, 여기서 안 가로채면 책상 밑 러그는 영영 안 잡힌다. */
+  if (prefer === 'rug'){
+    const r0 = (W.rugs || []).find(r => rugHit(r, x, y));
+    if (r0) return { kind:'rug', x:r0.x, y:r0.y, tile:r0.id, rot:r0.rot|0, span:rugSizeOf(r0).w, ref:r0 };
+  }
   if (t === TILE.WALL){
     for (const d of (W.wallDecor || []))
       if (decorHit(d, x, y))
@@ -80,12 +86,19 @@ function unitAt(x, y){
   if (t === TILE.DESK)   return { kind:'desk', x, y, tile:TILE.DESK, span:2 };
   if (t === TILE.DESK_R) return tileAt(W, x-1, y) === TILE.DESK
     ? { kind:'desk', x:x-1, y, tile:TILE.DESK, span:2 } : null;
-  if (t === TILE.FILLER) return unitAt(x-1, y);        // 가로 2칸 가구의 오른쪽 절반
-  if (!EDIT_FIXED.has(t)) return { kind:'furn', x, y, tile:t, span:editSpan(t) };
-  /* 빈 바닥 — 여기서만 러그가 잡힌다. 가구 밑에 깔린 러그는 위의 가구가 먼저 잡는다. */
-  for (const r of (W.rugs || []))
-    if (rugHit(r, x, y))
-      return { kind:'rug', x:r.x, y:r.y, tile:r.id, rot:r.rot|0, span:rugSizeOf(r).w, ref:r };
+  if (t === TILE.FILLER) return unitAt(x-1, y, prefer); // 가로 2칸 가구의 오른쪽 절반
+  const rug = (W.rugs || []).find(r => rugHit(r, x, y));
+  const asRug = r => ({ kind:'rug', x:r.x, y:r.y, tile:r.id, rot:r.rot|0, span:rugSizeOf(r).w, ref:r });
+  if (!EDIT_FIXED.has(t)){
+    const furn = { kind:'furn', x, y, tile:t, span:editSpan(t) };
+    /* 가구와 러그가 겹친 칸 — **누를 때마다 번갈아** 잡는다. 러그는 바닥에 까는 것이라
+       책상 밑에도 깔리는데, 위의 가구가 늘 먼저 잡히면 그 러그는 영영 못 옮긴다.
+       지금 고른 것이 가구면 다음 차례는 러그다. */
+    if (rug && prefer === 'rug') return asRug(rug);
+    return furn;
+  }
+  /* 빈 바닥 — 러그만 있다 */
+  if (rug) return asRug(rug);
   return null;
 }
 
@@ -291,13 +304,20 @@ function editHintHTML(){
     ja:'🛋️ 模様替え——動かす家具をクリック（壁の額もOK）',
   });
   const n = unitName(EDIT.sel);
+  /* 가구 밑에 러그가 깔려 있으면 그걸 알려 준다 — 한 번 더 누르면 잡힌다는 것을
+     모르면 그 러그는 없는 것과 같다. */
+  const under = (EDIT.sel.kind === 'furn' || EDIT.sel.kind === 'desk')
+    && (W.rugs || []).some(r => rugHit(r, EDIT.sel.x, EDIT.sel.y))
+    ? ' · ' + L({ ko:'한 번 더 누르면 <b>밑의 러그</b>',
+                  en:'click again for the <b>rug underneath</b>',
+                  ja:'もう一度押すと<b>下のラグ</b>' }) : '';
   const turn = canTurn(EDIT.sel)
     ? `<button class="rotbtn" data-rot="1" title="${L({ ko:'돌리기 (R)', en:'Rotate (R)', ja:'回す (R)' })}">↻</button>`
     : '';
   return turn + L({
-    ko:`${n} — 놓을 곳을 클릭${canTurn(EDIT.sel) ? ' · R 돌리기' : ''} · 다시 클릭하면 선택 해제 · Esc 취소`,
-    en:`${n} — click a spot${canTurn(EDIT.sel) ? ' · R to rotate' : ''} · click it again to deselect · Esc cancels`,
-    ja:`${n}——置き場所をクリック${canTurn(EDIT.sel) ? '・Rで回す' : ''}・もう一度クリックで解除・Escで取消`,
+    ko:`${n} — 놓을 곳을 클릭${canTurn(EDIT.sel) ? ' · R 돌리기' : ''}${under} · Esc 취소`,
+    en:`${n} — click a spot${canTurn(EDIT.sel) ? ' · R to rotate' : ''}${under} · Esc cancels`,
+    ja:`${n}——置き場所をクリック${canTurn(EDIT.sel) ? '・Rで回す' : ''}${under}・Escで取消`,
   });
 }
 
@@ -405,7 +425,11 @@ function editInit(){
     if (typeof R3 !== 'undefined' && R3 && R3.justDragged && R3.justDragged()) return;
     const t = editTileFromEvent(e);
     if (!t) return;
-    const u = unitAt(t.x, t.y);
+    /* 지금 고른 것이 이 칸의 가구면 다음 차례는 그 밑의 러그다 — 한 번 더 누르면
+       러그가 잡히고, 또 누르면 해제된다. 러그는 바닥에 까는 것이라 책상 밑에도
+       깔리는데, 위의 가구가 늘 먼저 잡히면 그 러그는 영영 못 옮긴다. */
+    const onSel = EDIT.sel && EDIT.sel.x === t.x && EDIT.sel.y === t.y;
+    const u = unitAt(t.x, t.y, (onSel && (EDIT.sel.kind === 'furn' || EDIT.sel.kind === 'desk')) ? 'rug' : null);
 
     if (u && sameUnit(u, EDIT.sel)){ EDIT.sel = null; editRefresh(); return; }   // 다시 클릭 = 해제
     if (u){ EDIT.sel = u; sfx.add(); editRefresh(); return; }                    // 유닛 클릭 = 선택

@@ -1337,6 +1337,12 @@ body.eerie #app.tabbar .panel{background:#1C1712}
    그 밑이라는 게 읽힌다. eerie 에서 카드와 같은 색을 쓰면 아무 일도 안 하는 규칙이 된다. */
 .todo.group{background:#FFF6E9}
 body.eerie .todo.group{background:#2A231C}
+/* 접기 손잡이 — 글줄 앞에 붙는 작은 삼각형. 왼쪽 자리는 체크 칸이 가져갔다
+   (묶음도 한 번에 끝낼 수 있어야 해서). 둘 다 왼쪽에 두면 체크 칸이 반으로 줄어든다. */
+.todo .foldi{display:inline-block;width:16px;height:16px;line-height:14px;text-align:center;
+  margin:0 4px 0 0;padding:0;border:0;background:none;color:var(--soft);
+  font-size:11px;cursor:pointer;vertical-align:1px}
+.todo .foldi:hover{color:var(--ink)}
 .todo .fold{width:28px;height:28px;flex:0 0 auto;border:2px solid transparent;background:none;
   display:grid;place-items:center;font-size:14px;color:var(--accent-d);margin-top:1px;
   font-family:inherit;font-weight:800}

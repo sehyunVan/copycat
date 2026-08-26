@@ -140,7 +140,9 @@ function bindInput(){
     const btn = e.target.closest('[data-act]'); if (!btn) return;
     const row = btn.closest('.todo'), id = row.dataset.id;
     if (btn.dataset.act === 'toggle'){
-      if (completeTodo(id)){
+      /* 묶음이면 밑의 줄을 한 번에 끝낸다(completeGroup) — 잎마다 서류가 하나씩 나가고,
+         마지막 잎이 부모를 닫는다. 잎이 없으면 보통 업무와 같은 길이다. */
+      if (completeGroup(id)){
         row.classList.add('gone');
         toast(L({ ko:'서류가 결재함으로 갔습니다. 고양이가 가지러 옵니다.', en:'The papers went to the inbox. A cat is coming for them.', ja:'書類が決裁箱へ。猫が取りに来ます。' }));
         setTimeout(renderTodos, 420);
@@ -158,7 +160,9 @@ function bindInput(){
     if (btn.dataset.act === 'del'){
       /* 묶음을 지우면 밑의 줄도 같이 간다. 네 줄이 한 번에 사라지는 일이라 먼저 묻는다 —
          이 게임에 되돌리기는 없다. */
-      const kids = openKids(id).length ? kidsOf(id).length : 0;
+      /* 남아 있는 잎이 있으면 먼저 묻는다. **끝난 잎만 남았어도 같이 지워지므로**
+         그 수까지 세어서 말해 준다 — 「1건」이라고 하고 3건이 사라지면 그건 거짓말이다. */
+      const kids = kidsOf(id).length;
       if (kids && !confirm(L({
         ko:`이 묶음과 밑의 ${kids}건을 같이 지울까요?`,
         en:`Delete this group and the ${kids} line(s) under it?`,
