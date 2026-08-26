@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>f3 — 라운디드 소프트</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<script type="module">
+/* f3 — 모서리를 깎고 음영을 부드럽게. 같은 박스인데 딱딱함이 사라진다.
+   파스텔과 궁합이 제일 좋은 조합이다 — 고채도가 없는 팔레트는 형태까지 각지면
+   "덜 그려진 것"처럼 보이는데, 모서리가 둥글면 "일부러 그런 것"이 된다. */
+import { run } from './lib/vignette.js';
+import { PASTEL, PASTEL_PANELS } from './lib/pastel.js';
+
+run({
+  name: 'f3 · 라운디드 소프트',
+  note: '모서리를 깎고 음영을 부드럽게. 파스텔과 궁합이 제일 좋다.',
+  ref: 'Townscaper, Tiny Glade, Dorfromantik 계열',
+  tone: 'aces', exposure: 1.16,
+  softShadow: 3,
+  kit: { prim:'round', bevel:0.055, shading:'smooth', detail:1 },
+  pal: PASTEL,
+  panels: PASTEL_PANELS,
+});
+</script>
+</body>
+</html>

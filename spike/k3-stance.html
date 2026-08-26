@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>k3 — 네 발 ⇄ 두 발</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<script type="module">
+/* k3 — 두 레퍼런스 사이를 잇는 축.
+
+   ① 프린트 피규어는 네 발 짐승이고, ② 마스코트 그리드는 두 발로 선 캐릭터다.
+   이 게임에서는 후자가 유리할 수 있다 — 고양이들이 *직원*이고,
+   책상에 앉고, 서류를 들고, 장비를 착용하기 때문이다.
+   대신 네 발이 "고양이답다". 여기서 등신 비율까지 같이 흔들어 본다. */
+import { run } from './lib/catlab.js';
+
+run({
+  name: 'k3 · 귀와 등신',
+  note: '기준은 2등신. 귀 크기와 몸 비율을 흔든다. 이 실루엣에서 고양이라고 말해주는 건 귀뿐이다.',
+  cols: 8,
+  gapX: 0.80,
+  camera: { el: 0.16 },
+  lookY: 0.34,
+  variants: [
+    { label: '① 기준 (귀 big)' },
+    { label: '② 귀 huge',       ears:'huge' },
+    { label: '③ 귀 huge · 벌림', ears:'huge', earTilt:0.46, earSpread:0.68 },
+    { label: '④ 귀 small',      ears:'small' },
+    { label: '⑤ 몸 더 작게',     bodyR:0.100, legH:0.085 },
+    { label: '⑥ 1.7등신',       headR:0.275, bodyR:0.105, legH:0.075, armH:0.11 },
+    { label: '⑦ 2.5등신',       headR:0.215, bodyR:0.135, legH:0.17 },
+    { label: '⑧ 네 발',         stance:'quad', headR:0.235, bodyR:0.150, legH:0.11, legR:0.062 },
+  ],
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>k1 — 머리 조형</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<script type="module">
+/* k1 — 몸은 전부 같고 머리 덩어리만 다르다.
+
+   레퍼런스 피규어를 기준(#1)으로 두고, 실루엣을 만드는 값만 흔든다:
+   납작한가 · 볼이 있나 · 주둥이가 나왔나 · 면이 몇 개인가.
+   이목구비는 다음 파일(k2)에서 따로 본다 — 한 번에 한 축만. */
+import { run } from './lib/catlab.js';
+
+run({
+  name: 'k1 · 머리 조형',
+  note: '몸은 고정, 머리 덩어리만 8종. 이목구비는 k2 에서 따로.',
+  cols: 8,
+  variants: [
+    { label: '① 기준' },
+    { label: '② 가로로 넓게',  headSx:1.26, headSz:0.94 },
+    { label: '③ 납작 (앞뒤로)', headSz:0.74, headSx:1.14 },
+    { label: '④ 세로로 길게',  headSy:1.20, headSx:0.94 },
+    { label: '⑤ 볼살',         cheek:0.46, headSy:0.94 },
+    { label: '⑥ 각진 (20면)',  headDetail:0 },
+    { label: '⑦ 이마 낮게',    brow:0.55, headSx:1.12 },
+    { label: '⑧ 아래로 더',    eyeUp:-0.36, noseY:-0.54, headSy:1.08 },
+  ],
+});
+</script>
+</body>
+</html>

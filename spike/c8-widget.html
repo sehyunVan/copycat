@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>c8 — 위젯 380px</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<script type="module">
+/* c8 — c7 과 같은 사무실을 380×300 위젯 창 크기로 띄운다.
+
+   이게 이 프로젝트의 실제 판정 기준이다. copycat 은 근무 시간 내내 옆에 떠 있는
+   게임이고, 사용자가 실제로 보는 화면은 전체 창이 아니라 이 크기다.
+   여기서 고양이가 고양이로 안 읽히면 앞의 모든 결정이 소용없다.
+
+   확인할 것: 20마리가 구분되는가 · 뭐가 벌어지는지 읽히는가 · 표정이 보이는가. */
+import { run } from './lib/office.js';
+import { SCENE } from './lib/scene20.js';
+
+run({
+  ...SCENE,
+  name: 'c8 · 위젯 380px',
+  note: '같은 사무실을 실제 위젯 크기로. 여기서 안 읽히면 앞의 결정이 전부 무의미하다.',
+  widget: true,
+  camera: { az:0.72, el:0.46, pad:0.1 },
+});
+</script>
+</body>
+</html>

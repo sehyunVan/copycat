@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>f2 — 복셀</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<script type="module">
+/* f2 — 모든 치수를 1/8 타일 격자에 붙인다. 자유로운 크기가 없어지고
+   전부 계단으로 떨어진다. copycat 의 정체성이 원래 도트라는 걸 생각하면
+   이게 "3D 로 옮긴 도트" 에 가장 가깝다 — 갈아타는 게 아니라 축을 하나 더 얻는 셈.
+   대신 얇은 것(서류·모니터 화면)이 전부 두꺼워져서 정밀한 소품이 안 나온다. */
+import { run } from './lib/vignette.js';
+import { PASTEL, PASTEL_PANELS } from './lib/pastel.js';
+
+run({
+  name: 'f2 · 복셀 (1/8 격자)',
+  note: '치수가 전부 격자에 붙는다. 도트의 3D 판. 얇은 소품은 포기해야 한다.',
+  ref: 'Crossy Road, Cube World, MagicaVoxel 계열',
+  tone: 'aces', exposure: 1.18,
+  kit: { prim:'sharp', voxel:0.125, shading:'flat', detail:1 },
+  pal: PASTEL,
+  panels: PASTEL_PANELS,
+});
+</script>
+</body>
+</html>

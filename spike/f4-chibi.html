@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>f4 — 치비 비율</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<script type="module">
+/* f4 — 형태는 f1 그대로 두고 비율만 건드린다. 머리 1.5배, 다리 0.55배.
+   "귀여움"의 대부분은 재질도 색도 아니고 비율이다. 한 줄 바꾸면 다른 게임이 된다.
+   그리고 실용적인 이득이 하나 있다 — 머리가 크면 380px 위젯에서도 고양이가 읽힌다. */
+import { run } from './lib/vignette.js';
+import { PASTEL, PASTEL_PANELS } from './lib/pastel.js';
+
+run({
+  name: 'f4 · 치비 비율',
+  note: '머리 1.5배 · 다리 0.55배. 형태는 f1 과 같다. 귀여움은 비율에서 온다.',
+  ref: 'Animal Crossing, Dear My Cat 계열',
+  tone: 'aces', exposure: 1.18,
+  kit: {
+    prim:'sharp', shading:'flat', detail:1,
+    cat: { head:1.5, leg:0.55, body:0.85, ear:1.3, tail:0.85 },
+  },
+  pal: PASTEL,
+  panels: PASTEL_PANELS,
+});
+</script>
+</body>
+</html>

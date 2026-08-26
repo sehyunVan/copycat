@@ -169,6 +169,74 @@ const CHAT = L({
   },
 });
 
+/* ---------- 지금 하고 있는 일 ----------
+   CHAT 은 **떠나면서** 하는 말이다("커피 한 잔 하고 오겠다냥"). 그래서 도착한 뒤로는
+   화면이 조용해지고, 정수기 앞에 모인 다섯 마리가 수다를 떠는 건지 그냥 서 있는 건지
+   알 방법이 없었다. 이 표는 **도착한 뒤**의 말이다 — 진행형이고, 끝에 「…」가 붙는다.
+
+   새 장치를 만들지 않았다. 같은 말풍선(bus 의 cat:say → sayAt)을 그대로 쓴다 —
+   머리 위에 글자가 뜨는 자리가 이미 하나 있는데 상태 표시를 위해 둘로 만들 이유가 없다.
+
+   **가구별로 갈라 둔 칸이 있다.** 쓰임(use)만 보면 자동급식기 앞의 고양이가
+   「커피 마시는 중」이라고 말하고(급식기의 use 가 coffee 다) CD 플레이어 앞에서
+   「수다 중」이라고 말한다(use 가 social 이다). 쓰임은 시뮬레이션의 분류이고
+   말풍선은 그 물건 앞에서 실제로 하는 일이라, 어긋나는 자리만 따로 적었다. */
+const DOING = L({
+  ko: {
+    coffee:  ['커피 마시는 중…','한 모금 더…','카페인 충전 중…'],
+    snack:   ['밥 먹는 중…','오물오물…','한 입만 더…'],
+    sleep:   ['낮잠 자는 중…','골골골…','zzz…'],
+    litter:  ['…잠깐만','볼일 보는 중…'],
+    social:  ['수다 중…','골골골…','그래서 말이야…'],
+    play:    ['노는 중…','한 번 더…','이게 제일 재밌다냥'],
+    juke:    ['음악 듣는 중…','골골골…','이 곡 좋다냥'],
+    game:    ['게임 중…','한 판만 더…','아, 졌다냥'],
+    scratch: ['긁는 중…','발톱 다듬는 중…','여기가 제일 잘 긁힌다'],
+    gym:     ['운동 중…','한 세트 더…','근육이 붙는 기분이다냥'],
+    meeting: ['회의 중…','그건 다음 분기에…','일단 적어 두겠다냥'],
+    plant:   ['냄새 맡는 중…','잎사귀 씹는 중…','흙 파는 중…'],
+  },
+  en: {
+    coffee:  ['sipping coffee…','one more sip…','recharging caffeine…'],
+    snack:   ['eating…','nom nom…','one more bite…'],
+    sleep:   ['napping…','purrrr…','zzz…'],
+    litter:  ['…just a sec','occupied…'],
+    social:  ['chatting…','purrrr…','so anyway…'],
+    play:    ['playing…','one more go…','this is the best, nya'],
+    juke:    ['listening…','purrrr…','good track, nya'],
+    game:    ['gaming…','one more round…','ah, lost again'],
+    scratch: ['scratching…','filing my claws…','best spot in the office'],
+    gym:     ['working out…','one more set…','feeling the gains, nya'],
+    meeting: ['in a meeting…','let’s table that…','noting it down, nya'],
+    plant:   ['sniffing…','chewing a leaf…','digging the soil…'],
+  },
+  ja: {
+    coffee:  ['コーヒー飲んでる…','もう一口…','カフェイン充填中…'],
+    snack:   ['ごはん中…','もぐもぐ…','もう一口だけ…'],
+    sleep:   ['お昼寝中…','ゴロゴロゴロ…','zzz…'],
+    litter:  ['…ちょっと待って','用を足し中…'],
+    social:  ['おしゃべり中…','ゴロゴロゴロ…','それでね…'],
+    play:    ['遊んでる…','もう一回…','これが一番楽しいにゃ'],
+    juke:    ['音楽聴いてる…','ゴロゴロゴロ…','この曲いいにゃ'],
+    game:    ['ゲーム中…','あと一回だけ…','あー、負けたにゃ'],
+    scratch: ['爪とぎ中…','爪を整えてる…','ここが一番とぎやすい'],
+    gym:     ['筋トレ中…','あと1セット…','筋肉がつく気がするにゃ'],
+    meeting: ['会議中…','それは来期に…','とりあえずメモするにゃ'],
+    plant:   ['匂いを嗅いでる…','葉っぱを噛んでる…','土を掘ってる…'],
+  },
+});
+/* 쓰임이 거짓말을 하는 가구만. 나머지는 TILE_INFO 의 use 를 그대로 쓴다. */
+const DOING_TILE = {
+  [TILE.JUKE]:    'juke',
+  [TILE.SCRATCH]: 'scratch',
+  [TILE.GYM]:     'gym',
+  [TILE.MEETING]: 'meeting',
+  [TILE.PLANT]:   'plant',
+  [TILE.FEEDER]:  'snack',
+  [TILE.SNACK]:   'snack',
+  [TILE.GAME]:    'game',
+};
+
 function d6(){ return 1 + Math.floor(Math.random()*6); }
 /* 4d6 중 최저 1개 버리기 — OpenMMO(그리고 D&D)의 캐릭터 생성 규칙 */
 function roll4d6(){
@@ -246,6 +314,25 @@ function newCat(seedName){
     _bubble: 0,
   };
 }
+
+/* 1번 사원 = 프롤로그의 "나" = 플레이어다. 이 냥은 **처음부터 사장으로 고정**이다.
+   직급 사다리(RANKS)를 타지 않으므로 표시는 늘 「대표」다. 경제는 그대로 RANKS 를
+   쓰는데(대표라고 초당 1000마리를 벌면 게임이 끝난다), 올리는 행위의 이름만 다르다 —
+   대표는 승진하는 게 아니라 자기 몫을 올린다. */
+const BOSS_TITLE = L({ ko:'대표', en:'Boss', ja:'社長' });
+const BOSS_RAISE = L({ ko:'내 몫 인상', en:'Raise own cut', ja:'自分の取り分' });
+function rankName(c){
+  if (c && c.founder) return BOSS_TITLE;
+  return RANKS[Math.min((c && c.rank) || 0, RANKS.length - 1)].n;
+}
+/* 대표는 한 마리뿐이다. 다른 냥은 **이사까지**(마지막 직급 하나 아래) 올라간다 —
+   플레이어 고양이를 사장으로 고정해 놓고 직원도 대표냥이 되면 그 고정이 무의미하다.
+   상한을 여기 한 곳에 두고, 승진 버튼·비용·처리가 전부 nextRank 만 본다. */
+const rankCap = c => (c && c.founder) ? RANKS.length - 1 : RANKS.length - 2;
+const nextRank = c => {
+  const i = ((c && c.rank) | 0) + 1;
+  return i <= rankCap(c) ? RANKS[i] : null;
+};
 
 function traitOf(c){ return TRAITS.find(t => t.id === c.trait) || TRAITS[0]; }
 

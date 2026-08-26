@@ -2,12 +2,72 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- viewport-fit=cover: 아이폰에서 노치·홈 인디케이터 영역까지 화면으로 쓴다.
+     그 몫은 style.css 가 env(safe-area-inset-*) 로 비켜 준다.
+     maximum-scale: 두 손가락으로 화면 전체가 확대되면 배치가 무너진다 —
+     확대는 카메라가 따로 갖고 있으므로 브라우저 줌은 필요 없다. -->
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#171310">
+<meta name="color-scheme" content="dark light">
+<!-- 홈 화면에 얹었을 때(iOS) 브라우저 없이 전체화면으로 뜬다. 안드로이드는 manifest 가 한다. -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Copycat">
 <title>Copycat — 캣닢 만드는 고양이 조직</title>
-<link rel="stylesheet" href="style.css?v=9">
+<link rel="stylesheet" href="style.css?v=13">
+<!-- 3D 모듈을 **미리 내려받는다.** 모듈은 항상 지연 평가되므로 클래식 스크립트가 전부
+     돈 뒤에야 실행되는데, 그 전에 파일이라도 와 있으면 기다리는 시간이 그만큼 줄어든다.
+     (평가 순서는 안 바뀐다 — 바뀌면 R3 를 클래식 코드가 못 보고 순서 가정이 깨진다)
+     배포본에서는 tools/pack-single.js 가 이 두 줄을 지운다: 모듈이 HTML 안에 접혀 들어가서
+     가리킬 파일이 없고, 남겨 두면 404 가 난다. -->
+<link rel="modulepreload" href="js/render3d.js?v=13">
+<link rel="modulepreload" href="js/three/vendor/three.module.min.js">
+<!-- 로고. **원본은 tools/logo.js 하나다** — 파비콘·상단바·앱 아이콘이 그 도형 목록을
+     읽는다. 전에는 셋이 따로 적혀 있었고, 그래서 그림체를 eerie 로 바꿀 때
+     로고만 안 따라왔다(저녁 사무실에 주황 스티커 하나가 남았다).
+     파일이 아니라 데이터로 넣는 이유는 그대로 — 배포본에서 favicon.ico 404 가
+     나던 유일한 오류였고, 탭 아이콘 하나 때문에 파일을 더 들고 다닐 이유가 없다. -->
+<!-- LOGO:BEGIN 생성: node tools/logo.js -->
+<link rel="icon" href="data:image/png;base64,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">
+<!-- LOGO:END -->
 </head>
 <body>
-<div id="app">
+<!-- ============================================================
+     로딩 화면 — 렌더러가 올 때까지 덮는다.
+
+     **스크립트가 만들지 않는다.** 이 판이 필요한 순간은 첫 페인트이고, 그때는
+     클래식 스크립트도 아직 안 돌았다(모듈은 그 뒤다 — TODO 20번). JS 로 만들면
+     정작 필요한 6초를 못 덮는다. 그래서 마크업에 있고, 기본이 「보임」이다.
+     걷는 것은 js/ui.js 의 renderTiles 가 `body.r3ready` 를 걸어서 한다.
+
+     고양이 그림과 스피너 자리는 style.css 의 LOADCAT 구간에 있다 —
+     node tools/bake-loading-cat.js 가 써 넣는다(그림을 그리지 않는다는 19번의 규칙).
+     ============================================================ -->
+<div id="loadgate" aria-hidden="true">
+  <div class="lcat">
+    <!-- 12갈래 throbber. 도형 하나를 정의하고 열두 번 돌려 쓴다. -->
+    <div class="lspin"><svg viewBox="0 0 100 100">
+      <defs><rect id="lsp" x="45.2" y="6" width="9.6" height="26" rx="4.8"/></defs>
+      <use href="#lsp" transform="rotate(0 50 50)"   opacity=".16"/>
+      <use href="#lsp" transform="rotate(30 50 50)"  opacity=".24"/>
+      <use href="#lsp" transform="rotate(60 50 50)"  opacity=".31"/>
+      <use href="#lsp" transform="rotate(90 50 50)"  opacity=".39"/>
+      <use href="#lsp" transform="rotate(120 50 50)" opacity=".46"/>
+      <use href="#lsp" transform="rotate(150 50 50)" opacity=".54"/>
+      <use href="#lsp" transform="rotate(180 50 50)" opacity=".62"/>
+      <use href="#lsp" transform="rotate(210 50 50)" opacity=".69"/>
+      <use href="#lsp" transform="rotate(240 50 50)" opacity=".77"/>
+      <use href="#lsp" transform="rotate(270 50 50)" opacity=".84"/>
+      <use href="#lsp" transform="rotate(300 50 50)" opacity=".92"/>
+      <use href="#lsp" transform="rotate(330 50 50)" opacity="1"/>
+    </svg></div>
+  </div>
+  <div class="lword">thimkning...</div>
+</div>
+
+<!-- stageui = 무대 우선 배치(사무실이 화면 전체, 패널은 그 위에). 빼면 3열로 돌아간다. -->
+<div id="app" class="stageui">
 
   <div id="topbar">
     <div class="brand">
@@ -28,18 +88,22 @@
     </div>
 
     <div class="spacer"></div>
-    <button class="iconbtn" id="btnCard" title="근무 기록증">🪪</button>
-    <button class="iconbtn" id="btnEdit" title="배치 모드">🛋️</button>
-    <button class="iconbtn" id="btnSound" title="소리">🔊</button>
-    <button class="iconbtn" id="btnSettings" title="설정">⚙️</button>
-    <button class="iconbtn" id="btnHelp" title="사규">❓</button>
-    <button class="iconbtn" id="btnReset" title="처음부터">🗑️</button>
+    <!-- 위젯 모드에서는 이 묶음이 ⋯ 팝오버로 접힌다 (style.css 의 #app.compact #tools) -->
+    <div id="tools">
+      <button class="iconbtn" id="btnCard" title="근무 기록증">🪪</button>
+      <button class="iconbtn" id="btnEdit" title="배치 모드">🛋️</button>
+      <button class="iconbtn" id="btnSettings" title="설정">⚙️</button>
+      <button class="iconbtn" id="btnHelp" title="사규">❓</button>
+      <button class="iconbtn" id="btnReset" title="처음부터">🗑️</button>
+    </div>
+    <button class="iconbtn" id="btnMore" title="더보기">⋯</button>
+    <button class="iconbtn" id="btnCompact" title="위젯 모드">🔳</button>
   </div>
 
   <div id="main">
 
     <!-- 결재함 -->
-    <section class="panel">
+    <section class="panel" id="panelInbox">
       <div class="ph"><span>📋</span><h2 id="phInbox">결재함</h2><span class="sub" id="todoSub"></span></div>
       <div class="addbox">
         <input id="todoInput" placeholder="" maxlength="80" autocomplete="off">
@@ -55,31 +119,35 @@
 
     <!-- 사무실 -->
     <section class="stagewrap">
-      <div id="viewport">
+      <!-- 좌우 패널 접기 손잡이 -->
+      <button class="foldbtn L" id="btnFoldL" title="왼쪽 패널 접기">‹</button>
+      <button class="foldbtn R" id="btnFoldR" title="오른쪽 패널 접기">›</button>
+      <!-- 3D 일 때만 뜬다. 드래그로 시점을 고정한 뒤 추적으로 돌아가는 문. -->
+      <button class="cambtn" id="btnCam" title="카메라" style="display:none">🎥</button>
+      <div id="viewport" data-wait="사무실을 세우는 중">
         <div class="clockchip" id="clock"></div>
         <div class="raidbanner" id="raidBanner"></div>
-        <div id="world">
-          <div id="tiles"></div>
-          <div id="docs"></div>
-          <div id="actors"></div>
-          <div id="warm"></div>
-          <div id="night"></div>
-          <div id="floaties"></div>
-          <div id="editLayer" style="display:none"><div id="editSel"></div><div id="editGhost"></div></div>
-        </div>
+        <!-- 무대. 도트 렌더러(#world 와 그 안의 타일·액터·서류 레이어)가 여기 형제로
+             있었는데 2026-08-24 에 지웠다 — 남겨 둔 이유가 「PiP 에서 WebGL 이 사는지
+             모른다」였고, 재 보니 산다(spike/pipcv.html). -->
+        <canvas id="gl" style="display:none;position:absolute;inset:0;width:100%;height:100%"></canvas>
+        <div id="editLayer" style="display:none"><div id="editSel"></div><div id="editGhost"></div></div>
         <div class="edithint" id="editHint" style="display:none"></div>
       </div>
+      <!-- 위젯 모드에서는 이 줄이 독(dock)이 된다 — 서랍 두 개와 숫자 두 개만 남는다 -->
       <div class="stagefoot">
-        <span class="kv">🪑 <span id="lblWork">근무</span> <b id="fWork">0/0</b></span>
+        <button class="dockbtn" id="dkInbox" title="결재함">📋<b id="dkTodo">0</b></button>
+        <button class="dockbtn" id="dkBiz" title="경영">🐈</button>
+        <span class="kv wide">🪑 <span id="lblWork">근무</span> <b id="fWork">0/0</b></span>
         <span class="kv">😺 <span id="lblMood">사기</span> <b id="fMood">100</b>%</span>
         <span class="kv">📄 <span id="lblDocs">대기</span> <b id="fDocs">0</b></span>
-        <span class="kv">✅ <span id="lblDone">누적</span> <b id="fDone">0</b></span>
+        <span class="kv wide">✅ <span id="lblDone">누적</span> <b id="fDone">0</b></span>
         <span id="ticker"></span>
       </div>
     </section>
 
     <!-- 경영 -->
-    <section class="panel">
+    <section class="panel" id="panelBiz">
       <div class="tabs">
         <button class="tab on" data-tab="staff">🐈 직원</button>
         <button class="tab" data-tab="shop">🛒 비품</button>
@@ -88,24 +156,54 @@
       <div class="pb" id="rightBody"></div>
     </section>
 
+    <!-- 한 기둥(D3)과 모바일 탭 바(M4)가 **같은 줄**을 쓴다. 위에 붙으면 기둥의 머리,
+         아래에 붙으면 탭 바다. 3열과 위젯 모드에서는 display:none 이다 — 그 둘은
+         각자 이미 자기 항법(오른쪽 패널의 탭 / 아래 서랍)을 갖고 있다.
+         🏢 는 무대가 한 화면을 차지하는 폰에서만 보인다. -->
+    <nav id="colTabs">
+      <button data-col="stage"><span>🏢</span><b id="ctStage">사무실</b></button>
+      <button data-col="inbox" class="on"><span>📋</span><b id="ctInbox">결재함</b><i id="ctTodo"></i></button>
+      <button data-col="staff"><span>🐈</span><b id="ctStaff">직원</b></button>
+      <button data-col="shop"><span>🛒</span><b id="ctShop">비품</b></button>
+      <button data-col="log"><span>📰</span><b id="ctLog">사보</b></button>
+    </nav>
+
   </div>
 </div>
 
-<script src="js/assets.js?v=9"></script>
-<script src="js/i18n.js?v=9"></script>
-<script src="js/world.js?v=9"></script>
-<script src="js/cats.js?v=9"></script>
-<!-- 자동 생성 (node tools/build-atlas.js). 유료 팩에서 실제로 쓰는 칸만 뽑은 좌표표라
-     저장소에는 없다 — 없으면 가구가 안 보인다. tools/build-atlas.js 주석 참고. -->
-<script src="js/atlas.js?v=9"></script>
-<script src="js/sprite.js?v=9"></script>
-<script src="js/sim.js?v=9"></script>
-<script src="js/game.js?v=9"></script>
-<script src="js/ui.js?v=9"></script>
-<script src="js/edit.js?v=9"></script>
-<script src="js/care.js?v=9"></script>
-<script src="js/card.js?v=9"></script>
-<script src="js/music.js?v=9"></script>
-<script src="js/main.js?v=9"></script>
+
+<script src="js/assets.js?v=13"></script>
+<script src="js/i18n.js?v=13"></script>
+<script src="js/decor.js?v=13"></script>
+<script src="js/world.js?v=13"></script>
+<script src="js/cats.js?v=13"></script>
+<script src="js/sim.js?v=13"></script>
+<script src="js/game.js?v=13"></script>
+<script src="js/ui.js?v=13"></script>
+<script src="js/widget.js?v=13"></script>
+<!-- 한 기둥 / 탭 바 배치. widget.js 뒤에 온다 — 위젯이면 이 배치는 비켜난다. -->
+<script src="js/col.js?v=13"></script>
+<script src="js/edit.js?v=13"></script>
+<script src="js/care.js?v=13"></script>
+<script src="js/card.js?v=13"></script>
+<script src="js/music.js?v=13"></script>
+<script src="js/juke.js?v=13"></script>
+<script src="js/binder.js?v=13"></script>
+<script src="js/cal.js?v=13"></script>
+<script src="js/friends.js?v=13"></script>
+<script src="js/visit.js?v=13"></script>
+<script src="js/board.js?v=13"></script>
+<!-- 가구 조사와 단서 (STORY.md 의 떡밥 배치표). 격자를 집는 건 edit.js 것을 그대로 쓴다. -->
+<script src="js/story.js?v=13"></script>
+<script src="js/tutor.js?v=13"></script>
+<script src="js/main.js?v=13"></script>
+<!-- 3D 렌더러. 모듈이라 file:// 에서는 안 뜨고, 그때는 도트 렌더러로 그냥 돈다.
+     배포본(단일 파일)에서는 tools/pack-single.js 가 인라인한다. -->
+<!-- onerror: 모듈을 못 불러오면(파일로 열었거나 경로가 깨졌거나) 그 사실을 알려야 한다.
+     안 그러면 ui.js 가 "3D 가 오는 중" 이라고 믿고 빈 무대를 계속 보여준다. -->
+<script type="module" src="js/render3d.js?v=13" onerror="window.__r3fail=1"></script>
+<!-- 프롤로그 시네마틱. 같은 lowpoly 키트로 골목과 첫 사무실을 세운다 (STORY.md).
+     모듈이라 file:// 소스 트리에서는 안 뜨고, 그때는 컷신 없이 근로계약서로 넘어간다. -->
+<script type="module" src="js/three/opening.js?v=13"></script>
 </body>
 </html>

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>c7 — 20마리 실전 (수직 활용)</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<script type="module">
+/* c7 — 확정된 조합을 실제 조건에 넣는다.
+   배치는 c4(수직 활용), 캐릭터는 k8 ⑧, 색은 s3, 그림체는 f3.
+
+   지금까지는 여덟 마리를 대조대에 세워 놓고 봤다. 그건 조형을 고르는 데는 맞지만
+   이 게임의 실제 화면은 아니다. 진짜 조건은 이렇다:
+
+     · 냥타워 등급 사무실에 고양이 20마리
+     · 가구에 가려지고, 서로 겹치고, 책상 뒤에 앉아 있다
+     · 그리고 그 화면이 380px 위젯 창에 들어간다
+
+   c4 를 고른 이유가 여기서 드러난다 — 바닥이 20마리로 꽉 차도 캣워크와 캣타워가
+   고양이를 위로 흩어준다. 2D 격자에는 아예 없던 자리다.
+   그리고 위에 앉은 고양이는 가구에 안 가린다. 미학이 아니라 가독성 문제이기도 하다. */
+import { run } from './lib/office.js';
+
+import { SCENE } from './lib/scene20.js';
+
+run(SCENE);
+</script>
+</body>
+</html>

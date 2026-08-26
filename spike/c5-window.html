@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>c5 — 창가 채광</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<script type="module">
+/* c5 — 창을 낸다.
+
+   현재 게임은 창문이 없다. README 에 이유가 적혀 있다 — 타일셋에 맞는 창문 타일이 없어서
+   CSS 로 그리면 혼자 겉돌기 때문. 3D 에서는 그 제약이 사라진다.
+
+   그리고 창은 이 게임에서 장식이 아니다. 실제 시계로 도는 게임이라
+   창밖 색이 곧 시계다. 고개를 들면 지금이 몇 시인지 알 수 있는 사무실.
+   시간 버튼을 눌러 창밖과 바닥 빛 자국이 같이 도는지 보면 된다. */
+import { run } from './lib/office.js';
+
+run({
+  name: 'c5 · 창가 채광',
+  note: '북쪽 벽에 창 셋. 창밖 색이 곧 시계가 된다. 지금 게임엔 없는 물건.',
+  room: { W:11, D:8, wallH:2.5 },
+  camera: { az:0.78, el:0.52, pad:0.6 },
+  time: 0,
+  floorAt: (x, z) => (x >= 7 && z >= 5) ? 0xE7BFB8 : ((x + z) % 2 ? 0xF3E9DE : 0xEBDCCF),
+
+  build(c){
+    const { LP, put } = c;
+
+    /* --- 창과 빛 자국 --- */
+    [2.2, 5.5, 8.8].forEach(x => {
+      c.onWallN(LP.windowUnit(1.6, 1.2), x, 1.45);
+      put(LP.sunPatch(1.7, 2.4), x + 0.5, 1.6, -0.12);   // 바닥에 비스듬히 떨어진 볕
+    });
+    // 창가 화분 줄 — 볕이 드는 자리에 식물을 두는 건 사람이 하는 일이다
+    [1.2, 3.4, 6.6, 9.9].forEach(x => put(LP.plant(), x, 0.7, x * 0.3));
+
+    const pods = [c.pod(2.4, 2.4), c.pod(5.8, 2.4), c.pod(9.2, 2.4)];
+    c.lamp(put(LP.lamp(), 3.5, 2.3, -0.4, 0.65));
+    c.lamp(put(LP.lamp(), 6.9, 2.3, -0.4, 0.65));
+    put(LP.mug(0xF0A9A0), 1.8, 2.3, 0, 0.67);
+    put(LP.mug(0xA8B8E0), 8.6, 2.3, 0, 0.67);
+
+    // 창가 벤치 — 볕 쬐는 자리
+    put(LP.cushion(0xA8B8E0), 0.7, 1.5, 0.3);
+    put(LP.cushion(0xF0A9A0), 0.7, 2.4, -0.2);
+
+    put(LP.rug(3.0, 2.4, 0xE7BFB8), 8.8, 6.3);
+    put(LP.napBox(), 7.6, 6.6, 0.3);
+    put(LP.blanket(0xF0A9A0), 9.6, 6.9, -0.3);
+    put(LP.catTower(), 10.3, 4.6, -0.7);
+    put(LP.coffee(), 0.8, 5.2, 0.4);
+    put(LP.cooler(), 0.7, 6.4, 0.3);
+    put(LP.shelf(), 2.6, 7.5, Math.PI);
+    put(LP.docStack(5), 4.4, 5.4, 0.3);
+    put(LP.catnip(), 5.6, 7.2, -0.3);
+    put(LP.inbox(), 10.3, 7.2, -0.5);
+    put(LP.snackBowl(), 6.6, 5.6);
+    put(LP.cardboard(true), 4.2, 7.3, 0.4);
+
+    c.onWallW(LP.wallClock(), 3.4, 1.85);
+    c.onWallW(LP.wallShelf(1.3), 4.6, 1.45);
+    c.onWallW(LP.wallArt(0.5, 0.6, 0xA8D3A0), 7.4, 1.70);
+
+    pods.forEach((p, i) => {
+      c.cat([0xC9A06A, 0xE8A657, 0x8C6A4A][i], p.position.x - 0.45, p.position.z + 1.05, Math.PI, 'sit', 0.44);
+      if (i !== 1) c.cat([0xF2EDE4, 0x6E5B4C][i ? 1 : 0], p.position.x + 0.55, p.position.z + 1.05, Math.PI, 'sit', 0.44);
+    });
+    c.cat(0xD9C3A5, 0.7, 1.5, 1.9, 'sleep', 0.14);      // 볕 쬐는 고양이
+    c.cat(0x3B3733, 7.6, 6.6, 0.4, 'sleep', 0.12);
+    c.walker(0xC9A06A, 6.4, 5.6, 3.0, 4.4);
+  },
+});
+</script>
+</body>
+</html>

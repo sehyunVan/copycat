@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>k2 — 이목구비</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<script type="module">
+/* k2 — 머리 덩어리는 고정, 얼굴에 뭘 그리느냐만 다르다.
+
+   여기가 게임에서 제일 예민한 축이다. copycat 의 고양이는 20마리까지 늘어나고
+   화면에서 각각 32px 남짓으로 보인다. 눈이 크면 멀리서도 읽히지만 다 비슷해 보이고,
+   눈이 작으면 개성이 색과 실루엣으로만 남는다.
+   [작게 보기 380px] 을 눌러서 그 크기에서도 구분되는지 보는 게 이 파일의 목적이다. */
+import { run } from './lib/catlab.js';
+
+run({
+  name: 'k2 · 이목구비',
+  note: '머리는 고정, 눈·코·입만 8종. 작게 줄였을 때 구분되는지가 기준.',
+  cols: 8,
+  variants: [
+    { label: '① 점눈 (기준)',   eyes:'dot' },
+    { label: '② 큰 눈',         eyes:'big', eyeR:0.040 },
+    { label: '③ 흰자 있는 눈',  eyes:'wide', eyeR:0.034 },
+    { label: '④ 감은 눈',       eyes:'closed', eyeR:0.038 },
+    { label: '⑤ 세로 동공',     eyes:'slit', eyeR:0.034 },
+    { label: '⑥ 점눈 + 입',     eyes:'dot', mouth:'w' },
+    { label: '⑦ 눈 사이 좁게',  eyes:'dot', eyeGap:0.28 },
+    { label: '⑧ 눈 사이 넓게',  eyes:'dot', eyeGap:0.54 },
+  ],
+});
+</script>
+</body>
+</html>

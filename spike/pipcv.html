@@ -1,0 +1,43 @@
+<title>캔버스를 다른 문서로 옮겨도 WebGL 이 사는가</title>
+<!-- widget.js 의 「실측한 적이 없다」를 재는 판.
+
+     떠 있는 창(Document PiP)은 #app 을 **통째로 다른 문서로 옮긴다.** 그때 3D 캔버스의
+     WebGL 컨텍스트가 죽으면 위젯에서 3D 를 쓸 수 없고, 그게 도트 렌더러를 폴백으로
+     남겨 둔 유일한 이유였다.
+
+     PiP 는 사용자 제스처가 필요해서 헤드리스에서 못 띄운다. 그래서 **같은 일**을
+     iframe 으로 대신 잰다 — 둘 다 adoptNode 로 노드가 다른 Document 로 넘어가는 것이고,
+     Chromium 에서 PiP 창은 같은 렌더러 프로세스에 있다.
+
+     node spike/serve.js  →  node spike/probe.js "JSON.stringify(window.R)" 2500 "" \
+       "http://localhost:8123/spike/pipcv.html"
+
+     읽는 법: afterLost=false 이고 drawWorks=true 면 옮긴 뒤에도 그려진다는 뜻이다. -->
+<canvas id="c" width="200" height="120"></canvas>
+<iframe id="f" style="width:220px;height:140px"></iframe>
+<script>
+window.R = {};
+const cv = document.getElementById('c');
+const gl = cv.getContext('webgl2') || cv.getContext('webgl');
+R.got = !!gl;
+if (gl){
+  gl.clearColor(0.2, 0.6, 0.3, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+  R.beforeLost = gl.isContextLost();
+  const read = () => { const p = new Uint8Array(4); gl.readPixels(1, 1, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, p); return [...p]; };
+  R.beforePix = read();
+  const f = document.getElementById('f');
+  f.srcdoc = '<body></body>';
+  f.onload = () => {
+    try {
+      f.contentDocument.body.appendChild(cv);          // 사본이 아니라 원본을 옮긴다
+      R.moved = cv.ownerDocument !== document;
+      R.afterLost = gl.isContextLost();
+      gl.clearColor(0.9, 0.2, 0.1, 1); gl.clear(gl.COLOR_BUFFER_BIT);
+      R.afterPix = read();
+      R.drawWorks = R.afterPix[0] > 200 && R.afterPix[1] < 80;   // 옮긴 뒤에 그린 색이 읽히는가
+      R.err = null;
+    } catch(e){ R.err = e.message; }
+    R.done = true;
+  };
+}
+</script>

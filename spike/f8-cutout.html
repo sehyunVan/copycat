@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>f8 — 종이 인형 2.5D</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<script type="module">
+/* f8 — 도트를 버리지 않는 길.
+
+   방(바닥·벽)만 3D 로 두고, 물건과 고양이는 납작하게 눌러서 카메라를 보게 세운다.
+   지금 게임의 스프라이트가 3D 공간에 서 있는 상태와 정확히 같다.
+
+   이 방향의 값어치는 "덜 바꿔도 된다" 는 데 있다:
+     · 16x16 도트 자산이 그대로 산다 (여기선 박스로 대신 그렸지만 실제로는 텍스처를 붙인다)
+     · 대신 깊이·조명·그림자·시간대 색이 공짜로 따라온다
+     · 드로우콜도 제일 싸다 — 물건 하나가 판때기 한 장이 될 수 있으니까
+   대신 얻는 게 적다. "로우폴리로 갈아탔다" 고 말할 수 있는 그림은 아니다. */
+import { run } from './lib/vignette.js';
+import { PASTEL, PASTEL_PANELS } from './lib/pastel.js';
+
+run({
+  name: 'f8 · 종이 인형 2.5D',
+  note: '무대만 3D, 물건은 납작한 판. 도트 자산을 그대로 쓰면서 깊이와 빛만 얻는 길.',
+  ref: 'Paper Mario · 종이 디오라마 · 지금 copycat 의 스프라이트를 세운 것',
+  tone: 'aces', exposure: 1.16,
+  cutout: true,
+  kit: { prim:'sharp', shading:'flat', detail:1 },
+  outline: { color:0x8A7A72, opacity:0.45, angle:22 },
+  camera: { el:0.42, az:0.72, radius:3.7 },
+  pal: PASTEL,
+  panels: PASTEL_PANELS,
+});
+</script>
+</body>
+</html>

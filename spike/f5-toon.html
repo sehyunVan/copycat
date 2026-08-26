@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>f5 — 툰 + 윤곽선</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<script type="module">
+/* f5 — 음영을 3단계로 끊고 윤곽선을 얹는다. 3D 를 숨기지 않고 "그린 것"으로 만든다.
+   copycat 의 글은 원래 농담이 섞인 사내 공지 톤이라 그림책 화법과 맞는다.
+   비용: 윤곽선이 오브젝트마다 드로우콜을 하나씩 더 쓴다 — 이미 드로우콜이 병목인데. */
+import { run } from './lib/vignette.js';
+import { PASTEL, PASTEL_PANELS } from './lib/pastel.js';
+
+run({
+  name: 'f5 · 툰 + 윤곽선',
+  note: '음영 3단계 + 윤곽선. 그림책 화법. 드로우콜이 두 배가 된다.',
+  ref: 'Lil Gator Game, Alba: A Wildlife Adventure 계열',
+  tone: 'none',
+  kit: { prim:'sharp', shading:'toon', detail:1 },
+  outline: { color:0x6B5B54, opacity:0.9, angle:20 },
+  pal: PASTEL,
+  panels: PASTEL_PANELS,
+});
+</script>
+</body>
+</html>

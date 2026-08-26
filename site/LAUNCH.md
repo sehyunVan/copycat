@@ -236,8 +236,9 @@ room. At 18:00 they clock out and tell you how many approvals you got through to
 
 Quarters advance on KPI rather than on time, so progression is *not* gated behind real
 hours — you can push as fast as you like. What is real-time is the **day**, not the
-grind. I built it to sit in a second tab while I work, so it is designed around that:
-offline earnings while the tab is hidden, and a stretch reminder every 50 minutes.
+grind. I built it to sit in a second tab while I work, so it is designed around that: the
+office keeps running in a hidden tab (or a floating window), and a stretch reminder every
+50 minutes. Close it and the office closes too — nothing accrues while it is shut.
 
 **Failure is a system too.** The company sells catnip, which is a controlled substance
 here, and it is registered as a herbal wholesaler. Paperwork you did not finish by
@@ -326,7 +327,8 @@ AI Disclosure: <<< 0.5절을 보고 본인이 직접 쓴 문장으로 교체 >>>
 **"이게 진짜 incremental 맞아? 실시간이면 기다리는 게임 아냐?"**
 > Progression is on KPI, not on time — you can blow through quarters as fast as you can
 > feed it work. The real-time part is only the *day* (when lunch is, when they clock out).
-> Offline earnings cover up to 8 hours, 16 with the auto-feeder.
+> It keeps running in a background tab, so leaving it open beside your work is the point;
+> closed time earns nothing (the auto-feeder buys a trickle during work hours).
 
 이게 **가장 확률 높은 질문**이다. 본문에서 이미 한 번 막아 뒀지만 또 나온다.
 

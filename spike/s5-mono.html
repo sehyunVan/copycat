@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>s5 — 모노크롬 · 캣닢만 초록</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<script type="module">
+/* s5 — 사무실 전체를 무채색으로 깔고, 색이 있는 건 캣닢과 서류뿐.
+   이 게임의 두 축이 정확히 그 둘이다: 만드는 것(캣닢)과 안 치우면 증거가 되는 것(서류).
+   화면에서 색이 곧 게임 상태가 된다 — 캣닢이 늘면 초록이 늘고, 서류가 쌓이면 흰 뭉치가 는다.
+   장식이 아니라 정보다. 위험: 사무실이 예뻐 보이지 않아서 꾸미는 재미가 죽는다. */
+import { run } from './lib/vignette.js';
+
+run({
+  name: 's5 · 모노크롬 + 원포인트',
+  note: '무채색 사무실, 캣닢과 서류만 색. 색이 곧 게임 상태가 된다. 꾸미는 재미는 약해진다.',
+  tone: 'none',
+  outline: { color: 0x1A1A1E, opacity: 0.42 },
+  pal: {
+    floor:0xCFCFCF, floorAlt:0xC2C2C2, lounge:0xA8A8A8,
+    wall:0xE2E2E2, wallTrim:0xB8B8B8,
+    wood:0x9A9A9A, woodDark:0x6E6E6E,
+    metal:0xB4B4B4, metalDark:0x6A6A6A,
+    screen:0x4A4A4A, fabric:0x8C8C8C, fabric2:0x7A7A7A,
+    leaf:0x8E8E8E, leafDark:0x6E6E6E, pot:0x9A9A9A,
+    paper:0xFFFFFF, ink:0x222222, catnip:0x4ED46A, glow:0xFFE9B0,
+  },
+  panels: [
+    { label:'10:00 오전', bg:0xDADADA,
+      hemi:[0xFFFFFF, 0x9A9A9A, 1.15], sun:[0xFFFFFF, 1.45, [7, 12, 5]],
+      fill:[0xD0D8E8, 0.30], lamp:0 },
+    { label:'18:00 퇴근 무렵', bg:0x9E9A94,
+      hemi:[0xE8E4DE, 0x76736E, 0.85], sun:[0xFFE2C4, 1.25, [9, 4, 2]],
+      fill:[0xB8C0D8, 0.30], lamp:0.4, screen:0x5A5A5A },
+    { label:'23:00 야근', bg:0x1E1E20,
+      hemi:[0x54545C, 0x18181A, 0.40], sun:[0x60606C, 0.25, [-4, 8, -3]],
+      fill:[0x44444E, 0.25], lamp:1, screen:0x8A8A8A },
+  ],
+});
+</script>
+</body>
+</html>

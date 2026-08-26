@@ -1,8 +1,0 @@
-16-bit Kitties — asset pack
-by Maze.Bit.Boutique  (https://mxmaze.itch.io/16-bit-kitties-pack)
-
-Licensed under Creative Commons Attribution 4.0 International (CC BY 4.0)
-https://creativecommons.org/licenses/by/4.0/
-
-Commercial use, modification and redistribution are permitted provided
-attribution is given. Attribution for this game is in README.md.

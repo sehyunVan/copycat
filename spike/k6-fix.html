@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>k6 — 다시 빚기</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<script type="module">
+/* k6 — k5 가 못생겼던 이유를 하나씩 고친 판.
+
+   파라미터를 더 흔들어서 될 문제가 아니었다. 네 가지가 조형 자체의 결함이었다:
+
+     ① 스무스 셰이딩 — 다면체 머리를 부드럽게 칠하니 면이 사라지고 뿌연 공이 됐다.
+        로우폴리의 매력이 면인데 그 면을 지우고 있었다. → flat 으로.
+     ② 원뿔 귀 — 공 위에 꽂힌 뿔이라 머리와 따로 놀았다.
+        앞뒤로 납작하게 눌러 삼각 판으로 만들고 밑동을 머리에 파묻었다. → 달린 것처럼 보인다.
+     ③ 점눈 — 머리가 이만큼 크면 점은 얼룩이다. 얼굴 위 3/4 가 텅 비어 있었다.
+        눈을 키우고 위치도 덜 극단적으로. → 얼굴이 얼굴로 읽힌다.
+     ④ 볼링핀 몸 — 위아래 굵기가 같은 캡슐에 막대기 넷.
+        아래를 넓혀(hips) 몸통을 만들었다.
+
+   그리고 정구면 머리를 가로로 넓혔다. 완전한 구는 얼굴이 아니라 공이다.
+   ⑧ 은 네 발 대조군 — 2등신 직립이 애초에 이 캐릭터에 맞는 형식인지 다시 본다. */
+import { run } from './lib/catlab.js';
+
+run({
+  name: 'k6 · 다시 빚기',
+  note: 'flat 셰이딩 · 판형 귀 · 큰 눈 · 엉덩이 있는 몸. k5 의 결함 네 가지를 고친 판.',
+  cols: 8,
+  gapX: 0.78,
+  camera: { el: 0.14 },
+  lookY: 0.36,
+  variants: [
+    { label: '① 새 기준' },
+    { label: '② 귀 더 크게',    ears:'wedgeBig' },
+    { label: '③ 눈 더 크게',    eyeR:0.062, eyeGap:0.42 },
+    { label: '④ 눈 흰자',       eyes:'wide', eyeR:0.046 },
+    { label: '⑤ 얼굴 더 넓게',  headSx:1.24, headSy:0.86, eyeGap:0.44 },
+    { label: '⑥ 볼살',          cheek:0.40, headSy:0.88, eyeUp:-0.12 },
+    { label: '⑦ 몸 통통',       bodyR:0.118, bodySx:0.92, bodySy:1.10, hips:0.34 },
+    { label: '⑧ 네 발 대조군',  stance:'quad', headR:0.235, bodyR:0.145,
+                                bodySx:1.0, bodySy:0.98, bodySz:1.20, hips:0,
+                                legH:0.105, legR:0.060, legSpread:0.62 },
+  ],
+});
+</script>
+</body>
+</html>

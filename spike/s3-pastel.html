@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>s3 — 파스텔 디오라마</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<script type="module">
+/* s3 — 참조로 준 그 계열. 고명도·저채도 파스텔, 밝은 배경, 옅은 그림자.
+   밤에도 어둡게 떨어뜨리지 않고 남색 파스텔로 간다 — 이 계열의 규칙은
+   "불이 꺼져도 무섭지 않다" 이고, 그게 케어 톤과 맞는다.
+   위험: 캣닢 조직이라는 농담이 완전히 죽는다. 그냥 착한 게임이 된다. */
+import { run } from './lib/vignette.js';
+
+run({
+  name: 's3 · 파스텔 디오라마',
+  note: '고명도 저채도. 밤에도 안 어둡다. 케어 톤엔 최적, 농담은 죽는다.',
+  tone: 'aces', exposure: 1.18,
+  pal: {
+    floor:0xF3E9DE, floorAlt:0xEBDCCF, lounge:0xE7BFB8,
+    wall:0xFDF8F3, wallTrim:0xEADCD0,
+    wood:0xE0B48A, woodDark:0xC59B78,
+    metal:0xCBD4DE, metalDark:0x9AA6B4,
+    screen:0xA8C4D8, fabric:0xA8B8E0, fabric2:0xF0A9A0,
+    leaf:0xA8D3A0, leafDark:0x86BC8A, pot:0xE8A98C,
+    paper:0xFFFDF8, ink:0x6B6560, catnip:0xA9DE9C, glow:0xFFE7B8,
+  },
+  panels: [
+    { label:'10:00 오전', bg:0xEDE4F0,
+      hemi:[0xFFFFFF, 0xD8CFD8, 1.30], sun:[0xFFF6E8, 1.15, [6, 13, 6]],
+      fill:[0xD8E4FF, 0.45], lamp:0 },
+    { label:'18:00 퇴근 무렵', bg:0xF0D2C8,
+      hemi:[0xFFEFE2, 0xD6BCB2, 1.15], sun:[0xFFCBA0, 1.20, [9, 5, 2]],
+      fill:[0xC6D2FF, 0.40], lamp:0.3, screen:0xB6CFE0 },
+    { label:'23:00 야근', bg:0x8E93C4,
+      hemi:[0xB9BEE8, 0x6F74A0, 0.85], sun:[0x9FA8E0, 0.55, [-4, 9, -3]],
+      fill:[0xC0B0E0, 0.40], lamp:1, screen:0xCDEAF2 },
+  ],
+});
+</script>
+</body>
+</html>

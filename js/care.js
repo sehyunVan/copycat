@@ -17,29 +17,42 @@ try { notifOn = localStorage.getItem(NOTIF_KEY) === '1'; } catch(e){}
 /* 기록증을 언급하는 날. 첫날은 빼 둔다 — 하루 만에 자랑거리를 내밀면 값이 싸 보인다. */
 const CARD_MILESTONES = [3, 5, 10, 20, 30, 50, 100, 200, 365];
 
+/* 방송 시각은 **근무표에서 유도된다**(sim.js shiftOf). 09–18 을 박아 두면
+   22–06 으로 일하는 사람에게 출근 인사가 자는 동안 지나간다.
+   at 이 함수인 이유가 이것이다 — 설정을 바꾸면 그날부터 따라온다.
+   비율은 원래 값에서 뽑았다: 9–18(9시간)에서 15시는 근무의 66% 지점이었다. */
+const beatAt = {
+  morning: () => (shiftOf().start - 10 + 1440) % 1440,          // 출근 10분 전
+  lunch:   () => WORK.lunch,
+  lunchEnd:() => WORK.lunchEnd,
+  tea:     () => { const s = shiftOf(); return (s.start + Math.round(s.len * 0.66)) % 1440; },
+  end:     () => shiftOf().end,
+  night:   () => (shiftOf().end + 4 * 60) % 1440,               // 야근 창이 닫히는 시각
+};
+
 const CARE_BEATS = [
-  { id:'morning', at: 8*60+50, span:100, weekday:true, msg: () => L({
+  { id:'morning', at: beatAt.morning, span:100, weekday:true, msg: () => L({
       ko:'☀️ 출근 도장 찍었다냥. 오늘도 옆에서 같이 버텨줄게.',
       en:'☀️ Clocked in, nya. We’ll get through today together.',
       ja:'☀️ 出勤スタンプ完了にゃ。今日も一緒に乗り切ろうね。' }) },
-  { id:'lunch', at: WORK.lunch, span:20, weekday:false, msg: () => L({
-      ko:'🍚 12시! 점심시간이다냥. 밥은 거르지 말자 — 사무실은 우리가 지킨다.',
-      en:'🍚 It’s noon — lunch time! Don’t skip your meal. We’ll hold down the office.',
-      ja:'🍚 12時、お昼にゃ！ごはんは抜かないで——オフィスはうちらが守る。' }), bubble:'lunch' },
-  { id:'lunchEnd', at: WORK.lunchEnd, span:15, weekday:true, msg: () => L({
+  { id:'lunch', at: beatAt.lunch, span:20, weekday:false, msg: () => L({
+      ko:'🍚 점심시간이다냥. 밥은 거르지 말자 — 사무실은 우리가 지킨다.',
+      en:'🍚 Lunch time! Don’t skip your meal. We’ll hold down the office.',
+      ja:'🍚 お昼にゃ！ごはんは抜かないで——オフィスはうちらが守る。' }), bubble:'lunch' },
+  { id:'lunchEnd', at: beatAt.lunchEnd, span:15, weekday:true, msg: () => L({
       ko:'오후 시작이다냥. 급할 것 없어, 하나씩 하면 된다.',
       en:'Afternoon begins. No rush — one thing at a time.',
       ja:'午後スタートにゃ。焦らなくていい、ひとつずつで大丈夫。' }) },
-  { id:'tea', at: 15*60, span:20, weekday:true, msg: () => L({
-      ko:'🍵 오후 3시. 물 한 잔 마시고 창밖 한 번 보자냥.',
-      en:'🍵 3 PM. Grab some water and look out the window for a bit.',
-      ja:'🍵 15時。お水を一杯、窓の外もちょっと見ようにゃ。' }) },
-  { id:'end', at: WORK.end, span:30, weekday:true, msg: () => {
+  { id:'tea', at: beatAt.tea, span:20, weekday:true, msg: () => L({
+      ko:'🍵 물 한 잔 마시고 창밖 한 번 보자냥.',
+      en:'🍵 Grab some water and look out the window for a bit.',
+      ja:'🍵 お水を一杯、窓の外もちょっと見ようにゃ。' }) },
+  { id:'end', at: beatAt.end, span:30, weekday:true, msg: () => {
       const n = (S.careDay && S.careDay.done) || 0;
       const base = L({
-        ko:`🌆 18시, 퇴근 시간이다냥! 오늘 하루를 버텨냈다. 결재 ${n}건 — 나머지는 내일의 고양이가 맡는다.`,
-        en:`🌆 6 PM — clock-out time! You made it through today. ${n} approvals done — tomorrow’s cats will take the rest.`,
-        ja:`🌆 18時、退勤にゃ！今日も乗り切った。決裁${n}件——残りは明日の猫にまかせよう。` });
+        ko:`🌆 퇴근 시간이다냥! 오늘 하루를 버텨냈다. 결재 ${n}건 — 나머지는 내일의 고양이가 맡는다.`,
+        en:`🌆 Clock-out time! You made it through today. ${n} approvals done — tomorrow’s cats will take the rest.`,
+        ja:`🌆 退勤にゃ！今日も乗り切った。決裁${n}件——残りは明日の猫にまかせよう。` });
       // 마디가 되는 날에만 기록증 얘기를 꺼낸다. 매일 하면 그건 권유가 아니라 잔소리다.
       const d = normTogether(S.together).days;
       if (!CARD_MILESTONES.includes(d)) return base;
@@ -48,10 +61,12 @@ const CARE_BEATS = [
         en:`Also — that makes ${d} days. It’s written down under 🪪.`,
         ja:`それと、今日で${d}日目にゃ。🪪 に書いておいた。` });
     } },
-  { id:'night', at: 22*60, span:30, weekday:false, msg: () => L({
-      ko:'🌙 밤 10시. 오늘은 여기까지 하자냥. 잘 자.',
-      en:'🌙 10 PM. Let’s call it a day. Sleep well.',
-      ja:'🌙 22時。今日はここまでにしよにゃ。おやすみ。' }) },
+  /* 야근 창이 닫히는 시각 — 09–18 이면 22시다(원래 박아 뒀던 값). 22–06 으로 일하면
+     오전 10시에 온다. "밤 10시"라고 못 적는 이유가 그것이다. */
+  { id:'night', at: beatAt.night, span:30, weekday:false, msg: () => L({
+      ko:'🌙 오늘은 여기까지 하자냥. 잘 자.',
+      en:'🌙 Let’s call it a day. Sleep well.',
+      ja:'🌙 今日はここまでにしよにゃ。おやすみ。' }) },
 ];
 
 /* 50분 버틸 때마다 하나씩 돌아가며 나온다 — 몸을 풀라는 잔소리 4종 */
@@ -131,15 +146,19 @@ function careTick(){
   for (const b of CARE_BEATS){
     if (b.weekday && !weekday) continue;
     if (day.fired[b.id]) continue;
-    if (mins >= b.at && mins < b.at + b.span){
+    const at = typeof b.at === 'function' ? b.at() : b.at;
+    if (inWin(mins, at, at + b.span)){
       day.fired[b.id] = true;
       careSay(b.msg(), b.bubble);
     }
   }
 
-  // 스트레칭 타이머 — 평일 근무 시간(점심 제외)에만 흐른다
-  const working = weekday && mins >= WORK.start && mins < WORK.end
-    && !(mins >= WORK.lunch && mins < WORK.lunchEnd);
+  /* 스트레칭 타이머 — 평일 근무 시간(점심 제외)에만 흐른다.
+     자정을 넘는 근무(22–06)도 세려면 모듈러로 봐야 한다 — 단순 비교로는 그 사람의
+     근무가 하루도 안 걸린 것으로 계산된다. */
+  const sh = shiftOf();
+  const working = weekday && inWin(mins, sh.start, sh.end)
+    && !(sh.lunch != null && inWin(mins, sh.lunch, sh.lunchEnd));
   togetherTick(working);
   if (working){
     stretchAcc += 1;

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>k9 — 손그림 고양이</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<script type="module">
+/* k9 — "이 조잡한 손그림으로 가고 싶다" 에 대한 두 가지 답.
+
+   ① 종잇장 — 그림 한 장을 판에 붙여 3D 공간에 세운다. 사람이 그은 선이 그대로 산다.
+      · 빌보드: 늘 카메라를 본다. 어느 각도에서 봐도 그림이 온전하다
+      · 방향 전환: 진행 방향을 본다. 2D 게임 스프라이트가 3D 공간에 선 것에 가깝다
+   ② 조잡 폴리곤 — 폴리곤인데 정점을 흔들어 반듯함을 깬다.
+      로우폴리가 매끈해 보이는 건 "정확해서" 다. 부정확하게 만들면 손맛이 난다.
+
+   ③ 은 대조군 — 지금 게임에 들어가 있는 매끈한 k8 고양이다.
+
+   지금 그림은 코드로 흉내낸 것이다. 진짜는 사람이 그린 선이고,
+   `assets/cats_drawn/*.png` 에 파일을 넣으면 그걸 그대로 쓴다 (아래 IMG 참고). */
+import * as THREE from 'three';
+import { hud, frameStats } from './lib/hud.js';
+import * as LP from './lib/lowpoly.js';
+import { cat3 } from './lib/cat3.js';
+import { cutoutFrom, jitter, outline } from './lib/doodle.js';
+import { PASTEL } from './lib/pastel.js';
+
+/* 진짜 손그림을 쓰려면 여기에 경로를 넣는다. 없으면 코드가 흉내낸다. */
+const IMG = '../assets/cats_drawn/cat-1.png';
+
+const H = hud('k9 · 손그림 고양이');
+const style = document.createElement('style');
+style.textContent = `#stage{right:340px !important;background:#0b0d12}
+  #tags{position:absolute;inset:0;pointer-events:none}
+  #tags .t{position:absolute;transform:translate(-50%,0);white-space:nowrap;
+    font:11px/1.5 ui-monospace,monospace;color:#3d3730;background:#ffffffcc;
+    border:1px solid #00000018;border-radius:5px;padding:1px 7px}
+  .name{font-size:14px;color:#fff;margin:2px 0 4px}
+  .note{color:#8f9ab3;line-height:1.5;margin-bottom:8px}`;
+document.head.appendChild(style);
+H.el.querySelector('h1').insertAdjacentHTML('afterend',
+  `<div class="name">k9 · 손그림 고양이</div>
+   <div class="note">종잇장(그림 그대로) ↔ 조잡 폴리곤(정점을 흔든 것). ③은 현행 매끈한 고양이.</div>`);
+
+const stage = document.getElementById('stage');
+const canvas = document.getElementById('cv');
+const tagBox = document.createElement('div');
+tagBox.id = 'tags';
+stage.appendChild(tagBox);
+
+LP.setKit({ prim:'round', bevel:0.05, shading:'flat', detail:1 });
+LP.setPalette(PASTEL);
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.06;
+renderer.setClearColor(0xEDE4F0, 1);
+
+const scene = new THREE.Scene();
+scene.add(new THREE.HemisphereLight(0xFFFFFF, 0xC8C0CC, 1.05));
+const sun = new THREE.DirectionalLight(0xFFF6E8, 1.5);
+sun.position.set(3.5, 6, 5);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left:-6, right:6, top:6, bottom:-6, near:0.5, far:30 });
+sun.shadow.bias = -0.0012;
+scene.add(sun, sun.target);
+const key = new THREE.DirectionalLight(0xE4ECFF, 0.42);
+key.position.set(-4, 2.4, 4);
+scene.add(key);
+
+const ground = LP.box(40, 0.2, 40, 0xF3E9DE, 0, -0.1, 0);
+ground.castShadow = false;
+scene.add(ground);
+
+/* ---------- 후보들 ---------- */
+const made = [];
+const mk = (label, obj, x) => {
+  obj.root.position.set(x, 0, 0);
+  scene.add(obj.root);
+  made.push({ label, obj });
+  return obj;
+};
+
+let i = 0;
+const gap = 0.95;
+const at = () => (i++ - 2.5) * gap;
+
+/* ---------- 진짜 손그림 ----------
+   tools/split-doodles.js 가 종이 한 장에서 마리별로 잘라낸 것들이다.
+   흰 배경은 바깥에서 번져 들어가는 방식으로 뺐다 — 밝기로 자르면
+   크림색으로 칠한 고양이가 배경으로 잡혀 반투명해진다. */
+const D = n => `../assets/cats_drawn/cat-${n}.png`;
+
+mk('① 손그림 · 옆모습 (빌보드)', cutoutFrom(D(1), { h:0.66 }), at());
+mk('② 손그림 · 앞모습',          cutoutFrom(D(2), { h:0.66 }), at());
+mk('③ 손그림 · 뒷모습',          cutoutFrom(D(3), { h:0.66 }), at());
+/* 방향 전환 — 진행 방향을 보게 두면 2D 스프라이트가 3D 에 선 것에 가깝다.
+   옆에서 보면 얇아지는 게 이 방식의 값이다. */
+mk('④ 손그림 · 방향 전환',       cutoutFrom(D(4), { h:0.66, billboard:false }), at());
+
+/* ⑤ 조잡 폴리곤 — 정점을 흔들고 윤곽선을 얹은 것 */
+{
+  const c = cat3({ fur:0xC9C6C4, crude:true, merge:true, scale:1.0, headDetail:0, tailSeg:1 });
+  jitter(c.root, 0.045, 9);
+  outline(c.root, 0x3A342E, 0.022);
+  mk('⑤ 조잡 폴리곤', c, at());
+}
+
+/* ⑥ 대조군 — 지금 게임에 들어가 있는 매끈한 고양이 */
+mk('⑥ 현행 (매끈)', cat3({ fur:0xC9BFC9, merge:true, scale:1.0 }), at());
+
+window.__made = made;   // 진단용
+
+/* ---------- 카메라 ---------- */
+let az = Math.PI / 2, el = 0.18, zoom = 1, spinning = false;
+const target = new THREE.Vector3(0, 0.30, 0);
+const camera = new THREE.PerspectiveCamera(30, 1, 0.2, 100);
+
+function frame(aspect){
+  const vfov = camera.fov * Math.PI / 180;
+  const halfW = (made.length * gap) / 2 + 0.35;
+  const halfV = 0.55;
+  const hfov = 2 * Math.atan(Math.tan(vfov / 2) * aspect);
+  camera.aspect = aspect;
+  camera.userData.dist = Math.max(halfV / Math.tan(vfov / 2), halfW / Math.tan(hfov / 2)) * zoom;
+  camera.updateProjectionMatrix();
+}
+function placeCam(){
+  const d = camera.userData.dist;
+  camera.position.set(
+    target.x + Math.cos(az) * Math.cos(el) * d,
+    target.y + Math.sin(el) * d,
+    target.z + Math.sin(az) * Math.cos(el) * d);
+  camera.lookAt(target);
+}
+let drag = null;
+canvas.addEventListener('pointerdown', e => { drag = { x:e.clientX, y:e.clientY }; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointerup', () => { drag = null; });
+canvas.addEventListener('pointermove', e => {
+  if (!drag) return;
+  az -= (e.clientX - drag.x) * 0.008;
+  el = Math.max(-0.05, Math.min(1.2, el + (e.clientY - drag.y) * 0.005));
+  drag = { x:e.clientX, y:e.clientY };
+});
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  zoom = Math.max(0.4, Math.min(2.2, zoom * (1 + Math.sign(e.deltaY) * 0.08)));
+}, { passive:false });
+
+/* ---------- 이름표 ---------- */
+const tags = made.map(m => {
+  const t = document.createElement('div');
+  t.className = 't';
+  t.textContent = m.label;
+  tagBox.appendChild(t);
+  return t;
+});
+const v3 = new THREE.Vector3();
+
+/* ---------- 루프 ---------- */
+const STATES = ['idle', 'walk', 'sit', 'sleep'];
+let si = 0;
+const applyState = () => made.forEach(m => m.obj.setState(STATES[si]));
+applyState();
+
+const fs = frameStats(1000);
+let last = performance.now();
+function loop(){
+  requestAnimationFrame(loop);
+  const now = performance.now();
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  if (spinning) az += dt * 0.3;
+
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(w, h, false);
+  frame(w / h);
+  placeCam();
+  made.forEach(m => m.obj.update(dt, camera));
+  renderer.render(scene, camera);
+
+  made.forEach((m, k) => {
+    v3.copy(m.obj.root.position).setY(-0.02).project(camera);
+    const on = v3.z < 1;
+    tags[k].style.display = on ? '' : 'none';
+    if (on) tags[k].style.transform =
+      `translate(-50%,0) translate(${((v3.x+1)/2*w).toFixed(1)}px,${((1-v3.y)/2*h).toFixed(1)}px)`;
+  });
+
+  const s = fs.tick();
+  if (s){
+    H.set('fps', s.fps.toFixed(1), s.fps < 30 ? 'warn' : 'ok');
+    H.set('draw call', String(renderer.info.render.calls));
+    H.set('삼각형', renderer.info.render.triangles.toLocaleString());
+    H.set('손그림', 'assets/cats_drawn/cat-1..4.png');
+  }
+}
+
+H.btn(`상태: ${STATES[si]} ▸`, b => {
+  si = (si + 1) % 4;
+  applyState();
+  b.textContent = `상태: ${STATES[si]} ▸`;
+});
+H.btn('정면 ⇄ 45°', () => { az = Math.abs(az - Math.PI/2) < 0.02 ? Math.PI/2 - 0.6 : Math.PI/2; });
+H.btn('자동 회전', () => (spinning = !spinning));
+H.btn('그림자', () => {
+  renderer.shadowMap.enabled = !renderer.shadowMap.enabled;
+  sun.castShadow = renderer.shadowMap.enabled;
+  scene.traverse(o => { if (o.isMesh) o.material.needsUpdate = true; });
+  return renderer.shadowMap.enabled;
+}, true);
+H.btn('작게 보기 380px', () => {
+  const on = !stage.classList.contains('widget');
+  stage.classList.toggle('widget', on);
+  return on;
+});
+H.log('45° 로 돌려보면 종잇장의 약점이 바로 보인다 — ②는 옆에서 보면 종이가 된다.');
+loop();
+</script>
+</body>
+</html>

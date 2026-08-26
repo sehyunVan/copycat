@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>m1 — 깎아서 만든 고양이 · 6면도</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas><div id="labels"></div></div>
+<script type="module">
+/* m1 — 참조 피규어를 코드로 다시 만들 수 있는가.
+
+   k1~k8 은 도형을 **붙여서** 고양이를 만들었다. 여기서는 **깎는다**(lib/sculpt.js).
+   판정은 참조와 같은 형식으로 한다 — 같은 조명, 회색 배경, 여섯 컷의 회전표.
+   여섯 번째 컷(아래에서 본 것)은 발바닥 젤리를 위해 있고, 그게 이 방식의
+   해상도 한계를 그대로 드러낸다. res 를 26 까지 내려 보면 젤리부터 사라진다. */
+
+import * as THREE from 'three';
+import { hud, fmt } from './lib/hud.js';
+import * as SC from './lib/sculpt.js';
+import { furMaterial, FUR, EYE_NAMES } from './lib/facepaint.js';
+
+/* ---------- 판 ---------- */
+const CSS = `
+  #stage{right:340px !important;background:#D7D5D2}
+  #labels{position:absolute;inset:0;pointer-events:none}
+  #labels div{position:absolute;transform:translate(-50%,0);white-space:nowrap;
+    font:11px/1 ui-monospace,monospace;color:#6a6763;letter-spacing:.14em}
+  .hud .name{font-size:14px;color:#fff;margin:2px 0 4px}
+  .hud .note{color:#8f9ab3;line-height:1.5;margin-bottom:10px}
+  .sl{display:grid;grid-template-columns:96px 1fr 44px;align-items:center;gap:6px;padding:1px 0}
+  .sl span{color:#8f9ab3;font-size:11px}
+  .sl b{color:#fff;font-weight:600;font-variant-numeric:tabular-nums;font-size:11px;text-align:right}
+  .sl input{width:100%;accent-color:#4c6ef5;height:14px}
+  .hr{height:1px;background:#232838;margin:9px 0}
+`;
+document.head.appendChild(Object.assign(document.createElement('style'), { textContent: CSS }));
+
+const H = hud('m1 · sculpt');
+H.el.querySelector('h1').insertAdjacentHTML('afterend',
+  `<div class="name">깎아서 만든 고양이</div>
+   <div class="note">캡슐 <b id="np">–</b>개를 거리장으로 적고 녹인 뒤 격자에서 껍질 하나를 뽑는다.
+   부품이 없다 = 이음매가 없다 = <b style="color:#6ee7a0">드로우콜 1</b>.<br>
+   눈·입은 <b>조형이 아니라 칠</b>이다 — 정점 0개, 드로우콜 그대로.</div>`);
+
+const stage = document.getElementById('stage');
+const canvas = document.getElementById('cv');
+const labelBox = document.getElementById('labels');
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setClearColor(0xD7D5D2, 1);
+renderer.setScissorTest(true);
+
+const scene = new THREE.Scene();
+
+/* 빛 — 참조 시트가 스튜디오 조명이라 그쪽에 맞춘다.
+   면이 보이려면 위에서 하나, 옆에서 약하게 하나. 정면에서 때리면 각이 전부 죽는다. */
+scene.add(new THREE.HemisphereLight(0xFFFFFF, 0xC6C3BF, 1.25));
+const sun = new THREE.DirectionalLight(0xFFFBF4, 1.85);
+sun.position.set(-2.6, 4.2, 3.4);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left:-2, right:2, top:2, bottom:-2, near:0.5, far:14 });
+sun.shadow.bias = -0.0012;
+scene.add(sun, sun.target);
+const rim = new THREE.DirectionalLight(0xE8ECF4, 0.35);
+rim.position.set(3.2, 1.4, -2.6);
+scene.add(rim);
+/* 아래에서 보는 컷을 위한 약한 밑광. 없으면 여섯 번째 컷이 통째로 검다 —
+   발바닥은 이 시트에서만 보이는 물건이라 안 보이면 컷이 낭비된다 */
+const under = new THREE.DirectionalLight(0xFFFFFF, 0.55);
+under.position.set(0.6, -3, 1.8);
+scene.add(under);
+
+/* 바닥은 그림자만 받는다 — 배경과 같은 색이라 그림자 말고는 안 보인다.
+   레이어 1 에 두고, 아래에서 보는 컷에서만 카메라가 이 레이어를 끈다.
+   (안 그러면 여섯 번째 컷이 바닥 뒷면으로 꽉 찬다.) */
+const ground = new THREE.Mesh(
+  new THREE.PlaneGeometry(24, 24),
+  new THREE.ShadowMaterial({ opacity: 0.20 }));
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+ground.layers.set(1);
+scene.add(ground);
+
+/* 바탕색을 입힌 뒤 그 위에 눈과 입을 칠하는 재질. 도형은 하나도 안 는다 */
+const clay = furMaterial();
+const wire = new THREE.MeshBasicMaterial({ color: 0x8a8681, wireframe: true });
+
+const root = new THREE.Group();
+scene.add(root);
+let mesh = null, boneView = null, built = null;
+
+/* ---------- 뼈대 보기 — 설계도를 그대로 띄운다 ---------- */
+function makeBoneView(prims){
+  const g = new THREE.Group();
+  const mat = new THREE.MeshBasicMaterial({ color: 0x4c6ef5, wireframe: true,
+    transparent: true, opacity: 0.55 });
+  const sph = new THREE.SphereGeometry(1, 8, 6);
+  const cyl = new THREE.CylinderGeometry(1, 1, 1, 8, 1, true);
+  for (const p of prims){
+    const box = new THREE.Group();
+    box.position.set(p.c[0], p.c[1], p.c[2]);
+    if (p.sq) box.scale.set(1 / p.sq[0], 1 / p.sq[1], 1 / p.sq[2]);
+    const A = new THREE.Vector3(...p.a).sub(new THREE.Vector3(...p.c));
+    const B = new THREE.Vector3(...p.b).sub(new THREE.Vector3(...p.c));
+    for (const [v, r] of [[A, p.r1], [B, p.r2]]){
+      const m = new THREE.Mesh(sph, mat);
+      m.position.copy(v); m.scale.setScalar(r);
+      box.add(m);
+    }
+    const len = A.distanceTo(B);
+    if (len > 1e-4){
+      const m = new THREE.Mesh(cyl, mat);
+      m.position.copy(A).add(B).multiplyScalar(0.5);
+      m.scale.set((p.r1 + p.r2) / 2, len, (p.r1 + p.r2) / 2);
+      m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0),
+        B.clone().sub(A).normalize());
+      box.add(m);
+    }
+    g.add(box);
+  }
+  /* build() 가 발바닥을 y=0 으로 내리므로 뼈대도 같이 내린다 */
+  g.scale.setScalar(built.scale);
+  g.position.y = -built.dropY * built.scale;
+  g.visible = false;
+  return g;
+}
+
+/* ---------- 다시 깎기 ---------- */
+const P = { ...SC.FIG };
+let pending = false;
+
+function rebuild(){
+  pending = false;
+  const r = SC.build(P);
+  built = r;
+
+  /* 비율 슬라이더가 머리를 옮기므로 칠도 새 기준점을 받아야 한다 */
+  clay.userData.setAnchor(r.anchor);
+
+  if (mesh){ root.remove(mesh); mesh.geometry.dispose(); }
+  mesh = new THREE.Mesh(r.geometry, showWire ? wire : clay);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  root.add(mesh);
+
+  if (boneView){ root.remove(boneView); }
+  boneView = makeBoneView(r.prims);
+  boneView.visible = showBones;
+  root.add(boneView);
+
+  H.set('생성', fmt.ms(r.ms), r.ms > 120 ? 'warn' : 'ok');
+  H.set('  · 거리장', fmt.ms(r.msSample));
+  H.set('  · 메시', fmt.ms(r.msMesh));
+  H.set('격자', r.grid.join('×') + `  (${(r.grid[0]*r.grid[1]*r.grid[2]/1000).toFixed(0)}k)`);
+  H.set('셀 크기', (r.cell * 100).toFixed(2) + ' cm');
+  H.set('삼각형', r.tris.toLocaleString(), r.tris > 9000 ? 'warn' : '');
+  H.set('정점', r.verts.toLocaleString());
+  H.set('메시', '1 개 · 드로우콜 1');
+  document.getElementById('np').textContent = r.prims.length;
+  /* 젤리는 반지름이 셀보다 작으면 통째로 사라진다 — 이 방식의 해상도 바닥 */
+  if (P.pads)
+    H.set('발가락젤리/셀', (P.padR * 0.56 / r.cell).toFixed(2) + '배',
+      P.padR * 0.56 / r.cell < 1 ? 'bad' : 'ok');
+}
+const queue = () => { if (!pending){ pending = true; requestAnimationFrame(rebuild); } };
+
+/* ---------- 여섯 컷 ---------- */
+/* 참조 시트와 같은 배치 — 윗줄 [앞 · 뒤 · 옆], 아랫줄 [3/4 · 위 · 아래] */
+const VIEWS = [
+  { name:'앞',   dir:[0, 0.10, 1] },
+  { name:'뒤',   dir:[0, 0.10, -1] },
+  { name:'옆',   dir:[1, 0.12, 0.02] },
+  { name:'3/4',  dir:[0.86, 0.46, 0.92], orbit:true },
+  { name:'위',   dir:[0, 1, 0.0001], up:[0, 0, -1] },
+  { name:'아래', dir:[0, -1, 0.0001], up:[0, 0, -1], noGround:true },
+];
+for (const v of VIEWS){
+  v.cam = new THREE.PerspectiveCamera(26, 1, 0.1, 60);
+  if (!v.noGround) v.cam.layers.enable(1);
+  v.el = document.createElement('div');
+  v.el.textContent = v.name;
+  labelBox.appendChild(v.el);
+}
+let orbitYaw = 0, orbitPitch = 0;
+
+function layout(){
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h, false);
+  const cw = w / 3, ch = h / 2;
+  VIEWS.forEach((v, i) => {
+    const cx = (i % 3) * cw, cy = Math.floor(i / 3) * ch;
+    v.rect = [cx, h - cy - ch, cw, ch];              // WebGL 은 아래가 원점
+    v.cam.aspect = cw / ch;
+    v.cam.updateProjectionMatrix();
+    v.el.style.left = (cx + cw / 2) + 'px';
+    v.el.style.top  = (cy + ch - 20) + 'px';
+  });
+}
+addEventListener('resize', layout);
+
+/* 3/4 컷만 마우스로 돌린다. 나머지 다섯은 회전표라서 고정이다. */
+let drag = null;
+canvas.addEventListener('pointerdown', e => { drag = [e.clientX, e.clientY]; });
+addEventListener('pointerup', () => { drag = null; });
+addEventListener('pointermove', e => {
+  if (!drag) return;
+  orbitYaw   += (e.clientX - drag[0]) * 0.008;
+  orbitPitch = Math.max(-1.2, Math.min(1.35, orbitPitch - (e.clientY - drag[1]) * 0.006));
+  drag = [e.clientX, e.clientY];
+});
+
+function draw(){
+  const b = mesh.geometry.boundingSphere;
+  const height = b.center.y + b.radius;
+  const target = new THREE.Vector3(0, height * 0.46, 0);
+  const dist = height * 3.15;
+
+  for (const v of VIEWS){
+    let d = new THREE.Vector3(...v.dir).normalize();
+    if (v.orbit){
+      d = new THREE.Vector3(
+        Math.sin(orbitYaw + 0.75) * Math.cos(orbitPitch + 0.35),
+        Math.sin(orbitPitch + 0.35),
+        Math.cos(orbitYaw + 0.75) * Math.cos(orbitPitch + 0.35));
+    }
+    v.cam.up.set(...(v.up || [0, 1, 0]));
+    v.cam.position.copy(target).addScaledVector(d, dist);
+    v.cam.lookAt(target);
+    renderer.setViewport(...v.rect);
+    renderer.setScissor(...v.rect);
+    renderer.render(scene, v.cam);
+  }
+}
+
+let spin = 0, spinning = false;
+function frame(){
+  if (spinning){ spin += 0.012; root.rotation.y = spin; }
+  draw();
+  requestAnimationFrame(frame);
+}
+
+/* ---------- 손잡이 ---------- */
+const SLIDERS = [
+  ['res',      '면의 크기',    20, 84, 1,     v => v + ' 칸'],
+  ['relax',    '완화',         0, 3, 1],
+  ['k',        '이음매',       0.005, 0.12, 0.005],
+  ['neckK',    '목 녹임',      0.02, 0.22, 0.005],
+  null,
+  ['headR',    '머리',         0.18, 0.38, 0.005],
+  ['headSx',   '얼굴 폭',      0.85, 1.35, 0.01],
+  ['headSz',   '얼굴 납작',    0.60, 1.10, 0.01],
+  ['muzzle',   '주둥이',       0, 0.18, 0.005],
+  ['cheek',    '볼',           0, 0.17, 0.005],
+  ['earH',     '귀 높이',      0.08, 0.44, 0.01],
+  ['earR',     '귀 밑동',      0.05, 0.22, 0.005],
+  ['earFlat',  '귀 얇기',      1.0, 4.0, 0.1],
+  null,
+  ['bodyLen',  '몸 길이',      0.16, 0.72, 0.01],
+  ['bodyR',    '몸 굵기',      0.13, 0.31, 0.005],
+  ['legR',     '다리 굵기',    0.045, 0.13, 0.002],
+  ['legFront', '앞다리 앞뒤',  0.08, 0.34, 0.005],
+  null,
+  ['tailLen',  '꼬리 길이',    0.15, 0.75, 0.01],
+  ['tailUp',   '꼬리 각도',    0, 1.55, 0.02],
+  ['tailCurl', '꼬리 휨',      -0.35, 0.60, 0.02],
+];
+
+const slBox = document.createElement('div');
+H.el.querySelector('#btns').before(slBox);
+const cells = [];
+for (const s of SLIDERS){
+  if (!s){ slBox.appendChild(Object.assign(document.createElement('div'), { className:'hr' })); continue; }
+  const [key, label, lo, hi, step, fmtv] = s;
+  const row = document.createElement('div');
+  row.className = 'sl';
+  row.innerHTML = `<span>${label}</span><input type=range min=${lo} max=${hi} step=${step}><b></b>`;
+  const inp = row.querySelector('input'), out = row.querySelector('b');
+  const show = () => out.textContent = fmtv ? fmtv(P[key]) : (+P[key]).toFixed(step < 0.01 ? 3 : 2);
+  inp.value = P[key];
+  show();
+  inp.oninput = () => { P[key] = +inp.value; show(); queue(); };
+  slBox.appendChild(row);
+  cells.push({ key, inp, show });
+}
+const syncSliders = () => cells.forEach(c => { c.inp.value = P[c.key]; c.show(); });
+
+/* ---------- 얼굴 손잡이 — 여기는 다시 깎지 않는다. uniform 만 바뀐다 ---------- */
+const FSL = [
+  ['eyeGap',  '눈 간격',   0.20, 0.85, 0.01],
+  ['eyeUp',   '눈 높이',  -0.55, 0.25, 0.01],
+  ['eyeW',    '눈 폭',     0.08, 0.45, 0.01],
+  ['eyeH',    '눈 높이값', 0.08, 0.45, 0.01],
+  ['mouthUp', '입 높이',  -0.95, -0.05, 0.01],
+  ['mouthR',  '입 크기',   0, 0.28, 0.005],
+  ['mouthW',  '획 굵기',   0.010, 0.070, 0.002],
+];
+slBox.appendChild(Object.assign(document.createElement('div'), { className:'hr' }));
+const FC = clay.userData.face;
+for (const [key, label, lo, hi, step] of FSL){
+  const row = document.createElement('div');
+  row.className = 'sl';
+  row.innerHTML = `<span>${label}</span><input type=range min=${lo} max=${hi} step=${step}><b></b>`;
+  const inp = row.querySelector('input'), out = row.querySelector('b');
+  const show = () => out.textContent = (+FC[key]).toFixed(step < 0.01 ? 3 : 2);
+  inp.value = FC[key]; show();
+  inp.oninput = () => { clay.userData.set(key, +inp.value); show(); };
+  slBox.appendChild(row);
+}
+
+let showWire = false, showBones = false;
+for (const [name, over] of Object.entries(SC.PRESETS))
+  H.btn(name, () => { Object.assign(P, SC.FIG, over); syncSliders(); queue(); });
+
+/* 바탕색 — cat/16x16-*.png 넷과 같은 항목 */
+for (const [name, hex] of Object.entries(FUR))
+  H.btn(name, () => clay.userData.set('fur', hex));
+
+/* 표정. k8 은 이걸 도형 두 개 갈아끼워 했는데 여기서는 uniform 하나다 */
+let eyeMode = 0;
+const eyeBtn = H.btn('표정 · ' + EYE_NAMES[0], () => {
+  eyeMode = (eyeMode + 1) % 3;
+  clay.userData.set('eyeMode', eyeMode);
+  eyeBtn.textContent = '표정 · ' + EYE_NAMES[eyeMode];
+});
+
+H.btn('와이어', () => { showWire = !showWire; mesh.material = showWire ? wire : clay; return showWire; });
+H.btn('뼈대', () => { showBones = !showBones; boneView.visible = showBones; return showBones; });
+H.btn('회전', () => { spinning = !spinning; if (!spinning){ spin = 0; root.rotation.y = 0; } return spinning; });
+H.btn('젤리', () => { P.pads = !P.pads; queue(); return P.pads; }, true);
+H.btn('OBJ 저장', () => {
+  const blob = new Blob([SC.toOBJ(mesh.geometry, 'copycat-m1')], { type:'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'copycat-m1.obj';
+  a.click();
+  H.ok(`OBJ 내보냄 — 삼각형 ${built.tris.toLocaleString()}`);
+});
+
+/* ---------- 시작 ---------- */
+layout();
+rebuild();
+H.log('참조 시트와 같은 여섯 컷 · 3/4 컷은 드래그로 돌아간다');
+H.log(`캡슐 ${built.prims.length}개 → 껍질 1개`, 'g');
+frame();
+
+/* 헤드리스 검증에서 읽는다 */
+window.M1 = {
+  stats: () => ({ tris: built.tris, verts: built.verts, ms: built.ms, grid: built.grid,
+                  prims: built.prims.length, calls: renderer.info.render.calls }),
+  set: (k, v) => { P[k] = v; syncSliders(); rebuild(); },
+  preset: n => { Object.assign(P, SC.FIG, SC.PRESETS[n]); syncSliders(); rebuild(); },
+  face: (k, v) => clay.userData.set(k, v),
+  fur:  n => clay.userData.set('fur', FUR[n]),
+  eyes: m => { eyeMode = m; clay.userData.set('eyeMode', m);
+               eyeBtn.textContent = '표정 · ' + EYE_NAMES[m]; },
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>c9 — 위젯 카메라</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<script type="module">
+/* c9 — 380px 창이 사무실의 무엇을 볼 것인가.
+
+   c8 에서 나온 문제: 위젯에 사무실 전체를 담으면 고양이가 마리당 15px 이 되고,
+   개체 구분도 표정도 안 보인다. 애써 만든 상태 연동 표정이 정작 사용자가
+   제일 오래 보는 화면에서 사라진다.
+
+   해결은 카메라다. 전체를 보여주려 하지 말고 **덜 보여주고 크게 보여준다.**
+   그런데 "덜 보여준다"에는 종류가 있고, 이 게임에서는 그 선택이 성격을 정한다:
+
+     · 고정 확대 — 항상 같은 자리. 안정적이지만 아무 일도 안 일어나는 것처럼 보인다
+     · 한 마리 추적 — 오늘의 고양이 하나를 따라간다. 애착이 생기지만 회사가 안 보인다
+     · 사건 추적 — 서류가 떨어지고, 누가 커피를 마시러 가고, 냥찰이 오는 곳으로 간다.
+                   이 게임의 한 문장이 "체크하면 고양이가 서류를 물고 간다" 이므로
+                   위젯이 보여줘야 할 것도 그것이다
+     · 느린 순회 — 아무 일 없을 때 천천히 훑는다. 견디는 시간에 어울린다
+
+   계기판의 **고양이 크기(px)** 가 판정 기준이다. c8 에서 15px 이었다.
+   표정이 읽히려면 최소 40px 은 나와야 한다.
+   [위젯 380px] 을 껐다 켜며 각 모드가 두 크기에서 다 성립하는지 본다. */
+import * as THREE from 'three';
+import { run } from './lib/office.js';
+import { SCENE } from './lib/scene20.js';
+
+const MODES = ['전체(기준)', '고정 확대', '한 마리 추적', '사건 추적', '느린 순회'];
+let mode = 3;
+
+/* 사건이 일어나는 자리들 — 결재함, 탕비실, 낮잠 상자, 캣타워, 책상 섬.
+   실제 게임에서는 이벤트 버스가 좌표를 주면 된다. 여기서는 순서대로 돈다. */
+const SPOTS = [
+  { name:'책상 섬 A', p:[2.6, 0.55, 2.3] },
+  { name:'캣워크',    p:[3.0, 1.60, 0.7] },   // 위쪽 자리 — c4 를 고른 이유
+  { name:'낮잠 상자', p:[7.0, 0.35, 6.4] },
+  { name:'책상 섬 B', p:[6.2, 0.55, 2.3] },
+  { name:'캣타워',    p:[9.2, 0.95, 3.4] },
+  { name:'탕비실',    p:[0.9, 0.60, 3.9] },
+];
+
+const want = new THREE.Vector3(5, 0.6, 4);
+const tmp = new THREE.Vector3();
+let t = 0, spot = 0, followIdx = 0, wantZoom = 1, H = null, label = '', snap = true;
+
+function onFrame(dt, cam){
+  t += dt;
+  const { w, h } = cam.size();
+
+  if (mode === 0){                                   // 전체 — c8 과 같은 화면
+    want.set(cam.W / 2, 0.6, cam.D / 2);
+    wantZoom = 1;
+    label = '전체';
+  } else if (mode === 1){                            // 고정 확대 — 책상 섬 하나
+    want.set(4.4, 0.75, 2.4);
+    wantZoom = 0.20;
+    label = '책상 섬 고정';
+  } else if (mode === 2){                            // 한 마리 추적
+    const c = cam.cats[followIdx % cam.cats.length];
+    want.copy(c.root.position).setY(0.55);
+    wantZoom = 0.14;
+    label = `추적 #${followIdx % cam.cats.length + 1} (${c.state})`;
+  } else if (mode === 3){                            // 사건 추적
+    const s = SPOTS[spot % SPOTS.length];
+    want.set(s.p[0], s.p[1], s.p[2]);
+    wantZoom = 0.19;
+    label = `사건: ${s.name}`;
+    if (t > 6){ t = 0; spot++; }                     // 실제로는 이벤트 버스가 부른다
+  } else {                                           // 느린 순회
+    const a = t * 0.13;
+    want.set(cam.W / 2 + Math.cos(a) * cam.W * 0.28, 0.6,
+             cam.D / 2 + Math.sin(a) * cam.D * 0.26);
+    wantZoom = 0.26;
+    label = '느린 순회';
+  }
+
+  /* 부드럽게 따라간다. 순간이동하면 옆에 띄워 둔 창에서 시선을 뺏는다 —
+     이 게임은 방해하지 않는 게 목적이라 카메라도 조용해야 한다. */
+  /* 모드를 바꾼 직후와 처음 뜰 때는 즉시 맞춘다 — 위젯이 열리자마자
+     날아 들어오면 그것부터가 방해다. 그 뒤로만 부드럽게 따라간다. */
+  const k = snap ? 1 : Math.min(1, dt * 1.6);
+  snap = false;
+  cam.look.lerp(want, k);
+  cam.zoom += (wantZoom - cam.zoom) * k;
+
+  /* 고양이가 화면에서 몇 px 인가 — 이 프로토타입의 유일한 판정 기준 */
+  if (H && cam.cats.length){
+    const c = cam.cats[0], camera = cam.camera(), sc = c.root.scale.x;
+    tmp.copy(c.root.position).project(camera);
+    const y0 = (1 - tmp.y) / 2 * h;
+    tmp.copy(c.root.position).setY(c.root.position.y + 0.85 * sc).project(camera);
+    const px = Math.abs(y0 - (1 - tmp.y) / 2 * h);
+    H.set('고양이 크기', px.toFixed(0) + ' px', px < 25 ? 'bad' : px < 40 ? 'warn' : 'ok');
+    H.set('모드', label);
+    H.set('창', `${w}×${h}`);
+  }
+}
+
+const app = run({
+  ...SCENE,
+  name: 'c9 · 위젯 카메라',
+  note: '380px 가 무엇을 볼 것인가. 고양이 크기(px)가 판정 기준 — c8 은 15px 이었다.',
+  widget: true,
+  camera: { az:0.72, el:0.36, pad:0.3 },
+  onFrame,
+});
+
+H = app.H;
+const btns = MODES.map((m, i) => H.btn(m, () => {
+  mode = i; t = 0; snap = true;
+  btns.forEach((b, j) => b.classList.toggle('on', j === i));
+}, i === mode));
+H.btn('다른 고양이', () => { followIdx++; });
+H.log('모드를 바꿔가며 [고양이 크기] 를 본다. 40px 아래면 표정이 안 읽힌다.');
+</script>
+</body>
+</html>

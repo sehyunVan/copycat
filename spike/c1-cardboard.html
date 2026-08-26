@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>c1 — 골목 종이상자 지점</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<script type="module">
+/* c1 — 게임의 첫 등급을 그대로. 7×6 한 칸짜리 방에 책상은 하나뿐이다.
+
+   아늑함의 첫 번째 재료는 "작음"이다. 큰 방을 물건으로 채우면 창고가 되지만,
+   작은 방은 물건이 적어도 꽉 찬다. 이 프로토타입은 밀도를 올리는 대신
+   방을 줄여서 같은 결과를 얻는다 — 그리고 이게 게임의 1등급 사무실 그 자체다. */
+import { run } from './lib/office.js';
+
+run({
+  name: 'c1 · 골목 종이상자 지점',
+  note: '7×6. 책상 하나. 물건을 늘린 게 아니라 방을 줄여서 꽉 채웠다.',
+  room: { W:7, D:6, wallH:2.0 },
+  camera: { az:0.70, el:0.56, pad:0.4 },
+  floorAt: (x, z) => (x >= 2 && x <= 5 && z >= 3) ? 0xE7D3C6 : ((x + z) % 2 ? 0xF3E9DE : 0xEBDCCF),
+
+  build(c){
+    const { LP, put } = c;
+
+    put(LP.rug(3.2, 2.4, 0xE7BFB8), 3.6, 4.2);
+
+    const pod = c.pod(2.4, 1.5);
+    put(LP.mug(0xF0A9A0), 1.75, 1.45, 0, 0.67);
+    put(LP.mug(0xA8B8E0), 3.15, 1.30, 0, 0.67);
+    c.lamp(put(LP.lamp(), 3.6, 1.35, -0.4, 0.65));
+
+    put(LP.catTower(), 5.9, 1.5, -0.5);
+    put(LP.napBox(), 1.1, 4.5, 0.3);
+    put(LP.blanket(0xF0A9A0), 1.9, 5.1, 0.4);
+    put(LP.cushion(0xA8B8E0), 2.8, 5.2, 0.2);
+    put(LP.cardboard(true), 6.0, 4.4, -0.3);
+    put(LP.cardboard(false), 5.4, 5.3, 0.5);
+    put(LP.snackBowl(), 0.8, 3.6);
+    put(LP.plant(), 0.7, 0.8);
+    put(LP.plant(), 6.4, 5.5, 0.4);
+    put(LP.shelf(), 4.6, 0.45);
+    put(LP.coffee(), 0.7, 2.4, 0.4);
+    put(LP.docStack(5), 5.0, 2.9, 0.3);
+    put(LP.inbox(), 6.3, 3.1, -0.4);
+    put(LP.catnip(), 6.2, 2.1, -0.4);
+
+    c.onWallN(LP.wallArt(0.55, 0.45, 0xF0A9A0), 1.6, 1.45);
+    c.onWallN(LP.wallArt(0.40, 0.52, 0xA8D3A0), 2.4, 1.55);
+    c.onWallN(LP.wallClock(), 3.4, 1.55);
+    c.onWallW(LP.wallShelf(1.1), 4.2, 1.35);
+
+    // 두 자리 중 하나만 차고, 하나는 비어 있다 — 1등급 회사는 원래 그렇다
+    c.cat(0xC9A06A, pod.position.x - 0.45, pod.position.z + 1.05, Math.PI, 'sit', 0.44);
+    c.cat(0xF2EDE4, 1.1, 4.5, 0.4, 'sleep', 0.12);
+    c.walker(0x3B3733, 4.6, 3.3, 2.2, 4.9);
+  },
+});
+</script>
+</body>
+</html>

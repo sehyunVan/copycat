@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>c3 — 구역 분할</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<script type="module">
+/* c3 — 큰 방 하나를 작은 방 셋으로 쪼갠다. 벽이 아니라 낮은 칸막이와 바닥재로.
+
+   world.js 는 이미 zone 개념(휴게실·회의실·라운지)을 갖고 있는데 2D 에서는
+   바닥색으로만 보였다. 3D 에서는 칸막이가 실제로 서 있어서 구역이 눈에 보인다.
+   시야는 넘어가고 발은 못 넘으니 길찾기 격자와도 충돌하지 않는다.
+
+   여기서 보는 것: 12×9 짜리 큰 사무실도 쪼개면 아늑해지는가. */
+import { run } from './lib/office.js';
+
+run({
+  name: 'c3 · 구역 분할',
+  note: '12×9. 낮은 칸막이 + 바닥재로 업무 / 탕비 / 라운지 세 구역. 큰 방도 쪼개면 아늑한가.',
+  room: { W:12, D:9, wallH:2.3 },
+  camera: { az:0.74, el:0.62, pad:0.7 },
+  floorAt: (x, z) => {
+    if (x >= 8 && z >= 5) return 0xE7BFB8;          // 라운지 — 카펫
+    if (x <= 3 && z >= 6) return 0xDCCFC0;          // 탕비실 — 타일
+    return (x + z) % 2 ? 0xF3E9DE : 0xEBDCCF;
+  },
+
+  build(c){
+    const { LP, put } = c;
+
+    /* --- 칸막이 --- */
+    put(LP.partition(3.6, 0.85, 0xA8B8E0), 7.9, 5.0, 0);           // 라운지 경계 (가로)
+    put(LP.partition(3.0, 0.85, 0xA8B8E0), 7.9, 6.6, Math.PI / 2); // 라운지 경계 (세로)
+    put(LP.partition(2.6, 0.75, 0xA8D3A0), 3.3, 7.2, Math.PI / 2); // 탕비실 경계
+    put(LP.partition(3.2, 0.75, 0xA8D3A0), 1.7, 5.9, 0);
+
+    /* --- 업무 구역 --- */
+    const pods = [c.pod(2.4, 1.2), c.pod(5.6, 1.2), c.pod(8.8, 1.2), c.pod(5.6, 3.9)];
+    c.lamp(put(LP.lamp(), 3.5, 1.1, -0.4, 0.65));
+    c.lamp(put(LP.lamp(), 6.7, 1.1, -0.4, 0.65));
+    c.lamp(put(LP.lamp(), 9.9, 1.1, -0.4, 0.65));
+    put(LP.mug(0xF0A9A0), 1.8, 1.1, 0, 0.67);
+    put(LP.mug(0xA8D3A0), 8.3, 1.1, 0, 0.67);
+    put(LP.docStack(5), 4.3, 2.6, 0.3);
+    put(LP.inbox(), 11.2, 3.4, -0.5);
+    put(LP.shelf(), 0.6, 2.4, Math.PI / 2);
+
+    /* --- 탕비실 --- */
+    put(LP.coffee(), 0.8, 7.2, 0.4);
+    put(LP.cooler(), 0.7, 8.3, 0.3);
+    put(LP.snackBowl(), 2.2, 8.3);
+    put(LP.cardboard(true), 2.7, 7.4, 0.4);
+    put(LP.catnip(), 1.7, 6.6, -0.3);
+
+    /* --- 라운지 --- */
+    put(LP.rug(3.0, 2.6, 0xE7BFB8), 9.9, 7.0);
+    put(LP.napBox(), 9.0, 6.3, 0.3);
+    put(LP.cushion(0xA8B8E0), 10.6, 6.4, 0.2);
+    put(LP.cushion(0xF0A9A0), 11.0, 7.4, -0.4);
+    put(LP.blanket(0xF0A9A0), 9.8, 7.9, 0.3);
+    put(LP.catTower(), 11.2, 5.7, -0.7);
+    put(LP.plant(), 8.5, 8.4, 0.2);
+
+    put(LP.plant(), 0.7, 0.8);
+    put(LP.plant(), 11.3, 0.8, 0.4);
+    put(LP.plant(), 6.9, 8.4, -0.2);
+
+    c.onWallN(LP.whiteboard(1.8), 3.4, 1.40);
+    c.onWallN(LP.wallArt(0.6, 0.45, 0xF0A9A0), 6.0, 1.60);
+    c.onWallN(LP.wallClock(), 7.6, 1.65);
+    c.onWallN(LP.wallShelf(1.4), 10.0, 1.50);
+    c.onWallW(LP.wallArt(0.5, 0.6, 0xA8D3A0), 4.4, 1.60);
+    c.onWallW(LP.wallShelf(1.2), 6.4, 1.45);
+
+    pods.forEach((p, i) => {
+      c.cat([0xC9A06A, 0xE8A657, 0x8C6A4A, 0x6E5B4C][i], p.position.x - 0.45, p.position.z + 1.05, Math.PI, 'sit', 0.44);
+      if (i % 2 === 0) c.cat([0xF2EDE4, 0xD9C3A5][i / 2], p.position.x + 0.55, p.position.z + 1.05, Math.PI, 'sit', 0.44);
+    });
+    c.cat(0x3B3733, 9.0, 6.3, 0.4, 'sleep', 0.12);
+    c.walker(0xC9A06A, 5.0, 6.4, 9.5, 3.4);
+  },
+});
+</script>
+</body>
+</html>

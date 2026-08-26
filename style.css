@@ -6,7 +6,11 @@
   --accent:#FF9F6B; --accent-d:#E4753C; --mint:#6FC3AC; --pink:#FFB7C5;
   --gold:#F5C451; --red:#C4243C; --card:#FFFDF8;
   --shadow:0 3px 0 #E4CFB4;
-  --r:6px; --ts:32px;
+  --r:6px;
+  /* 종이 — 달력 칸 · 폴라로이드 · 코드칸처럼 **어두운 방에서도 밝은 면.**
+     그 위의 글자는 테마를 따라갈 수 없다(eerie 에서 --ink 는 밝은 색이라
+     밝은 종이에 밝은 글자가 된다). 그래서 종이용 잉크를 따로 둔다. */
+  --paper:#FBF6EE; --paper-ink:#3A2E28;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -15,7 +19,18 @@ body{
   font-family:"Apple SD Gothic Neo","Malgun Gothic","맑은 고딕",Pretendard,system-ui,sans-serif;
   background:var(--cream);
   -webkit-font-smoothing:antialiased;
+  /* ---- 폰에서 필요한 것들. 데스크톱에서는 아무 일도 하지 않는다 ----
+     · overscroll-behavior: 사무실을 아래로 끌면 페이지가 새로 뜨는 것(당겨서 새로고침)을 막는다.
+       이 게임은 화면을 끄는 조작(카메라 팬)이 있어서 그게 계속 걸린다
+     · user-select: 고양이를 쓰다듬으려고 길게 누르면 글자가 선택되고 복사 메뉴가 뜬다
+     · tap-highlight: 안드로이드 크롬이 누른 곳에 파란 사각형을 남긴다 */
+  overscroll-behavior: none;
+  -webkit-user-select: none; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
 }
+/* 적는 곳에서는 선택이 되어야 한다 — 오타를 고칠 방법이 그것뿐이다 */
+input, textarea, .mbody, .letterbox{-webkit-user-select:text; user-select:text}
 button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
 input{font-family:inherit}
 .pix{display:inline-block;background-repeat:no-repeat;background-size:100% 100%;image-rendering:pixelated;
@@ -25,16 +40,22 @@ input{font-family:inherit}
 .good{color:#2F7A64}
 .bad{color:var(--red)}
 
-#app{display:flex;flex-direction:column;height:100vh;min-height:0}
+/* 100vh 가 아니라 100dvh 다. iOS 사파리의 100vh 는 **주소창을 포함한 높이**라서
+   그걸 쓰면 화면 아래 54px(탭 바)이 주소창 뒤로 잘려 나간다 — 폰에서 제일 자주 보는
+   깨진 화면이 이것이다. 100vh 를 먼저 두는 이유는 dvh 를 모르는 브라우저의 폴백이다. */
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh;min-height:0}
 
 /* ---------- topbar ---------- */
 #topbar{display:flex;align-items:center;gap:10px;padding:9px 12px;flex:0 0 auto;z-index:5;
   background:#FFFDF8;border-bottom:3px solid var(--line);flex-wrap:wrap;row-gap:6px}
 .brand{display:flex;align-items:center;gap:9px;min-width:0}
-.brand .logo{width:36px;height:36px;flex:0 0 auto;border:3px solid var(--ink);border-radius:4px;
-  background:var(--accent);position:relative;box-shadow:3px 3px 0 rgba(58,46,40,.18)}
-.brand .logo::before,.brand .logo::after{content:'';position:absolute;top:5px;width:6px;height:6px;background:var(--ink)}
-.brand .logo::before{left:7px} .brand .logo::after{right:7px}
+/* 로고 — 어두운 방의 검은 고양이. 도형은 tools/logo.js 가 갖고 있고 아래 한 줄은
+   그 도구가 써 넣는다(손으로 고치면 다음 실행에 덮인다).
+   ::before/::after 로 점 두 개를 찍던 방식을 버렸다 — 그 방식으로는 귀와 눈을 같이
+   그릴 수 없고, 크기가 바뀔 때마다 점 좌표를 따로 맞춰야 했다(#app.slim 이 그랬다). */
+/* LOGO:BEGIN 생성: node tools/logo.js */
+.brand .logo{width:36px;height:36px;flex:0 0 auto;  background:url("data:image/png;base64,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") center/100% 100% no-repeat}
+/* LOGO:END */
 .brand h1{font-size:16px;margin:0;line-height:1.1;letter-spacing:-.3px}
 .brand .tier{font-size:11px;color:var(--soft);white-space:nowrap}
 
@@ -60,7 +81,25 @@ input{font-family:inherit}
 .iconbtn:hover{background:#FFF3E2}
 .iconbtn:active{transform:translate(2px,2px);box-shadow:none}
 
-#main{flex:1;display:grid;grid-template-columns:300px 1fr 316px;gap:10px;padding:10px;min-height:0}
+#main{flex:1;display:grid;grid-template-columns:300px 1fr 316px;gap:10px;padding:10px;min-height:0;
+  transition:grid-template-columns .18s ease}
+/* 접힌 패널은 폭 0 으로 죽이고 손잡이만 남긴다. 사무실을 넓게 보고 싶을 때가 있다. */
+#main.foldL{grid-template-columns:0 1fr 316px}
+#main.foldR{grid-template-columns:300px 1fr 0}
+#main.foldL.foldR{grid-template-columns:0 1fr 0}
+/* id 로 짚는다 — 탭 줄(#colTabs)이 #main 의 넷째 아이라 순서로는 못 짚는다 */
+#main.foldL > #panelInbox, #main.foldR > #panelBiz{
+  opacity:0;pointer-events:none;border-width:0}
+.foldbtn{position:absolute;top:50%;transform:translateY(-50%);z-index:30;width:18px;height:52px;
+  border:2px solid var(--line);background:var(--card);box-shadow:var(--shadow);cursor:pointer;
+  font:11px/1 inherit;color:var(--soft);padding:0;border-radius:4px}
+.foldbtn:hover{color:var(--ink)}
+.foldbtn.L{left:-1px}
+.foldbtn.R{right:-1px}
+.cambtn{position:absolute;left:10px;bottom:10px;z-index:30;width:30px;height:30px;
+  border:2px solid var(--line);background:var(--card);box-shadow:var(--shadow);cursor:pointer;
+  font-size:14px;padding:0;border-radius:6px;opacity:.55}
+.cambtn.on{opacity:1;background:var(--accent);border-color:var(--accent-d)}
 .panel{background:var(--card);border:3px solid var(--line);box-shadow:var(--shadow);
   display:flex;flex-direction:column;min-height:0;overflow:hidden}
 .ph{padding:9px 12px;border-bottom:2px dashed var(--line);display:flex;align-items:center;gap:7px;flex:0 0 auto}
@@ -103,6 +142,18 @@ input{font-family:inherit}
 .tag.m{background:#FFEFD6;color:#A96F1E}
 .tag.l{background:#FBE0E6;color:#B14A6C}
 .todo .od{color:var(--red);font-weight:700}
+/* 기한 칩 — 안 걸었을 때는 거의 안 보인다. 기한은 기본값이 아니라 **내가 건 것**이라
+   화면에서도 그렇게 보여야 한다. 걸면 색이 생기고, 넘기면 붉어진다. */
+.due{font-size:10px;padding:1px 5px;border:2px solid transparent;background:none;
+  color:#B9AB98;font-family:inherit;cursor:pointer;line-height:1.3;opacity:.4}
+.due:hover{border-color:var(--line);color:var(--ink);opacity:1}
+.due.on,.due.od,.due.late{opacity:1}
+.due.on{background:#EAF3EE;border-color:#BBD9C8;color:#2F7A64;font-weight:700}
+.due.od,.due.late{background:#FFEFF1;border-color:#F0BCC4;color:var(--red);font-weight:700}
+.due.late{cursor:default}
+/* 기한 고르기 · 달력의 날짜 칩 줄 */
+.daychips{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.daychips .buy{flex:1 1 0;min-width:64px;padding:7px 4px;font-size:11px;text-align:center}
 .todo.overdue{border-color:var(--red);background:#FFF6F7;box-shadow:2px 2px 0 #F3D3D8}
 .todo .del{opacity:0;font-size:12px;color:var(--soft);padding:2px 4px}
 .todo:hover .del{opacity:1}
@@ -116,49 +167,43 @@ input{font-family:inherit}
 /* ---------- 사무실 ---------- */
 .stagewrap{position:relative;overflow:hidden;border:3px solid var(--line);box-shadow:var(--shadow);
   display:flex;flex-direction:column;min-height:0;background:#241E1A}
-#viewport{position:relative;flex:1;min-height:0;overflow:hidden}
+/* touch-action:none — 무대의 제스처(돌리기·두 손가락 팬·핀치 줌)는 카메라가 직접
+   해석한다. 브라우저에게 맡기면 손가락 하나로 돌리려 할 때 페이지가 스크롤된다. */
+#viewport{position:relative;flex:1;min-height:0;overflow:hidden;touch-action:none}
+/* 패널은 반대다 — 세로로만 넘긴다. 가로 스와이프를 열어 두면 목록을 넘기다 화면이 흔들린다 */
+.pb{touch-action:pan-y}
 #viewport.raiding{box-shadow:inset 0 0 0 4px rgba(196,36,60,.75);animation:raidPulse 1s steps(2) infinite}
-@keyframes raidPulse{50%{box-shadow:inset 0 0 0 4px rgba(196,36,60,.25)}}
-/* 카메라 크롭 — 양옆·아래 벽을 화면에서 뺐으니 그 밖으로 나간 것(문 앞의 NPC 등)은 잘라낸다 */
-#world{position:absolute;left:0;top:0;transform-origin:top left;overflow:hidden}
-#tiles{position:absolute;left:0;top:0}
-.t{position:absolute;width:var(--ts);height:var(--ts)}
-.t.floor{background:#C9CBD4;image-rendering:pixelated}
-.t.wall{background:#6B6F7E;image-rendering:pixelated}
-.t.door{background:#5E4531;box-shadow:inset 0 0 0 4px #7A5C41, inset 0 0 0 7px #4A3627}
-.t.obj{image-rendering:pixelated}
-/* 전체 톤 — 타일셋 바닥이 차가운 회색이라 UI(크림색)와 따로 논다.
-   따듯한 색을 곱해서 화면 전체를 같은 온도로 맞춘다. */
-#warm{position:absolute;left:0;top:0;pointer-events:none;z-index:49;
-  background:#FFD3A6;mix-blend-mode:multiply;opacity:.20}
-/* z-index를 줘야 액터(10~) 위에 덮인다. 없으면 고양이만 밤이 안 온다. */
-#night{position:absolute;left:0;top:0;pointer-events:none;z-index:50;transition:background 1.6s}
-#floaties{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:60}
 
-.actor{position:absolute;width:var(--ts);height:var(--ts);left:0;top:0;will-change:transform;cursor:pointer}
-.actor .sp{position:absolute;left:50%;bottom:3px;width:32px;height:32px;margin-left:-16px;
-  image-rendering:pixelated;background-repeat:no-repeat}
-/* 프레임 전환. 시트 한 칸 = 32px, 가로로만 훑는다(세로 위치는 인라인 스타일). */
-.actor .sp.an3{animation:cat3 .85s steps(3) infinite}
-.actor .sp.an2-c1{animation:cat2c1 1.1s steps(2) infinite}
-.actor .sp.fast{animation-duration:.42s}
-@keyframes cat3{from{background-position-x:0}to{background-position-x:-96px}}
-@keyframes cat2c1{from{background-position-x:-32px}to{background-position-x:-96px}}
-.actor .sp.an2dog{animation:dog2 .7s steps(2) infinite}
-@keyframes dog2{from{background-position-x:0}to{background-position-x:-64px}}
-.actor.npc-rival .tagname{background:#7A5C2E;color:#fff;border-color:#4A3618}
-.catpix{image-rendering:pixelated}
-.actor .badge{position:absolute;left:50%;top:-8px;transform:translateX(-50%);font-size:13px;
-  filter:drop-shadow(0 1px 1px rgba(0,0,0,.4))}
-.actor .tagname{position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);font-size:9px;
-  white-space:nowrap;background:rgba(255,253,248,.92);padding:0 4px;color:#6B5548;border:1px solid #D9C3A5;
-  opacity:0;transition:opacity .12s;pointer-events:none}
-.actor:hover .tagname,.actor.sel .tagname,.actor.npc .tagname{opacity:1}
-.actor.sel .tagname{background:var(--accent);color:#fff;border-color:var(--accent-d)}
-.actor.npc-police .tagname{background:#2B3A55;color:#fff;border-color:#16203a}
-.actor.npc-legal  .tagname{background:#2A2724;color:#fff;border-color:#000}
-.doc{position:absolute;width:var(--ts);height:var(--ts);left:0;top:0;pointer-events:none;
-  background-repeat:no-repeat;background-position:center;background-size:28px 28px;image-rendering:pixelated}
+/* ---------- 3D 를 기다리는 동안 ----------
+   도트를 안 그리기로 했으므로(ui.js 의 pending3d) 이 몇 초 동안 무대는 비어 있다.
+   빈 채로 두면 "게임이 안 켜졌나" 로 읽히므로 한 줄만 놓는다.
+
+   **0.6초 뒤에 나타난다.** 빠른 기계에서는 3D 가 그 전에 와서 이 글자를 아예 못 본다 —
+   1초도 안 걸리는 일에 로딩 문구를 보여주면 그 문구가 지연을 만드는 것처럼 보인다. */
+body.r3wait #viewport::after{
+  content:attr(data-wait);
+  position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);
+  text-align:center;font-size:12px;letter-spacing:.12em;color:var(--soft);
+  opacity:0;animation:r3wait .4s ease .6s forwards;pointer-events:none}
+@keyframes r3wait{to{opacity:.7}}
+@media (prefers-reduced-motion:reduce){
+  body.r3wait #viewport::after{animation:none;opacity:.7}
+}
+@keyframes raidPulse{50%{box-shadow:inset 0 0 0 4px rgba(196,36,60,.25)}}
+/* ============================================================
+   무대. 도트 렌더러의 CSS(#world · .t · .actor · .doc · #night · #warm ·
+   스프라이트 프레임 애니메이션)가 여기 250줄쯤 있었다 — 2026-08-24 에
+   렌더러와 함께 지웠다. 지금 무대는 캔버스 하나이고, 그 위에 얹는 DOM 은
+   말풍선(.bubble)·숫자(.float)·이펙트뿐이다.
+   ============================================================ */
+/* 무대를 못 세웠다. 예전에는 도트로 떨어졌으므로 이런 판이 필요 없었다 —
+   지금은 빈 화면 대신 이 문장이 나온다 (js/ui.js stageFail). */
+.nogl{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:10px;padding:28px;text-align:center;z-index:8}
+.nogl b{font-size:15px;color:var(--ink)}
+.nogl span{font-size:12px;line-height:1.7;color:var(--soft);max-width:34em}
+/* 초상을 아직 못 구웠을 때 자리만 지키는 칸 (js/ui.js portrait) */
+.catpix{background:rgba(139,116,102,.14);border:1px dashed var(--line)}
 
 .bubble{position:absolute;left:50%;bottom:34px;transform:translateX(-50%);background:#FFFDF8;
   border:2px solid var(--ink);padding:2px 7px;font-size:10.5px;white-space:nowrap;pointer-events:none;
@@ -166,6 +211,11 @@ input{font-family:inherit}
 .bubble::after{content:'';position:absolute;left:50%;bottom:-7px;margin-left:-4px;width:0;height:0;
   border:4px solid transparent;border-top-color:var(--ink)}
 @keyframes bub{0%{opacity:0}5%{opacity:1}90%{opacity:1}100%{opacity:0}}
+/* 가구를 쓰는 동안 떠 있는 풍선 — 사라지는 애니메이션을 끄고 뜨기만 한다.
+   자리는 매 프레임 다시 잡으므로(js/ui.js syncBubbles) 전환은 걸지 않는다:
+   카메라를 돌릴 때 풍선만 뒤늦게 따라오면 고양이에게서 떨어져 보인다. */
+.bubble.hold{animation:bubIn .18s ease-out both}
+@keyframes bubIn{from{opacity:0;transform:translate(-50%,-92%)}}
 
 .float{position:absolute;font-size:13px;font-weight:800;color:#FFD9A8;
   text-shadow:1px 1px 0 #3A2E28,-1px 1px 0 #3A2E28,1px -1px 0 #3A2E28,-1px -1px 0 #3A2E28;
@@ -195,7 +245,10 @@ input{font-family:inherit}
   font-size:11.5px;color:var(--soft);font-weight:700}
 .tab.on{background:var(--card);color:var(--ink);box-shadow:inset 0 3px 0 var(--accent)}
 .card{border:2px solid var(--line);background:#fff;padding:9px;margin-bottom:8px}
-.card.locked{opacity:.55;background:#FBF6EE}
+/* 잠긴 비품은 이제 목록에 없다(ui.js shopHTML). 남은 건 개수를 알리는 줄 하나뿐이라
+   물건처럼 보이면 안 된다 — 테두리를 점선으로 끊어서 "아직 없는 칸"으로 읽히게 한다. */
+.card.lockedrow{background:#FBF6EE;border-style:dashed;border-color:#D8C7B0;opacity:.8}
+.card.lockedrow .em{filter:grayscale(1);opacity:.7}
 .card.owned{background:#F1FAF6;border-color:#AEDDCE}
 .legalcard{background:#FFF6F7;border-color:#F0BCC4}
 .rivalcard{background:#FFF9EC;border-color:#EFD69B}
@@ -232,9 +285,16 @@ input{font-family:inherit}
 .catcard .rate{font-size:10.5px;color:var(--soft);text-align:right;white-space:nowrap}
 .catcard .rate b{display:block;color:var(--ink);font-size:12px}
 .cfoot{display:flex;align-items:center;gap:8px}
-.needs{display:flex;gap:3px;margin:7px 0 6px}
-.needs .nb{flex:1;height:7px;background:#F1E2CE;overflow:hidden;border:1px solid #E0CDB2}
-.needs .nb i{display:block;height:100%;transition:width .4s steps(8),background .4s}
+/* 욕구 막대 — 이름 한 줄과 막대 한 줄. 이름이 title 속성에만 있어서
+   폰(hover 가 없다)에서는 색만 다른 막대 넷이었다. 카드 높이가 11px 늘어나는 값이다.
+   좁아지면 이름부터 줄인다(…) — 막대는 폭이 곧 값이라 줄일 수 없다. */
+.needs{display:flex;gap:5px;margin:7px 0 6px}
+.needs .nb{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.needs .nbl{font-size:9px;line-height:1.1;letter-spacing:.01em;color:var(--soft);
+  text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.needs .nb.low .nbl{color:var(--red);font-weight:700}
+.needs .nbt{display:block;height:7px;background:#F1E2CE;overflow:hidden;border:1px solid #E0CDB2}
+.needs .nbt i{display:block;height:100%;transition:width .4s steps(8),background .4s}
 .chatline{font-size:11.5px;padding:5px 7px;border-left:3px solid var(--line);margin-bottom:5px;
   line-height:1.5;color:var(--soft)}
 .chatline b{color:var(--ink)}
@@ -358,6 +418,20 @@ input{font-family:inherit}
   background:rgba(255,253,248,.95);border:2px solid var(--accent);padding:4px 12px;
   font-size:11.5px;font-weight:700;color:#8A5A2B;max-width:92%;text-align:center;white-space:nowrap;
   overflow:hidden;text-overflow:ellipsis}
+/* 근무 시간 고르개 — 설정 카드 안의 한 줄. select 둘과 화살표, 그리고 무슨 뜻인지 한마디 */
+.shiftrow{display:flex;align-items:center;gap:7px;margin-top:9px;flex-wrap:wrap}
+.shiftrow select{padding:6px 8px;border:2px solid var(--line);background:#FFF;color:var(--ink);
+  font-family:inherit;font-size:12px;font-weight:700}
+.shiftrow select:focus{outline:none;border-color:var(--accent)}
+.shiftrow .sharrow{color:var(--soft);font-weight:800}
+.shiftrow .shiftinfo{font-size:10.5px;color:var(--soft);margin-left:auto;white-space:nowrap}
+
+/* 배치 모드의 ↻. 키보드(R)만 두면 터치에서 못 돌리고, 이 게임은 창을 띄워 놓고
+   마우스로만 보는 사람이 절반이다. 힌트 막대 안에 사는 유일한 버튼. */
+.rotbtn{display:inline-block;vertical-align:-2px;margin-right:7px;width:20px;height:20px;
+  line-height:16px;border:2px solid var(--accent);background:#FFF;color:#8A5A2B;
+  font-size:13px;font-weight:800;padding:0;cursor:pointer}
+.rotbtn:hover{background:var(--accent);color:#FFF}
 
 @media (max-width:1500px){ #main{grid-template-columns:270px 1fr 288px} }
 @media (max-width:1320px){ #main{grid-template-columns:240px 1fr 260px;gap:8px;padding:8px} }
@@ -366,3 +440,921 @@ input{font-family:inherit}
   body{overflow:auto}
   .panel{max-height:420px}
 }
+
+/* ============================================================
+   무대 우선 배치 — #app.stageui   (spike/ui/layouts.html 의 B안)
+
+   사무실이 화면을 통째로 갖고, 결재함과 경영은 그 위에 얹힌다. 손을 대지 않으면
+   흐려져서 사무실을 가리지 않는다. 이 게임은 켜 두고 곁눈질하는 물건이라
+   화면의 주인이 사무실이어야 한다 — 위젯 모드가 이미 쓰던 문법을 데스크톱으로 올린 것이다.
+
+   두 가지를 건드리지 않는다:
+     · 위젯 모드(.compact) — 자기 배치를 따로 갖고 있다
+     · 1140px 이하 — 거기서는 3열이 한 줄로 접히는 기존 배치가 맞다(패널을 겹치면 사무실이 안 남는다)
+   그래서 아래 전부가 min-width 안에 들어가 있고 :not(.compact) 로 잠겨 있다.
+   되돌리려면 index.html 의 #app 에서 stageui 한 단어만 빼면 된다.
+   ============================================================ */
+@media (min-width:1141px){
+  #app.stageui:not(.compact) #main{display:block;position:relative;padding:0;gap:0}
+  #app.stageui:not(.compact) .stagewrap{position:absolute;inset:0;border:none;box-shadow:none}
+
+  #app.stageui:not(.compact) .panel{
+    position:absolute;top:56px;bottom:52px;width:286px;z-index:20;
+    background:rgba(255,253,248,.93);
+    /* backdrop-filter 는 쓰지 않는다 — 뒤가 매 프레임 다시 그려지는 캔버스라
+       배경을 흐리면 그 흐림도 매 프레임 다시 계산된다. 하루 종일 켜 두는 물건에서 그건 비싸다. */
+    opacity:.52;transition:opacity .16s ease, transform .2s ease}
+  /* 글을 넣는 중(포커스)에는 흐려지면 안 된다 — 마우스가 떠나도 타이핑은 이어진다 */
+  #app.stageui:not(.compact) .panel:hover,
+  #app.stageui:not(.compact) .panel:focus-within{opacity:1}
+  #app.stageui:not(.compact) #panelInbox{left:12px}
+  #app.stageui:not(.compact) #panelBiz{right:12px}
+
+  /* 접기 — 3열에서는 열 너비를 0 으로 줄였다. 여기서는 화면 밖으로 밀어낸다. */
+  #app.stageui:not(.compact) #main.foldL > #panelInbox{
+    transform:translateX(calc(-100% - 14px));opacity:0;pointer-events:none;border-width:3px}
+  #app.stageui:not(.compact) #main.foldR > #panelBiz{
+    transform:translateX(calc(100% + 14px));opacity:0;pointer-events:none;border-width:3px}
+
+  /* 상단바는 판이 아니라 천 한 겹이 된다. 아래로 사라지지 않으면 회사 이름이 사무실 벽에 묻힌다.
+     그리고 투명한 부분이 클릭을 삼키면 그 아래 사무실을 못 만진다 — 그래서 버튼만 클릭을 받는다. */
+  #app.stageui:not(.compact) #topbar{position:absolute;left:0;right:0;top:0;z-index:25;
+    border-bottom:none;pointer-events:none;
+    background:linear-gradient(rgba(255,253,248,.95) 42%, rgba(255,253,248,0))}
+  #app.stageui:not(.compact) #topbar > *{pointer-events:auto}
+  /* 진행바와 빈 칸은 누를 것이 없다. 클릭을 받아 두면 그 아래 사무실만 못 만지게 된다. */
+  #app.stageui:not(.compact) #topbar .qwrap,
+  #app.stageui:not(.compact) #topbar .spacer{pointer-events:none}
+
+  #app.stageui:not(.compact) .stagefoot{position:absolute;left:0;right:0;bottom:0;z-index:21;
+    background:rgba(255,253,248,.93);border-top:none}
+  /* 시계와 카메라 버튼은 무대 왼쪽 위/아래 구석에 있었는데, 이제 그 자리에 패널이 선다.
+     패널 오른쪽으로 비켜 놓는다 — 가려진 시계는 없는 시계다. */
+  #app.stageui:not(.compact) .clockchip{left:310px;top:64px}
+  #app.stageui:not(.compact) .cambtn{left:310px;bottom:58px}
+  #app.stageui:not(.compact) .foldbtn{background:rgba(255,253,248,.86)}
+}
+/* 폭이 줄면 패널 둘이 사무실을 다 덮는다. 무대가 남을 만큼만 좁힌다. */
+@media (min-width:1141px) and (max-width:1400px){
+  #app.stageui:not(.compact) .panel{width:262px}
+  #app.stageui:not(.compact) .clockchip,
+  #app.stageui:not(.compact) .cambtn{left:286px}
+}
+
+/* ============================================================
+   위젯 모드 — #app.compact
+   3열을 한 칸으로 접는다. 남는 것은 사무실과 숫자 몇 개뿐이고,
+   결재함·경영은 아래에서 올라오는 서랍이 된다. 300×260 에서도 성립한다.
+   (클래스를 body 가 아니라 #app 에 거는 이유: 🪟 로 떠 있는 창에 나가면
+    #app 만 다른 문서로 옮겨 가기 때문이다 — js/widget.js)
+   ============================================================ */
+#tools{display:flex;align-items:center;gap:6px}
+#btnMore,.dockbtn{display:none}
+
+#app.compact{--dock:30px;overflow:hidden}
+
+/* ---- 상단 바: 로고 한 칸 + 숫자 세 개 + 버튼 두 개 ----
+     선택자가 .compact 가 아니라 **.slim** 인 이유: 폰의 탭 바 배치(.tabbar)도
+     같은 상단 바가 필요하다. 후보판 넷 모두에서 390px 상단 바가 두 줄로 접혔는데,
+     그건 후보가 만든 문제가 아니라 지금 실제로 그런 것이었고 — 해결책은
+     위젯이 이미 갖고 있었다. 베껴서 두 벌을 유지하는 대신 클래스를 공유한다.
+     .slim 은 js/col.js 가 건다(위젯이거나 탭 바일 때). ---- */
+#app.slim #topbar{padding:4px 5px;gap:5px;flex-wrap:nowrap;row-gap:0;
+  border-bottom-width:2px;position:relative}
+#app.slim .brand{gap:0}
+#app.slim .brand h1,#app.slim .brand .tier{display:none}
+/* 20px. 그림이 배경이라 점 좌표를 따로 맞출 일이 없다 — 폭만 주면 같이 줄어든다 */
+#app.slim .brand .logo{width:20px;height:20px;border-width:2px;box-shadow:none}
+#app.slim .stat{padding:1px 6px;gap:4px;border-width:2px;box-shadow:none}
+#app.slim .stat .ico{font-size:11px}
+#app.slim .stat b{font-size:11.5px}
+#app.slim .stat small{font-size:9.5px}
+#app.slim #lblCats,#app.slim #lblPen{display:none}
+#app.slim .iconbtn{width:26px;height:26px;font-size:12px;box-shadow:none}
+/* 분기 게이지는 상단 바의 밑선이 된다 — 글자를 버리고 두께만 남긴다 */
+#app.slim .qwrap{position:absolute;left:0;right:0;bottom:0;flex:0 0 auto;
+  min-width:0;max-width:none;height:3px}
+#app.slim .qhead{display:none}
+#app.slim .qbar{height:3px;border:none;background:#EFDFC8}
+/* 나머지 버튼은 ⋯ 팝오버로 접는다 */
+#app.slim #btnMore{display:grid}
+#app.slim #tools{display:none;position:absolute;right:5px;top:calc(100% + 5px);z-index:40;
+  grid-template-columns:repeat(4,1fr);gap:4px;padding:5px;background:var(--card);
+  border:2px solid var(--ink);box-shadow:3px 3px 0 rgba(58,46,40,.25)}
+#app.slim #tools.open{display:grid}
+
+/* ---- 본문: 사무실이 전부를 쓴다 ---- */
+#app.compact #main{display:block;position:relative;padding:0;gap:0;overflow:hidden}
+#app.compact .stagewrap{position:absolute;inset:0;border:none;box-shadow:none}
+#app.compact .clockchip{left:4px;top:4px;padding:1px 6px 3px;font-size:9.5px;border-width:1px;
+  max-width:calc(100% - 8px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#app.compact .raidbanner{top:4px;padding:2px 8px;font-size:10px;border-width:1px}
+#app.compact .edithint{bottom:4px;font-size:10px;padding:3px 8px;border-width:1px}
+
+/* ---- 독: 서랍 두 개와 숫자 몇 개 ---- */
+#app.compact .stagefoot{height:var(--dock);flex:0 0 var(--dock);padding:0 4px;gap:4px;
+  border-top-width:2px;overflow:hidden}
+#app.compact .stagefoot .kv{border:none;background:none;padding:0 1px;font-size:10.5px;gap:3px}
+#app.compact #ticker{display:none}
+#app.compact .dockbtn{display:flex;align-items:center;gap:3px;height:22px;padding:0 7px;
+  font-size:12px;border:2px solid var(--line);background:var(--card);color:var(--ink)}
+#app.compact .dockbtn b{font-size:11px;font-variant-numeric:tabular-nums}
+#app.compact .dockbtn.on{background:#FFF0E0;border-color:var(--accent);color:var(--accent-d)}
+#app.compact .dockbtn.od{border-color:var(--red);color:var(--red)}
+/* 좁아지면 라벨부터, 그다음 덜 급한 숫자부터 버린다 */
+@media (max-width:420px){
+  #app.compact .stagefoot .kv span{display:none}
+}
+@media (max-width:340px){
+  #app.compact .stagefoot .kv.wide{display:none}
+}
+
+/* ---- 서랍: 결재함과 경영 ----
+   72% 로 막는 건 취향이 아니라 이 게임의 전제다. 서랍이 화면을 다 먹으면
+   위젯이 그냥 할 일 목록이 되고, 사무실이 안 보이면 같이 있어 주는 물건이
+   아니게 된다. 남긴 띠로 고양이가 계속 보이고, 그 띠를 누르면 서랍이 닫힌다. */
+#app.compact .panel{position:absolute;left:0;right:0;bottom:var(--dock);z-index:20;
+  max-height:min(72%,calc(100% - var(--dock) - 6px));border-width:3px 0 0;padding-top:7px;
+  box-shadow:0 -7px 14px -7px rgba(58,46,40,.4);
+  transform:translateY(calc(100% + var(--dock)));transition:transform .18s ease-out}
+#app.compact .panel.open{transform:none}
+/* 손잡이 — 이게 밀려 올라온 서랍이라는 표시 */
+#app.compact .panel::before{content:'';position:absolute;left:50%;top:3px;margin-left:-17px;
+  width:34px;height:3px;background:#DFCBAF}
+#app.compact .ph{padding:5px 9px}
+#app.compact .tabs{padding:5px 6px 0}
+#app.compact .addbox{padding:6px}
+#app.compact .addbox input{padding:6px 8px;font-size:12px}
+#app.compact .sizes{margin-top:5px;gap:4px}
+#app.compact .size{padding:4px 2px;font-size:9.5px}
+#app.compact .size b{font-size:11px}
+#app.compact .addbtn{margin-top:5px;padding:7px;font-size:12px}
+#app.compact .pb{padding:7px}
+#app.compact .todo{padding:6px;margin-bottom:5px}
+#app.compact .chkhint{padding:5px 7px;font-size:10.5px;margin-bottom:6px}
+
+/* 작은 창에서는 모달도 같이 줄어든다 — 서랍과 달리 #app 밖에 붙으니 창 크기로 잡는다 */
+@media (max-width:560px),(max-height:600px){
+  .veil{padding:6px}
+  .mhead{padding:9px 13px}
+  .mhead h3{font-size:15px;margin:2px 0 1px}
+  .mhead p{font-size:11px}
+  .mbody{padding:10px 13px}
+  .mfoot{padding:9px 13px 12px}
+  .okbtn{padding:9px;font-size:13px}
+  .helpwrap p,.helpwrap ul{font-size:11.5px;line-height:1.65}
+  .toast{bottom:38px;font-size:11.5px;padding:7px 13px}
+}
+
+/* ============================================================
+   프롤로그 시네마틱 (js/three/opening.js)
+   화면 전체를 덮는 검은 극장. 게임 UI 는 뒤에서 그대로 살아 있다 —
+   숨기면 뷰포트 크기가 0 이 되고, 그러면 컷신이 끝난 뒤 3D 가 한 번 헛돈다.
+   ============================================================ */
+.opening{position:fixed;inset:0;z-index:9000;background:#0B0D14;overflow:hidden;
+  opacity:1;transition:opacity .5s ease}
+.opening.out{opacity:0;pointer-events:none}
+.ocanvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+/* 레터박스 — 이게 "지금은 게임이 아니라 영상"이라고 말하는 가장 싼 방법이다 */
+.obar{position:absolute;left:0;right:0;height:7.5vh;background:#000;pointer-events:none;z-index:2}
+.obar.top{top:0} .obar.bot{bottom:0}
+.ofade{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;z-index:3}
+
+.osub{position:absolute;left:0;right:0;bottom:calc(7.5vh + 26px);z-index:4;text-align:center;
+  padding:0 8vw;pointer-events:none;opacity:0;transition:opacity .32s ease}
+.osub.on{opacity:1}
+.osub span{display:inline-block;font-size:clamp(15px,2.05vw,25px);line-height:1.5;font-weight:600;
+  color:#F4EEE2;letter-spacing:-.2px;text-shadow:0 2px 10px rgba(0,0,0,.9),0 0 3px rgba(0,0,0,.8)}
+/* 저쪽이 하는 말은 색이 다르다. 목소리를 못 쓰니 색으로 화자를 가른다. */
+.osub.them span{color:#FFC98F;font-style:normal}
+
+.oskip{position:absolute;top:calc(7.5vh + 14px);right:18px;z-index:5;cursor:pointer;
+  font-size:12px;font-weight:700;letter-spacing:.4px;color:#BDB6A8;
+  border:2px solid rgba(189,182,168,.35);padding:6px 11px;border-radius:3px;
+  background:rgba(0,0,0,.35);transition:all .15s}
+.oskip:hover{color:#0B0D14;background:#E9E1D2;border-color:#E9E1D2}
+.ohint{position:absolute;bottom:calc(7.5vh + 8px);right:20px;z-index:4;font-size:10.5px;
+  color:rgba(230,222,206,.4);pointer-events:none;letter-spacing:.3px}
+
+.ogate{position:absolute;inset:0;z-index:8;display:grid;place-items:center;align-content:center;
+  gap:14px;background:#0B0D14}
+.ogate .ogo{font-size:19px;font-weight:800;color:#0B0D14;background:#F0E7D6;
+  padding:14px 40px;border-radius:3px;box-shadow:0 5px 0 #A79C88;letter-spacing:1px}
+.ogate .ogo:active{transform:translateY(5px);box-shadow:none}
+.ogate2{font-size:11.5px;color:rgba(230,222,206,.45);letter-spacing:.4px}
+
+/* 총무의 편지 — 모니터가 켜진 뒤 그 위에 얹힌다 */
+.oletter{position:absolute;inset:0;z-index:6;display:grid;place-items:center;padding:9vh 4vw;
+  opacity:0;pointer-events:none;transition:opacity .8s ease;
+  background:radial-gradient(circle at 42% 52%,rgba(10,14,26,.35),rgba(6,8,14,.86))}
+.oletter.on{opacity:1;pointer-events:auto}
+.oletterbox{width:min(560px,100%);max-height:82vh;overflow-y:auto;background:#FDF7EA;
+  border:3px solid #2A2520;box-shadow:8px 8px 0 rgba(0,0,0,.5);padding:20px 24px 22px;
+  animation:oletterIn .7s cubic-bezier(.2,.9,.3,1) both}
+@keyframes oletterIn{from{transform:translateY(14px) scale(.985);opacity:0}}
+.olhead{display:flex;justify-content:space-between;font-size:11px;color:#8B7466;
+  border-bottom:2px dashed #D9C9AF;padding-bottom:8px;margin-bottom:12px;letter-spacing:.2px}
+.ollead{margin:0 0 12px;font-size:14px;font-weight:700;line-height:1.6;color:#3A2E28}
+.olist{margin:0;padding-left:20px;font-size:12.8px;line-height:1.85;color:#4A3C33}
+.olist li{margin-bottom:3px}
+.olist b{color:#B5561F}
+.olout{margin:14px 0 2px;font-size:13px;line-height:1.6;color:#3A2E28}
+.olsign{margin:0;font-size:13px;font-weight:800;text-align:right;color:#3A2E28}
+.olfoot{margin-top:10px;padding-top:9px;border-top:2px dashed #D9C9AF;font-size:10.5px;color:#8B7466}
+.olgo{width:100%;margin-top:14px;padding:12px;background:var(--accent);color:#fff;font-weight:800;
+  font-size:15px;border-radius:3px;box-shadow:0 4px 0 var(--accent-d)}
+.olgo:active{transform:translateY(4px);box-shadow:none}
+
+/* 근로계약서 — 이름을 정하는 창. 닫을 수 없다(이 고양이가 곧 플레이어다) */
+.mhead.contract{background:#2A3550;color:#FFF6E9;border-bottom-color:#18203a}
+.mhead.contract .q{color:#FFC98F}
+.mhead.contract p{color:#C7D2E4}
+.sigrow{display:flex;align-items:center;gap:9px;margin:2px 0 10px;padding:8px 10px;
+  background:#FFF9EE;border:2px dashed #E7D3B9}
+.sigrow b{font-size:12px}
+
+@media (max-width:560px),(max-height:600px){
+  .obar{height:5vh}
+  .oletterbox{padding:14px 15px 16px}
+  .olist{font-size:12px;line-height:1.7}
+}
+
+/* 프롤로그를 기다리는 동안 — 검은 화면. #app 은 자리를 지키되 안 보인다
+   (숨기면 뷰포트가 0 이 되어 3D 캔버스가 크기를 못 잡는다). */
+body.introwait{background:#0B0D14}
+body.introwait #app{opacity:0;pointer-events:none}
+
+
+/* ============================================================
+   로딩 화면 — #loadgate   (마크업은 index.html 끝, 그림은 아래 LOADCAT 구간)
+
+   TODO 20번이 「빈 무대 + 0.6초 뒤 한 줄」로 막아 둔 자리를 화면으로 키운 것이다.
+   기다리는 시간이 6.3초고(20번 실측) 그 시간에 보여 줄 것이 없었다.
+
+   **색을 토큰(var)으로 안 쓴다.** `body.eerie` 는 모듈이 올라올 때 붙는데
+   (js/three/eerie.js 의 skin) 이 판은 **그 전에** 뜬다 — 토큰을 쓰면 판이 살아 있는
+   동안 색이 통째로 바뀌고, 그게 20번이 없앤 그 깜빡임이다.
+   :root 의 --cream/--ink 값을 여기 직접 적는다(--paper 를 테마 밖에 둔 것과 같은 이유).
+
+   기본이 **보임**이다. 걷는 것은 renderTiles 가 `body.r3ready` 를 걸어서 한다 —
+   3D 가 안 오는 세 갈래(모듈 못 불러옴 · init 던짐 · 12초 초과)가 전부 그 함수를
+   지나므로(pending3d), 로딩 화면에 갇히는 경우가 안 생긴다. 갇히는 건 도트로
+   떨어지는 것보다 나쁘다.
+   ============================================================ */
+#loadgate{position:fixed;inset:0;z-index:9500;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:20px;
+  background:#FFF6E9;color:#3A2E28;
+  transition:opacity .3s ease,visibility .3s}
+body.r3ready #loadgate{opacity:0;visibility:hidden}
+
+/* 그림 상자. **aspect-ratio 로 자리를 미리 잡는다** — 안 잡으면 그림이 받아지기 전까지
+   높이가 0 이고, %로 앉는 스피너가 자리를 못 찾아 글자 위에 겹친다. 다른 화면이면 못 보고
+   지나갈 실패인데 이건 아무것도 캐시되지 않은 첫 페인트에 뜨는 화면이라 그 순간이 본론이다.
+   (비율과 그림은 아래 LOADCAT 구간이 넣는다 — 다시 구우면 같이 바뀐다.) */
+#loadgate .lcat{position:relative;width:236px;flex:0 0 auto;image-rendering:pixelated}
+#loadgate .lspin{position:absolute;transform:translate(-50%,-50%);aspect-ratio:1}
+#loadgate .lspin svg{width:100%;height:100%;animation:lspin 1.05s steps(12) infinite}
+/* 갈래는 **머리 안에만** 있다(굽는 도구가 실루엣 안에 들어가는 자리를 재서 넣는다).
+   그래서 색 하나로 끝나고 배경색이 상관없어진다 — 밖으로 나가면 밝은 배경에서 사라진다. */
+#loadgate .lspin use{fill:#FFF6E9}
+/* steps(12) 로 딱딱 끊어 돈다. 부드럽게 돌리면 요즘 웹 로더가 되고 이 게임의 결과 갈린다. */
+@keyframes lspin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){ #loadgate .lspin svg{animation-duration:3s} }
+
+/* 밈의 오타 그대로. 세 언어를 두지 않는다 — 낱말이 아니라 그 밈의 이름이다. */
+#loadgate .lword{font-size:17px;font-weight:600;letter-spacing:.02em;opacity:.75}
+@media (max-width:700px){
+  #loadgate .lcat{width:190px}
+  #loadgate .lword{font-size:16px}
+}
+
+/* LOADCAT:BEGIN 생성: node tools/bake-loading-cat.js -->  (그림과 스피너 자리) */
+#loadgate .lcat{aspect-ratio:455/512;
+  background:url("data:image/png;base64,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") center/100% 100% no-repeat}
+#loadgate .lspin{left:34.39%;top:34.43%;width:24.19%}
+/* LOADCAT:END */
+
+
+/* 인라인 style 대신 클래스로 — 인라인은 어떤 규칙보다 세서 그림체를 갈아 끼워도 안 따라온다 */
+.hirecard{background:#FFF9EF}
+/* ============================================================
+   조사 · 단서 · 첫 결재 (story.js)
+   발견은 사건이어야 한다. 그런데 이 게임의 모달은 전부 같은 크림색이라
+   "가구를 눌렀더니 아무것도 없었다"와 "412일이 적힌 반쪽이 나왔다"가 같은 창으로 뜬다.
+   그래서 발견한 창만 머리를 갈아 끼운다 — 서류가 아니라 **물증**의 색으로.
+   ============================================================ */
+.mhead.found{background:#2E3B33;color:#F2F7EE;border-bottom-color:#1C2620}
+.mhead.found .q{color:#9FD8A8;letter-spacing:3px}
+.mhead.found p{color:#BFD3C4}
+.observe{margin:0 0 10px;font-size:13px;line-height:1.75;color:var(--ink)}
+/* 단서는 종이다. 사무실 UI 위에 **다른 재질**로 얹혀야 주운 물건으로 읽힌다. */
+.cluebox{border:2px solid var(--line);background:#FFFCF2;padding:12px 13px;
+  box-shadow:inset 0 0 0 1px #FFF, 3px 3px 0 #EFE1CB}
+.cluehead{display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:7px;
+  padding-bottom:7px;border-bottom:1px dashed var(--line)}
+.cluehead .em{font-size:20px}
+.cluebody{font-size:12.5px;line-height:1.85;color:var(--ink)}
+.cluegain{margin-top:9px;padding:7px 9px;background:#F1FAF6;border:2px solid #AEDDCE;font-size:11.5px}
+.cluebox .hint{margin:9px 0 0}
+/* 총무의 편지 — 프롤로그의 그 편지와 같은 물건으로 읽혀야 한다 */
+.letter{margin-top:12px;border:2px solid var(--line);background:#FFFDF6;padding:13px 15px;
+  font-size:12.5px;line-height:1.9}
+.letter .lhead{font-size:10px;letter-spacing:2px;color:var(--accent-d);font-weight:800;margin-bottom:7px}
+.letter p{margin:0 0 9px}
+.letter p:last-child{margin-bottom:0}
+.letter .lsign{text-align:right;color:var(--soft);font-size:11.5px}
+/* 기록증에 붙는 발견 목록 */
+.foundbox{margin-top:12px;border-top:2px solid var(--line);padding-top:10px}
+.foundhead{font-size:10.5px;letter-spacing:1.5px;font-weight:800;color:var(--soft);
+  display:flex;justify-content:space-between;margin-bottom:7px}
+.foundlist{list-style:none;margin:0;padding:0}
+.foundlist li{display:flex;align-items:baseline;gap:7px;padding:4px 0;font-size:12px;
+  border-bottom:1px dashed var(--line)}
+.foundlist li:last-child{border-bottom:none}
+.foundlist .em{font-size:15px}
+.foundlist .tiny{margin-left:auto;white-space:nowrap}
+
+/* ============================================================
+   CD 플레이어 (juke.js)
+
+   이 블록이 한 번 통째로 사라진 적이 있다(파일 끝에 붙여 뒀는데 다른 작업이 꼬리를
+   덮었다). 그러면 화면에서는 **모든 줄이 서로 겹쳐 보인다** — flex 가 하나도 안 걸리니까.
+   그래서 지금은 파일 끝이 아니라 테마 섹션 **앞**에 둔다.
+   ============================================================ */
+.jukenow{display:flex;align-items:center;gap:11px;padding:11px 12px;margin-bottom:10px;
+  background:#2E3B33;color:#F2F7EE;border:2px solid #1C2620}
+.jukenow .em{font-size:26px;flex:0 0 auto;width:30px;text-align:center}
+.jukenow > div{min-width:0}
+.jukenow b{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jukenow span{display:block;font-size:11px;color:#BFD3C4;margin-top:2px}
+/* 멈춰 있을 때만 나오는 ▶︎. 「화면을 한 번 누르세요」는 어디를 누르라는 말인지
+   알 수 없었다 — 누를 곳이 화면에 있어야 한다 (js/juke.js). */
+.jukenow .kick{margin-left:auto;flex:0 0 auto;white-space:nowrap;padding:7px 10px;font-size:11.5px}
+.jukemode{display:flex;gap:6px;margin-bottom:10px}
+.jukemode .buy{flex:1 1 0;min-width:0;padding:7px 4px;font-size:11px;text-align:center}
+.jukesec{font-size:10px;letter-spacing:2px;font-weight:800;color:var(--soft);margin:14px 2px 6px}
+.ytrow{display:flex;align-items:center;gap:6px;margin-bottom:7px}
+.ytrow input{flex:1 1 0;min-width:0;padding:7px 9px;border:2px solid var(--line);background:#FFF;
+  font-size:11.5px;font-family:inherit;color:var(--ink)}
+.ytrow input:focus{outline:none;border-color:var(--accent)}
+
+/* ============================================================
+   도배 견본책 (binder.js)
+
+   견본은 색칩이 아니라 **방 한 칸**이다. 색만 늘어놓으면 「무슨 색인지」는 알지만
+   「그 방이 어떻게 보이는지」는 모르고, 사는 사람이 궁금한 건 뒤쪽이다.
+   그래서 칸마다 원근으로 그린 방이 들어가고, 시간대 넷을 위에서 갈 수 있다.
+   ============================================================ */
+.dnow{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;padding:10px 12px;margin-bottom:4px;
+  background:#2E3B33;color:#F2F7EE;border:2px solid #1C2620}
+.dnow b{font-size:14px;font-weight:800}
+.dnow i{font-style:normal;color:#8FA894}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:7px}
+.dcard{display:block;text-align:left;padding:0 0 7px;border:2px solid var(--line);
+  background:var(--card);cursor:pointer;font:inherit;color:var(--ink);overflow:hidden}
+.dcard:hover{border-color:var(--accent)}
+.dcard.on{border-color:var(--accent);background:#2E3B33;color:#F2F7EE}
+.dcard canvas{display:block;width:100%;height:auto;image-rendering:pixelated}
+.dcard b{display:block;font-size:12.5px;font-weight:800;margin:6px 8px 1px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dcard small{display:block;font-size:10.5px;line-height:1.35;margin:0 8px;color:var(--soft)}
+.dcard.on small{color:#BFD3C4}
+/* 못 사는 것은 값이 빨갛다. 버튼을 죽이지 않는 이유 — 눌러 보고 「돈이 없다」를
+   아는 것과 아예 안 눌리는 것은 다르고, 앞쪽이 값을 기억하게 만든다. */
+.dcard small .no{color:var(--red);font-weight:800}
+.dcard small .ok{color:var(--accent);font-weight:800}
+.dcard.off{border-style:dashed}
+/* 가구 톤 카드의 「어울리는 벽지·바닥」 한 줄. 목록이 아니라 **이 카드의 동작**이라
+   글자만큼만 자리를 쓴다 — 여기가 커지면 고르는 축이 하나 더 생긴 것처럼 읽힌다. */
+.dpair{margin-top:3px !important;font-size:10px !important;opacity:.82;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dpair i{opacity:.5;font-style:normal;margin:0 2px}
+.dpair b{display:inline;font:inherit;font-weight:800;color:var(--accent);cursor:pointer;
+  border-bottom:1px dotted currentColor;margin:0 !important}
+.dpair b:hover{filter:brightness(1.2)}
+.dpair.on{opacity:.55}
+
+/* 음량 — 🔊 는 툴바에서 뺐다. 소리를 만지는 자리도 사무실 안이어야 한다.
+   슬라이더 0 이 곧 음소거다: 껐다 켜는 버튼과 크기 조절이 따로 있으면
+   "껐는데 왜 소리가 나지"(볼륨만 0)가 생긴다. 손잡이는 하나다. */
+.jukevol{display:flex;align-items:center;gap:9px;padding:9px 11px;
+  border:2px solid var(--line);background:var(--card)}
+.jukevol .volem{font-size:19px;flex:0 0 auto;width:24px;text-align:center;cursor:pointer;
+  background:none;border:none;padding:0;line-height:1}
+.jukevol input[type=range]{flex:1 1 0;min-width:0;height:6px;-webkit-appearance:none;appearance:none;
+  background:var(--line);border:none;cursor:pointer}
+.jukevol input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+  width:16px;height:16px;background:var(--accent);border:2px solid var(--ink);cursor:pointer}
+.jukevol input[type=range]::-moz-range-thumb{width:14px;height:14px;background:var(--accent);
+  border:2px solid var(--ink);border-radius:0;cursor:pointer}
+.jukevol .volnum{flex:0 0 auto;width:34px;text-align:right;font-size:11.5px;font-weight:800;
+  color:var(--soft);font-variant-numeric:tabular-nums}
+/* .hint 는 카드 안의 crow 밑에 붙으라고 위 여백이 -2px 다. 음량 줄 밑에 그대로 오면
+   그만큼 파고들어 두 줄이 겹친다 — 여기서만 되돌린다. */
+.jukevol + .hint{margin-top:7px}
+
+/* ============================================================
+   첫 출근 안내 (tutor.js)
+   무대 위에 얹히는 두 조각뿐이다 — 대상을 감싸는 고리와, 그 옆에 붙는 안내판.
+   화면을 어둡게 덮지 않는다. 덮으면 "지금 하라"고 한 그 일을 못 하게 된다.
+   ============================================================ */
+.coachring{position:fixed;z-index:98;pointer-events:none;border:3px solid var(--accent);
+  box-shadow:0 0 0 3px rgba(255,159,107,.28);transition:all .18s ease;background:rgba(255,159,107,.07)}
+.coach{position:fixed;z-index:99;width:min(330px,86vw);background:var(--card);
+  border:3px solid var(--ink);box-shadow:5px 5px 0 rgba(58,46,40,.22);padding:13px 15px}
+.coach .cstep{font-size:10px;letter-spacing:2px;font-weight:800;color:var(--accent-d);margin-bottom:3px}
+/* 제목만 블록이다. 본문 안의 <b> 까지 블록으로 만들면 강조할 때마다 줄이 끊긴다 */
+.coach > b{display:block;font-size:14px;line-height:1.5;margin-bottom:6px}
+.coach p{margin:0;font-size:12px;line-height:1.8;color:var(--ink)}
+.coach p b{display:inline;font-weight:800}
+.coach .cacts{display:flex;gap:6px;margin-top:11px}
+.coach .cacts .buy{flex:1 1 0;min-width:0;padding:7px 4px;font-size:11.5px}
+@media (max-width:560px){ .coach{width:min(300px,92vw);padding:11px 12px} }
+
+/* ============================================================
+   탭 줄 — 한 기둥(D3)의 머리와 폰(M4)의 탭 바가 **같은 요소**다
+
+   위에 붙으면 기둥의 머리, 아래에 붙으면 탭 바다. 후보판에서 D3 를 고른
+   값어치가 "모바일과 구조가 같아진다" 였고, 그 값을 실제로 받으려면
+   줄이 하나여야 한다 — 둘로 만들면 유지할 화면이 하나 늘어난다.
+   기본은 안 보인다: 3열과 위젯 모드는 각자 자기 항법을 갖고 있다.
+   ============================================================ */
+/* **선택자가 id 다.** 처음엔 요소에도 .onecol 클래스를 줬는데, 모드 클래스가
+   #app.onecol 이라서 `.onecol button` 이 **앱 안의 모든 버튼**을 잡았다 —
+   접기 손잡이와 카메라 버튼이 flex:1 을 받아 무대의 세로를 3등분해 먹었다.
+   같은 이름을 두 층에 쓰면 이런 일이 난다. 요소는 id 로만 짚는다. */
+#colTabs{display:none;background:var(--card);border:3px solid var(--line);
+  box-shadow:var(--shadow);flex:0 0 auto}
+#colTabs button{flex:1;min-width:0;display:flex;align-items:center;justify-content:center;
+  gap:5px;padding:9px 3px;background:transparent;border:none;
+  border-bottom:3px solid transparent;color:var(--soft);font:inherit;font-size:11px;
+  font-weight:700;letter-spacing:.02em;cursor:pointer;position:relative}
+#colTabs button:hover{color:var(--ink)}
+#colTabs button.on{color:var(--ink);border-bottom-color:var(--accent)}
+#colTabs button > span{font-size:13px;line-height:1}
+#colTabs button > b{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* 밀린 서류. 다른 화면에 가 있을 때 "체크할 게 남았다" 를 알 방법이 이것뿐이다 —
+   숫자가 아니라 점이다. 몇 건인지는 그 화면에 가면 있고, 여기서 알아야 하는 건
+   "가야 하나" 뿐이다. */
+#colTabs button > i{display:none;position:absolute;top:5px;right:8px;width:7px;height:7px;
+  border-radius:50%;background:var(--red)}
+#colTabs button.od > i{display:block}
+#colTabs button:focus-visible{outline:2px solid var(--accent);outline-offset:-3px}
+
+
+/* ============================================================
+   한 기둥 — #app.onecol   (후보판 D3)
+
+   좌우 패널을 **하나로 합친다.** 결재함·직원·비품·사보가 탭 넷이 되고
+   무대가 반대쪽을 통으로 갖는다. 시선이 한쪽만 움직인다.
+
+   stageui 위에 얹는 **차이분**만 적는다(무대·상단바·바닥은 그쪽 것을 그대로 쓴다).
+   폭 조건이 여기 없는 이유: 어느 배치인지는 js/col.js 가 클래스로 정한다.
+   미디어 쿼리와 JS 의 판단이 갈리면 화면을 보고도 원인을 못 찾는 버그가 난다.
+   ============================================================ */
+#app.onecol{--col:342px;--strip:41px}
+@media (max-width:1400px){ #app.onecol{--col:300px} }
+
+/* ── 기둥은 **오른쪽**에 선다 ──
+   왼쪽에 뒀던 것을 옮겼다. 이 화면에서 계속 읽는 것은 사무실이 아니라 결재함이고,
+   창을 여러 개 띄워 놓고 일하는 사람의 시선은 오른쪽 끝에서 덜 방해받는다.
+   무대는 그대로 창을 통째로 갖는다 — 기둥이 그 위에 뜨는 구조는 안 바뀌었다.
+
+   **선택자에 :not(.compact) 을 같이 쓴다.** 위 stageui 블록이 같은 요소를
+   `#app.stageui:not(.compact) #panelInbox{left:12px}` 으로 잡고 있어서, 클래스를
+   하나 덜 쓰면 명시도에서 진다 — left:auto 가 먹히지 않고 기둥이 왼쪽에 남는다
+   (미디어 쿼리는 명시도를 안 올려 준다). 같은 수로 맞추면 나중에 적힌 이쪽이 이긴다. */
+#app.onecol:not(.compact) #colTabs{display:flex;position:absolute;right:12px;left:auto;
+  top:56px;width:var(--col);height:var(--strip);z-index:22;border-width:3px 3px 0}
+/* 두 패널이 **같은 칸**에 선다. 하나만 뜬다. */
+#app.onecol:not(.compact) #panelInbox,
+#app.onecol:not(.compact) #panelBiz{right:12px;left:auto;width:var(--col);
+  top:calc(56px + var(--strip));bottom:52px;border-top-width:0;opacity:1;display:none}
+#app.onecol[data-col="inbox"] #panelInbox,
+#app.onecol[data-col="staff"] #panelBiz,
+#app.onecol[data-col="shop"] #panelBiz,
+#app.onecol[data-col="log"] #panelBiz{display:flex}
+/* 머리가 둘이 될 이유가 없다 — 바로 위 탭 줄이 이미 이름을 달고 있다.
+   대신 결재함의 건수(#todoSub)는 잃으면 안 되므로 탭의 점으로 옮겼다. */
+#app.onecol #panelInbox .ph,
+#app.onecol #panelBiz .tabs{display:none}
+/* 데스크톱에는 **사무실 탭이 없다** — 무대가 늘 뒤에 있으니 갈 곳이 아니다.
+   폰(.tabbar)에서만 한 화면을 차지한다. */
+#app.onecol #colTabs [data-col="stage"]{display:none}
+
+/* 접기 — 기둥이 하나라 **줄까지 같이** 나간다. 기둥이 오른쪽으로 갔으므로
+   접는 손잡이도 오른쪽(R)이고, 밀려나는 방향도 오른쪽이다.
+   왼쪽 손잡이는 접을 것이 없다.
+
+   그리고 **예전에 왼쪽을 접어 둔 사람의 상태를 무력화한다** — 그 상태가 살아 있으면
+   위 stageui 규칙이 결재함을 화면 밖으로 밀어내고, 결재함 탭이 빈 화면을 보여준다.
+   여기도 :not(.compact) 을 같이 쓴다: 무력화하려는 그 규칙이
+   `#app.stageui:not(.compact) #main.foldL > #panelInbox` 이라 클래스 수를 맞춰야
+   이긴다(전에 foldR 을 무력화하던 줄은 그걸 안 맞춰서 실제로는 안 먹고 있었다). */
+#app.onecol:not(.compact) #main.foldR > #panelInbox,
+#app.onecol:not(.compact) #main.foldR > #panelBiz,
+#app.onecol:not(.compact) #main.foldR > #colTabs{
+  transform:translateX(calc(100% + 16px));opacity:0;pointer-events:none}
+#app.onecol:not(.compact) #main.foldL > #panelInbox,
+#app.onecol:not(.compact) #main.foldL > #panelBiz,
+#app.onecol:not(.compact) #main.foldL > #colTabs{
+  transform:none;opacity:1;pointer-events:auto}
+#app.onecol .foldbtn.L{display:none}
+
+/* 기둥이 오른쪽으로 갔으니 시계와 카메라는 **왼쪽 구석으로 돌아온다.**
+   stageui 가 패널을 피해 310px 로 밀어 둔 값을 되돌리는 것이다 — 그 자리는 이제 비었다. */
+#app.onecol:not(.compact) .clockchip{left:20px;top:64px}
+#app.onecol:not(.compact) .cambtn{left:20px;bottom:58px}
+
+
+/* ============================================================
+   폰 — #app.tabbar   (후보판 M4)
+
+   아래 탭 다섯(사무실·결재함·직원·비품·사보). 한 번에 한 화면을 **통으로** 준다.
+   좁은 폭에서 셋을 겹쳐 놓으면 셋 다 못 쓰는 크기가 되므로, 나눠서 온전하게 준다.
+
+   후보판에서는 탭이 넷이었다(비품 없음). 하나 늘린 이유: 폰만으로 하는 사람에게서
+   **멸치를 쓸 방법을 전부 없애는 것**이 78px 짜리 탭 하나보다 나쁘다.
+   배치 모드와 채용은 여전히 ⚙️·모달 쪽에 있고 여기 안 넣는다.
+
+   위젯 모드(.compact)와 겹치지 않는다: col.js 가 위젯일 때는 이 배치를 끈다.
+   PiP 로 떠 있는 창은 늘 위젯이므로 여기 안 온다.
+   ============================================================ */
+/* 안전 영역. 아이폰의 홈 인디케이터(아래 34px)와 노치가 화면을 먹는다 —
+   viewport-fit=cover 로 화면 전체를 쓰는 대신 그 몫을 우리가 비켜 줘야 한다.
+   안드로이드에서도 제스처 바가 있으면 같은 값이 들어오고, 없으면 0 이다. */
+#app.tabbar{--tabbar:54px;--dockh:28px;--safeb:env(safe-area-inset-bottom, 0px);overflow:hidden}
+#app.tabbar #topbar{padding-top:calc(4px + env(safe-area-inset-top, 0px))}
+#app.tabbar #main{display:block;position:relative;padding:0;gap:0;overflow:hidden}
+#app.tabbar .stagewrap{position:absolute;left:0;right:0;top:0;
+  bottom:calc(var(--tabbar) + var(--safeb));border:none;box-shadow:none}
+#app.tabbar .panel{position:absolute;left:0;right:0;top:0;
+  bottom:calc(var(--tabbar) + var(--safeb));
+  width:auto;max-height:none;border:none;box-shadow:none;opacity:1;transform:none;
+  z-index:20;display:none}
+#app.tabbar[data-col="inbox"] #panelInbox,
+#app.tabbar[data-col="staff"] #panelBiz,
+#app.tabbar[data-col="shop"] #panelBiz,
+#app.tabbar[data-col="log"] #panelBiz{display:flex}
+/* 여기서는 결재함 머리를 **남긴다.** 이름표가 화면 아래에 있으니 위에 건수가
+   보이는 게 도움이 된다 — D3 에서 지운 것과 다른 판단이고, 자리가 달라서다. */
+#app.tabbar #panelBiz .tabs{display:none}
+
+/* 패널이 무대를 덮으면 무대 쪽 장식이 **패널 위로 올라온다** — 이름표 레이어가
+   z-index 40, 접기·카메라 손잡이가 30, 패널이 20 이다(실측: 폰에서 고양이 이름이
+   결재함 위에 떠 있었다). z-index 를 하나씩 고치는 대신 무대를 통째로 감춘다:
+   "한 화면씩 온전히" 가 이 배치의 전제고, 전제는 한 줄로 적는 게 맞다.
+   display 가 아니라 visibility 인 이유: 자리를 없애면 fitWorld 가 0 을 재고
+   무대로 돌아올 때 카메라가 틀어진다. 그리는 것은 따로 건너뛴다(ui.js stageCovered). */
+#app.tabbar:not([data-col="stage"]) .stagewrap{visibility:hidden}
+
+/* 탭 바는 홈 인디케이터 **위에** 선다. 높이를 늘리고 그만큼 아래 패딩을 주면
+   버튼은 손가락 자리에 남고 색만 화면 끝까지 내려간다 — 아래에 빈 띠가 생기지 않는다. */
+#app.tabbar #colTabs{display:flex;position:absolute;left:0;right:0;bottom:0;
+  height:calc(var(--tabbar) + var(--safeb));padding-bottom:var(--safeb);
+  z-index:30;border-width:3px 0 0}
+#app.tabbar #colTabs button{flex-direction:column;gap:2px;padding:5px 2px;
+  border-bottom:none;border-top:3px solid transparent;margin-top:-3px}
+#app.tabbar #colTabs button.on{border-top-color:var(--accent);background:rgba(0,0,0,.04)}
+#app.tabbar #colTabs button > span{font-size:19px}
+#app.tabbar #colTabs button > b{font-size:9.5px;letter-spacing:0}
+#app.tabbar #colTabs button > i{top:4px;right:calc(50% - 20px)}
+
+/* 무대의 바닥줄은 숫자만 남는 얇은 띠가 된다. 지우지 않는 이유: 폰에서 하려는 일이
+   "투두 체크와 **화면 모니터링**" 이고(TODO 5), 그 모니터링이 이 넷이다.
+   서랍 버튼과 사보 티커는 탭이 대신하므로 뺀다. */
+#app.tabbar .stagefoot{position:absolute;left:0;right:0;bottom:0;height:var(--dockh);
+  padding:0 7px;gap:6px;align-items:center;border-top-width:2px;overflow:hidden;z-index:5}
+#app.tabbar .stagefoot .kv{border:none;background:none;padding:0;font-size:10.5px;gap:3px}
+#app.tabbar .dockbtn,#app.tabbar #ticker{display:none}
+@media (max-width:400px){ #app.tabbar .stagefoot .kv span{display:none} }
+@media (max-width:340px){ #app.tabbar .stagefoot .kv.wide{display:none} }
+
+#app.tabbar .foldbtn{display:none}
+/* 카메라 버튼은 폰에서 **더** 중요하다 — 두 손가락으로 화면을 밀다 길을 잃기 쉽고,
+   여기가 그 탈출구다. 무대 오른쪽 아래, 바닥줄 위로 올린다. */
+#app.tabbar .cambtn{left:auto;right:9px;bottom:calc(var(--dockh) + 9px);
+  width:34px;height:34px;font-size:15px;opacity:.8}
+#app.tabbar .clockchip{left:6px;top:6px;padding:2px 7px;font-size:10px}
+/* 폰에 위젯 모드는 뜻이 없다 — 줄일 창이 없다 */
+#app.tabbar #btnCompact{display:none}
+
+/* 손가락으로 치는 칸이다. 16px 은 취향이 아니라 iOS 규칙이다 —
+   그보다 작으면 포커스하는 순간 화면을 확대해 버리고, 그러면 배치가 무너진다. */
+#app.tabbar .addbox{padding:12px 11px}
+#app.tabbar #todoInput{font-size:16px;padding:12px}
+#app.tabbar .size{padding:9px 3px;font-size:11.5px}
+#app.tabbar .addbtn{padding:12px;font-size:14px}
+#app.tabbar .pb{padding:11px;-webkit-overflow-scrolling:touch}
+#app.tabbar .todo{padding:12px 11px;margin-bottom:8px}
+#app.tabbar .todo .chk{width:30px;height:30px}
+#app.tabbar .tab{padding:10px 2px}
+#app.tabbar .card{padding:11px}
+#app.tabbar .buy{padding:9px 12px}
+/* ⋯ 팝오버의 아이콘도 손가락 크기로. 위젯의 26px 은 마우스 치수다. */
+#app.tabbar .iconbtn{width:33px;height:33px;font-size:15px}
+#app.tabbar #tools{grid-template-columns:repeat(5,1fr);gap:6px;padding:7px;right:6px}
+
+
+/* ============================================================
+   폰 배포본을 넓은 화면에서 — #app.phonebox
+
+   폰용 배포본(dist/android · dist/iphone)을 PC 브라우저로 열면 폭이 넓어서
+   데스크톱 배치가 나왔다. 폰에 나갈 화면을 보러 들어온 사람에게 그건 다른 게임이고,
+   실기기 없이 그 화면을 보는 유일한 길이 막힌 것이었다.
+
+   배치(.tabbar)는 이미 js/col.js 가 정해 놓았다. **여기서 하는 일은 상자에 담는 것
+   하나다** — 폭 420px, 화면 가운데, 상자 밖은 어둡게.
+
+   위치를 fixed 로 잡는다. 부모(body)를 flex 로 바꿔 가운데를 맞추는 방법도 있는데,
+   그러면 이 한 가지 때문에 모든 배치가 body 의 정렬을 공유하게 된다.
+   상자 밖을 어둡게 하는 것도 **box-shadow 의 spread 하나로** 한다 — body 에 클래스를
+   더 걸지 않으려는 것이다(테마 클래스가 이미 거기 살고, 둘이 겹치면 서로를 덮는다).
+   ============================================================ */
+#app.phonebox{
+  position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:420px;
+  /* 세로도 자른다 — 안 자르면 1080px 짜리 화면에서 420×1080 짜리 폰이 나오고,
+     그건 어떤 기기도 아니다. 실기기(iPhone 14 는 844)의 비율 근처에 둔다. */
+  height:min(100dvh, 880px);
+  box-shadow:0 0 0 100vmax rgba(0,0,0,.62);
+  outline:1px solid rgba(0,0,0,.55)}
+
+
+/* ============================================================
+   eerie — 3D 그림체를 eerie 로 켜면 (js/three/eerie.js) 여기가 같이 걸린다.
+   화면 한가운데가 안개 낀 저녁인데 테두리만 크림색이면 두 벌의 게임처럼 보인다.
+
+   **차가운 검정에서 따뜻한 어둠으로.** 처음엔 회청색 #0F1319 한 벌이었는데,
+   그러면 UI 가 "전원이 나간 화면" 이 된다. 지금은 스탠드 하나 켠 방의 색이다 —
+   검정이 아니라 **탄 갈색**이고, 그래서 같은 화면 안에서 사무실과 이어진다.
+
+   색만 갈아 끼운다 — 배치·글꼴·크기는 그대로다. 그림체 실험이 UI 리팩터링으로
+   번지면 되돌릴 수 없어지고, 되돌릴 수 있어야 실험이다.
+   ============================================================ */
+body.eerie{
+  --cream:#171310; --ink:#EFE4D6; --soft:#9C8D7C; --line:#3B3229;
+  --accent:#E9A85C; --accent-d:#9C6E30;         /* 책상 스탠드 — 화면 안 등불과 같은 색 */
+  --mint:#79B49C; --pink:#C48F94; --gold:#DCB463; --red:#C2545E;
+  --card:#231D18; --shadow:0 3px 0 #100D0A;
+  /* 어두운 방의 종이는 조금 가라앉는다 — 흰 종이를 그대로 두면 화면에서 그것만 튄다 */
+  --paper:#EFE6D6;
+}
+body.eerie #topbar{background:#1C1712}
+body.eerie .stat,
+body.eerie .iconbtn{box-shadow:2px 2px 0 #100D0A}
+body.eerie .qbar{background:#2A231C}
+body.eerie .stagefoot{background:#1C1712}
+body.eerie .stagefoot .kv{background:#241E18}
+body.eerie .tab{background:#1F1A15}
+body.eerie .card{background:#241E18}
+body.eerie .clockchip{background:rgba(28,23,18,.94); color:var(--ink)}
+body.eerie .foldbtn,
+body.eerie #app.stageui:not(.compact) .foldbtn{background:rgba(28,23,18,.86)}
+body.eerie .cambtn{background:rgba(28,23,18,.9)}
+body.eerie .iconbtn:hover{background:#2E2720}
+/* 이모지는 어두운 바탕에서 혼자 형광등처럼 뜬다. 아주 조금만 눌러 같은 방에 넣는다. */
+body.eerie .ico, body.eerie .em, body.eerie .iconbtn, body.eerie .dockbtn{filter:saturate(.82) brightness(.96)}
+/* 말풍선·머리 위 이름표는 3D 위에 얹히는 DOM 이라 이쪽에서만 어두워진다 */
+body.eerie .tag{color:#EADFD2;text-shadow:0 1px 2px rgba(0,0,0,.7);background:transparent}
+body.eerie .bubble{background:#241E18;border-color:#57493B;color:#EDE2D4;box-shadow:2px 2px 0 rgba(0,0,0,.45)}
+body.eerie .bubble::after{border-top-color:#57493B}
+
+/* 값이 규칙 안에 박혀 있는 밝은 판들 — 변수로는 안 따라오는 것만 골라 덮는다.
+   전체 리디자인(TODO 7)이 아니라 그림체 시안이 성립하는 데 필요한 만큼이다. */
+body.eerie .addbox{background:#1F1A15}
+body.eerie .addbox input,
+body.eerie .namerow input{background:#15110D;color:var(--ink);border-color:#3D342A}
+body.eerie .size{background:#241E18;color:var(--soft)}
+body.eerie .size.on{background:#33281A;border-color:var(--accent);color:var(--accent)}
+body.eerie .todo{background:#231D18}
+body.eerie .todo .chk{background:#15110D;border-color:#4A3F33}
+body.eerie .todo.done{background:#1D1814}
+body.eerie .todo.overdue{background:#2A1A18;box-shadow:2px 2px 0 #38201E}
+body.eerie .tag.m{background:#33291A;color:#D9B370}
+body.eerie .tag.l{background:#2E1D22;color:#CF95A6}
+body.eerie .card.lockedrow{background:#1D1814;border-color:#3D342A}
+body.eerie .card.owned{background:#1A2620;border-color:#446B58}
+body.eerie .hirecard{background:#2A2116;border-color:#4C3D26}
+body.eerie .chkhint{background:#18261F;color:#8FC6AC;border-color:#3B6553}
+body.eerie .chkhint b{color:#AEDCC4}
+body.eerie .evt{background:#1D1814}
+body.eerie .stat.pen.warn{background:#2C2213;border-color:#9C7A34}
+body.eerie .stat.pen.danger{background:#2E1519}
+/* 토스트는 배경이 --ink 였다 — eerie 에서 --ink 가 밝아지면서 통째로 뒤집혔다 */
+body.eerie .toast{background:#231D18;color:#EDE2D4;border-color:#0D0A08;box-shadow:4px 4px 0 rgba(0,0,0,.45)}
+body.eerie .toast.care{background:#1A2620;color:#A9D2BC;border-color:#44705C;box-shadow:4px 4px 0 rgba(0,0,0,.45)}
+body.eerie .toast.bad{background:#3A1A1C;border-color:#7C2028;color:#EAC2C6}
+
+/* stageui 는 패널·상단바·바닥을 크림색 반투명 천으로 깐다. 값이 규칙 안에 박혀 있어
+   변수로는 안 따라온다 — 같은 미디어 쿼리 안에서 색만 다시 덮는다. */
+@media (min-width:1141px){
+  body.eerie #app.stageui:not(.compact) .panel{background:rgba(28,23,18,.93)}
+  body.eerie #app.stageui:not(.compact) #topbar{
+    background:linear-gradient(rgba(23,19,15,.95) 42%, rgba(23,19,15,0))}
+  body.eerie #app.stageui:not(.compact) .stagefoot{background:rgba(23,19,15,.93)}
+  body.eerie #app.stageui:not(.compact) .foldbtn{background:rgba(28,23,18,.86)}
+}
+
+/* 2차 — 게임에 올리면서 실제로 화면에 뜬 나머지 밝은 판들.
+   모달·배치 모드·위젯 독처럼 "가끔 열리는 것" 이라 시안 단계에서는 안 보였다. */
+body.eerie .mhead{background:#2B2218;border-bottom-color:#463A2C}
+body.eerie .mhead .q{color:var(--accent)}
+body.eerie .modal{border-color:#0D0A08;box-shadow:8px 8px 0 rgba(0,0,0,.45)}
+body.eerie .veil{background:rgba(8,6,5,.62)}
+body.eerie .buy[disabled],
+body.eerie .buy.alt[disabled],
+body.eerie .okbtn[disabled]{background:#2A241E;color:#6E6156;box-shadow:0 3px 0 #17130F}
+body.eerie .okbtn.alt{background:#241E18;color:var(--ink)}
+body.eerie .legalbox,
+body.eerie .legalcard{background:#2A1A1C;border-color:#5E3038}
+body.eerie .okbox,
+body.eerie .promo{background:#18261F;border-color:#3F6A57;color:#9CCBB4}
+body.eerie .rivalbox,
+body.eerie .rivalcard{background:#2A2116;border-color:#4C3D26}
+body.eerie .sigrow,
+body.eerie .st{background:#241E18}
+body.eerie .chatline.big{background:#28211A}
+body.eerie .chatline.bad{background:#2A1A1C}
+body.eerie .needs .nbt{background:#2A231C}
+body.eerie .tag{background:transparent}
+body.eerie .tag.s{background:#1A2620;color:#8FC6AC}
+body.eerie .swatch{background:#231D18;border-color:#3D342A}
+body.eerie .swatch.on{background:#33281A;border-color:var(--accent)}
+body.eerie .namerow input:focus{background:#1B1611}
+body.eerie .reclog .rrow{border-bottom-color:#332B23}
+body.eerie .pb::-webkit-scrollbar-thumb{background:#3A3128}
+/* 머리 위 이름표는 3D 위에 얹히는 DOM 이다 — 흰 알약이 사무실에 떠 있었다 */
+/* 배치 모드 */
+body.eerie .edithint{background:rgba(28,23,18,.95)}
+body.eerie .eslot{background:#1F1A15}
+body.eerie .eslot.filled{background:#2E2517}
+body.eerie .rotbtn{background:#241E18;color:var(--ink)}
+/* 위젯 모드 */
+body.eerie #app.slim .qbar{background:#2A231C}
+body.eerie #app.compact .dockbtn.on{background:#33281A}
+body.eerie #app.compact .panel::before{background:#4A3F33}
+/* 조사 · CD 플레이어 · 안내판 — 색만 갈아 끼운다 */
+body.eerie .cluebox{background:#1F1A15;box-shadow:inset 0 0 0 1px #2A231C, 3px 3px 0 #100D0A}
+body.eerie .cluegain{background:#1A241F;border-color:#2F5346}
+body.eerie .letter{background:#1F1A15}
+body.eerie .jukevol{background:#231D18}
+body.eerie .jukevol input[type=range]{background:#3B3229}
+body.eerie .ytrow input{background:#1B1611;color:var(--ink)}
+body.eerie .coach{background:#231D18;border-color:#4A3F33;box-shadow:5px 5px 0 rgba(0,0,0,.4)}
+body.eerie .shiftrow select{background:#1B1611;color:var(--ink)}
+
+/* ---- 탭 줄 (col.js) — 크림색 줄 하나가 저녁 사무실에 남으면 안 된다 ---- */
+body.eerie #colTabs{background:rgba(28,23,18,.95)}
+body.eerie #app.tabbar #colTabs button.on{background:rgba(255,255,255,.06)}
+body.eerie #app.tabbar .stagefoot{background:rgba(23,19,15,.93)}
+body.eerie #app.tabbar .panel{background:#1C1712}
+
+/* ---------- 벽걸이 달력 (js/cal.js) ----------
+   달력 칸에는 **숫자와 점**만 있다. 연속 일수·달성률·진해지는 색을 넣지 않는다 —
+   지난 날을 열 수 있게 만드는 순간 빈 날이 눈에 보이는데, 거기에 점수를 붙이면
+   이 게임은 근무 시간을 같이 견뎌 주는 물건이 아니라 못 한 날을 세는 물건이 된다. */
+.calhead{display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:9px}
+.calhead b{font-size:14px;min-width:104px;text-align:center}
+.calnav{width:30px;height:30px;border:2px solid var(--line);background:#fff;font-size:15px;
+  line-height:1;color:var(--soft)}
+.calnav:hover{border-color:var(--accent);color:var(--accent-d)}
+.calgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cdow{font-size:10px;color:var(--soft);text-align:center;padding-bottom:2px}
+.cdow.sun{color:#C4707F}
+.ccell{position:relative;min-height:34px;border:2px solid transparent;background:var(--paper);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+  font-family:inherit;padding:4px 0 3px;cursor:pointer}
+.ccell.pad{background:none;cursor:default}
+.ccell .n{font-size:11.5px;color:var(--paper-ink);line-height:1}
+.ccell.ahead .n{color:#9C8A74}
+.ccell:hover{border-color:var(--line)}
+.ccell.today{background:#FFF0E0}
+.ccell.today .n{font-weight:800;color:var(--accent-d)}
+.ccell.sel{border-color:var(--accent);box-shadow:2px 2px 0 var(--accent-d)}
+.dots{display:flex;gap:2px;height:5px;align-items:center}
+.cd{width:4px;height:4px;border-radius:50%;background:#D8CDBE}
+.cd.ok{background:#3E9E82}
+.cd.alarm{background:#E8A33D}
+.cd.late{background:var(--red)}
+/* 고른 날의 목록 */
+.calsec{display:flex;align-items:baseline;gap:7px;margin:14px 2px 7px;
+  border-top:2px dotted var(--line);padding-top:11px}
+.calsec b{font-size:13px}
+.calrow{display:flex;align-items:center;gap:7px;font-size:12px;padding:5px 2px;
+  border-bottom:1px dotted var(--line)}
+.calrow .tx{flex:1;word-break:break-word}
+.calrow.done{opacity:.5}
+.calrow.done .tx{text-decoration:line-through}
+.calrow .ok{color:#3E9E82;font-weight:700}
+.calrow .alm{color:#E8A33D}
+.calrow .bad{color:var(--red)}
+.calrow .dot{color:#C9B79B}
+.calrow .del{opacity:.35;font-size:11px;color:var(--soft);padding:2px 4px;background:none;border:0}
+.calrow:hover .del{opacity:1}
+.calbox{margin-top:11px}
+/* 크기 셋과 ⏰ 가 한 줄이다. 다른 축이지만 둘 다 "올리기 전에 정하는 것"이라
+   같은 줄에 두는 쪽이 손이 짧다 — ⏰ 만 사이를 띄워 축이 다른 걸 보인다. */
+.calbox #calAlarm{flex:0 0 44px;margin-left:7px;font-size:14px;padding:4px 0}
+.calbox #calAlarm.on{background:#FFEFF1;border-color:#F0BCC4}
+
+/* 폰에서는 달 하나가 화면을 다 먹으면 그날 목록이 스크롤 밖으로 나간다 — 칸을 낮춘다. */
+@media (max-width:520px){
+  .ccell{min-height:30px;padding:3px 0 2px}
+  .ccell .n{font-size:11px}
+  .calhead{margin-bottom:6px}
+  .calhead b{font-size:13px;min-width:86px}
+}
+
+/* ---------- 제휴 게시판 (js/board.js) ----------
+   숫자를 안 쓰는 화면이라 **불빛 하나**가 유일한 실시간 값이다. 그래서 켜진 지점은
+   종이가 밝고 압정이 붉고, 닫힌 지점은 색이 빠진다 — 진도가 아니라 재실이다. */
+.prebadge{font-size:10.5px;line-height:1.5;color:#A9927A;background:#FFF6E9;
+  border:2px dashed var(--line);padding:7px 9px;margin-bottom:11px}
+.polas{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:9px}
+.pola{position:relative;background:var(--paper);border:2px solid var(--line);padding:8px 8px 9px;
+  font-family:inherit;text-align:left;display:flex;flex-direction:column;gap:3px;
+  color:var(--paper-ink);
+  box-shadow:2px 2px 0 #E3D8C6;filter:saturate(.45) brightness(.94);cursor:pointer}
+.pola:nth-child(2n){transform:rotate(-.5deg)}
+.pola:nth-child(3n){transform:rotate(.6deg)}
+.pola.lit{filter:none;box-shadow:2px 2px 0 var(--accent-d)}
+.pola:hover{border-color:var(--accent)}
+.pola .pin{position:absolute;top:-5px;left:50%;margin-left:-4px;width:8px;height:8px;
+  border-radius:50%;background:#C9B79B;box-shadow:0 1px 0 #8C7B62}
+.pola.lit .pin{background:var(--red)}
+.pola .shot{width:100%;height:64px;object-fit:contain;object-position:center;
+  image-rendering:pixelated;background:rgba(0,0,0,.04);border:1px solid #E3D8C6;margin-bottom:3px}
+.pola b{font-size:12.5px}
+.pola .where{font-size:10px;color:#7A6A58}
+.pola .lit-l{font-size:10px;color:#8B7A66}
+.pola.lit .lit-l{color:var(--accent-d);font-weight:700}
+.pola .sent{font-size:10px;color:#3E9E82}
+.codebox{display:flex;align-items:center;gap:8px}
+.codebox code{flex:1;font-family:inherit;font-size:15px;letter-spacing:2px;font-weight:800;
+  color:var(--paper-ink);background:var(--paper);border:2px solid var(--line);
+  padding:8px 10px;text-align:center}
+.codebox .buy{flex:0 0 auto;padding:8px 12px}
+/* 한 지점 */
+.brlit{font-size:11.5px;color:#A9927A;margin-bottom:9px}
+.brlit.on{color:var(--accent-d);font-weight:700}
+/* 도면은 크게 띄우지 않는다 — 이 화면의 주인공은 저쪽 결재함이고, 도면은 "저 사람 사무실이
+   이렇게 생겼다" 한 번 보는 것이다. 높이로 묶어 두면 등급이 큰 지점도 화면을 안 먹는다. */
+.plan{display:block;max-height:190px;max-width:100%;width:auto;margin:0 auto 4px;
+  image-rendering:pixelated;background:#F6EFE2;border:2px solid var(--line)}
+.notebox{margin-top:9px;padding:9px;border:2px solid var(--line);background:#FFFBF3}
+
+/* ---------- 남의 사무실을 구경하는 중 (js/visit.js) ----------
+   무대 위에 한 줄. 여기가 남의 방이라는 걸 **화면이 계속 말해야** 한다 —
+   내 사무실과 똑같이 생긴 방이라 한 번 놓치면 자기 방인 줄 알고 가구를 찾는다. */
+/* 무대 위에 뜨는 알약 하나. 넓은 화면에서는 무대가 창을 통째로 갖고 상단바가 그 위에
+   떠 있어서(#app.stageui), 위쪽에 붙이면 띠가 상단바 뒤로 숨는다 — 시계칩과 같은
+   자리 규칙을 쓴다(top:64px). 가운데 정렬이라 왼쪽의 시계칩과도 안 부딪힌다. */
+.visitbar{position:absolute;left:50%;top:8px;transform:translateX(-50%);z-index:12;
+  display:flex;align-items:center;gap:9px;max-width:calc(100% - 18px);
+  padding:6px 8px 6px 11px;background:rgba(28,23,18,.94);border:2px solid #3B3229;
+  color:#EFE4D6;font-size:12px;box-shadow:3px 3px 0 rgba(0,0,0,.35)}
+.visitbar .who{font-weight:800;white-space:nowrap}
+.visitbar .tiny{color:#A99684;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.visitbar .buy{flex:0 0 auto;padding:5px 10px;font-size:11px}
+#app.stageui:not(.compact) .visitbar,
+#app.onecol:not(.compact) .visitbar{top:64px}
+#app.compact .visitbar{top:4px;font-size:10px;padding:3px 4px 3px 7px;gap:5px}
+#app.compact .visitbar .tiny{display:none}
+#app.compact .visitbar .buy{padding:3px 6px;font-size:9.5px}
+/* 사진은 방 하나를 담은 그림이라 꽉 채운다. 도면일 때는 여백을 두고 담는다(대비되게). */
+.pola .shot.photo{object-fit:cover;background:#1C1712}
+.plan.photo{max-height:250px;object-fit:cover;image-rendering:auto}
+/* 「사무실 구경하기」 — .addbtn 은 inline-block 이라 아래 문장과 겹친다. 블록으로 세운다. */
+.brenter{display:block;margin:10px 0 6px}
+
+/* ---------- 묶음 (세부 업무) ----------
+   잎은 들여쓰고 왼쪽에 줄 하나를 세운다. 색을 더 넣지 않는다 — 목록에서 색이 하나
+   늘어날 때마다 그 목록은 조금 덜 읽힌다. 관계는 들여쓰기와 선만으로 충분하다. */
+.todo.kid{margin-left:16px;border-left:2px solid var(--line);padding-left:8px}
+.todo.kid .txt{font-size:12px}
+/* 묶음의 머리 줄은 카드보다 한 톤 밝게 — 이게 머리라는 걸 색이 말해야 아래 들여쓴 줄이
+   그 밑이라는 게 읽힌다. eerie 에서 카드와 같은 색을 쓰면 아무 일도 안 하는 규칙이 된다. */
+.todo.group{background:#FFF6E9}
+body.eerie .todo.group{background:#2A231C}
+.todo .fold{width:28px;height:28px;flex:0 0 auto;border:2px solid transparent;background:none;
+  display:grid;place-items:center;font-size:14px;color:var(--accent-d);margin-top:1px;
+  font-family:inherit;font-weight:800}
+.todo .fold:hover{border-color:var(--line)}
+/* ＋ 는 상태가 아니라 **동작**이다 — 안 건 기한(흐린 ⏰)과 같은 무게로 두면 안 보인다 */
+.due.sub{opacity:.7;font-weight:800;font-size:12px;line-height:1;padding:0 5px 2px}
+.todo .rt{font-size:10px;opacity:.75}
+/* 요일 칩 일곱 — 이게 곧 루틴의 자료 구조다(dows) */
+.dows{display:flex;gap:4px;margin-top:7px}
+.dows .size{flex:1 1 0;min-width:0;padding:5px 0;font-size:10px}
+.calbox .sizes .size[data-preset]{flex:0 0 auto;padding:5px 9px}
+/* 달력의 루틴 머리 — 접혀 있는 게 기본이다(이 창의 본업은 날짜다) */
+.calsec.rtsec{width:100%;background:none;border:0;border-top:2px dotted var(--line);
+  font-family:inherit;text-align:left;cursor:pointer;color:inherit;gap:7px}
+.calsec.rtsec .tiny{flex:1}
+.calsec.rtsec .caret{color:var(--accent-d);font-weight:800}
+/* 날짜 목록에서도 잎은 들여쓴다 — 대청소 밑의 세 줄이 형제로 보이면 묶음이 안 읽힌다 */
+.calrow.kid{padding-left:18px}
+.calrow.kid .tx{font-size:11.5px;color:var(--soft)}
+/* 첫 출근 안내가 3D 가구를 가리킬 때 쓰는 보이지 않는 손잡이 (js/tutor.js) */
+.tutspot{position:fixed;width:96px;height:96px;pointer-events:none;display:none;z-index:97}

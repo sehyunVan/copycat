@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>스파이크 1 — WebGL × Document PiP</title>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas><div id="tag">캣닢 3팀 · 나비</div></div>
+
+<script type="module">
+/* ============================================================
+   스파이크 1 — 위젯 모드가 3D 를 견디는가.
+
+   widget.js:139 는 사본이 아니라 원본 DOM 을 PiP 창으로 옮긴다.
+   DOM+CSS 면 그냥 살지만 WebGL 캔버스는 document 를 건너가면
+   컨텍스트를 잃을 수 있다. 이게 copycat 의 핵심 기능이라 여기서 결론이 갈린다.
+
+   같이 보는 것: 본 창을 최소화했을 때 rAF 가 계속 도는가.
+   (도트 시절엔 CSS 애니메이션이 PiP 문서 쪽에서 돌아서 신경 쓸 일이 아니었다)
+   ============================================================ */
+import * as THREE from 'three';
+import { hud, frameStats, fmt } from './lib/hud.js';
+import * as LP from './lib/lowpoly.js';
+
+const H = hud('1 · WebGL × Document PiP');
+const stage = document.getElementById('cv').parentElement;
+const tag = document.getElementById('tag');
+Object.assign(tag.style, {
+  position:'absolute', left:'50%', bottom:'14px', transform:'translateX(-50%)',
+  background:'#12151cd0', border:'1px solid #2c3446', borderRadius:'6px',
+  padding:'3px 8px', pointerEvents:'none',
+});
+
+/* ---------- 환경 ---------- */
+H.set('protocol', location.protocol);
+H.set('secureContext', String(window.isSecureContext), window.isSecureContext ? 'ok' : 'bad');
+const pipOk = 'documentPictureInPicture' in window;
+H.set('documentPictureInPicture', pipOk ? '지원' : '없음', pipOk ? 'ok' : 'bad');
+if (!pipOk) H.err('이 브라우저엔 Document PiP 가 없다. Chrome/Edge 116+ 에서 볼 것.');
+
+/* ---------- 씬 ---------- */
+let renderer, canvas, gl, loseExt;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1f2b);
+const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
+camera.position.set(3.2, 2.6, 3.6);
+camera.lookAt(0, 0.5, 0);
+
+LP.lights(scene, { span: 6 });
+const floor = LP.rug(6, 6, 0xE3D9C6);
+floor.receiveShadow = true;
+scene.add(floor);
+const d = LP.desk(); d.position.set(0, 0, -0.6); scene.add(d);
+scene.add(LP.monitor(-0.4, -0.7, 0.1));
+const chair = LP.chair(0.15); chair.position.set(-0.4, 0, 0.35); scene.add(chair);
+const kitty = LP.cat(0xC9A06A);
+kitty.root.position.set(0.75, 0, 0.3);
+kitty.root.rotation.y = -2.3;
+scene.add(kitty.root);
+let spin = 0;
+
+function makeRenderer(){
+  const t0 = performance.now();
+  canvas = document.getElementById('cv');
+  if (!canvas){
+    canvas = document.createElement('canvas');
+    canvas.id = 'cv';
+    stage.insertBefore(canvas, stage.firstChild);
+  }
+  renderer = new THREE.WebGLRenderer({ canvas, antialias:true, powerPreference:'low-power' });
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  gl = renderer.getContext();
+  loseExt = gl.getExtension('WEBGL_lose_context');
+
+  canvas.addEventListener('webglcontextlost', e => {
+    e.preventDefault();                       // 막아야 restored 가 온다
+    lostAt = performance.now();
+    H.err('webglcontextlost — 프레임 정지');
+    H.set('컨텍스트', 'LOST', 'bad');
+  });
+  canvas.addEventListener('webglcontextrestored', () => {
+    H.ok(`webglcontextrestored (+${(performance.now() - lostAt).toFixed(0)}ms) — 씬은 three 가 다시 올린다`);
+    H.set('컨텍스트', 'restored', 'ok');
+  });
+  resize();
+  return performance.now() - t0;
+}
+let lostAt = 0;
+
+function resize(){
+  const w = stage.clientWidth || 480, h = stage.clientHeight || 360;
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(() => { if (renderer) resize(); }).observe(stage);
+
+H.log(`renderer 최초 생성 ${makeRenderer().toFixed(1)}ms`);
+H.set('컨텍스트', 'ok', 'ok');
+
+/* ---------- 루프 ----------
+   rAF 를 어느 window 에서 받느냐가 핵심 변수다. 본 창에서 받으면
+   본 창이 가려지는 순간 throttle 되고, PiP 창에서 받으면 PiP 가 기준이 된다. */
+let host = window, rafId = 0, frames = 0, lastFrameAt = performance.now();
+const fs = frameStats(1000);
+let paused = false;
+
+function loop(){
+  rafId = host.requestAnimationFrame(loop);
+  const now = performance.now();
+  const dt = Math.min(0.05, (now - lastFrameAt) / 1000);
+  lastFrameAt = now;
+  if (renderer.getContext().isContextLost()) return;
+
+  spin += dt * 0.25;
+  camera.position.set(Math.cos(spin) * 4.2, 2.7, Math.sin(spin) * 4.2);
+  camera.lookAt(0, 0.5, 0);
+  kitty.update(dt);
+  renderer.render(scene, camera);
+  frames++;
+
+  const s = fs.tick();
+  if (s){
+    H.set('fps', s.fps.toFixed(1), s.fps < 20 ? 'bad' : s.fps < 50 ? 'warn' : 'ok');
+    H.set('frame avg / p95', `${fmt.ms(s.avg)} / ${fmt.ms(s.p95)}`);
+    H.set('누적 프레임', String(frames));
+  }
+}
+function retarget(w){
+  cancelAnimationFrameSafe();
+  host = w;
+  lastFrameAt = performance.now();
+  loop();
+  H.set('rAF 주인', host === window ? '본 창' : 'PiP 창');
+}
+function cancelAnimationFrameSafe(){ try { host.cancelAnimationFrame(rafId); } catch {} }
+retarget(window);
+
+/* ---------- PiP ---------- */
+let pipWin = null;
+
+async function openPip(){
+  if (!pipOk) return H.err('지원 안 함');
+  if (pipWin) return H.log('이미 열려 있다');
+  pipWin = await documentPictureInPicture.requestWindow({ width: 380, height: 300 });
+
+  // widget.js 와 같은 방식으로 스타일을 옮긴다
+  for (const sheet of document.styleSheets){
+    try {
+      const css = [...sheet.cssRules].map(r => r.cssText).join('\n');
+      const s = pipWin.document.createElement('style');
+      s.textContent = css;
+      pipWin.document.head.appendChild(s);
+    } catch { H.log('cross-origin 스타일시트 하나 건너뜀'); }
+  }
+  pipWin.document.body.style.cssText = 'margin:0;background:#0d0f14;overflow:hidden';
+
+  const before = frames;
+  const t0 = performance.now();
+  pipWin.document.body.appendChild(stage);          // ← 사본이 아니라 원본을 옮긴다
+  stage.style.cssText = 'position:fixed;inset:0';
+
+  // 옮긴 직후 컨텍스트가 살아 있는가 — 이 스파이크의 질문 그 자체
+  const lost = renderer.getContext().isContextLost();
+  H.set('이동 후 컨텍스트', lost ? 'LOST' : '살아있음', lost ? 'bad' : 'ok');
+  H[lost ? 'err' : 'ok'](`PiP 이동 (${(performance.now() - t0).toFixed(1)}ms) · 컨텍스트 ${lost ? '손실' : '유지'}`);
+
+  resize();
+  retarget(pipWin);                                  // rAF 주인을 PiP 창으로
+
+  setTimeout(() => {
+    const drawn = frames - before;
+    H[drawn > 0 ? 'ok' : 'err'](`이동 후 1초간 ${drawn}프레임`);
+    if (drawn === 0) H.err('→ 복구가 필요하다. [렌더러 재생성] 을 눌러 비용을 재라.');
+  }, 1000);
+
+  pipWin.addEventListener('pagehide', () => { closePip(true); });
+}
+
+function closePip(fromEvent){
+  if (!pipWin) return;
+  document.body.appendChild(stage);
+  stage.style.cssText = '';
+  const lost = renderer.getContext().isContextLost();
+  H.set('복귀 후 컨텍스트', lost ? 'LOST' : '살아있음', lost ? 'bad' : 'ok');
+  H[lost ? 'err' : 'ok'](`본 창 복귀 · 컨텍스트 ${lost ? '손실' : '유지'}`);
+  resize();
+  retarget(window);
+  if (!fromEvent) try { pipWin.close(); } catch {}
+  pipWin = null;
+}
+
+/* ---------- 조작 ---------- */
+H.btn('PiP 열기', () => openPip());
+H.btn('본 창 복귀', () => closePip());
+H.btn('렌더러 재생성', () => {
+  const before = frames;
+  renderer.dispose();
+  canvas.remove();
+  canvas = null;
+  const ms = makeRenderer();
+  cancelAnimationFrameSafe();
+  lastFrameAt = performance.now();
+  loop();
+  H.ok(`재생성 ${ms.toFixed(1)}ms — 실제 복구 비용은 여기에 씬 재구성이 더 붙는다`);
+  setTimeout(() => H.log(`재생성 후 1초간 ${frames - before}프레임`), 1000);
+});
+H.btn('컨텍스트 강제 손실', () => {
+  if (!loseExt) return H.err('WEBGL_lose_context 없음');
+  loseExt.loseContext();
+  setTimeout(() => loseExt.restoreContext(), 1200);
+});
+H.btn('rAF 주인 바꾸기', () => { retarget(host === window && pipWin ? pipWin : window); });
+H.btn('일시정지', b => {
+  paused = !paused;
+  if (paused) cancelAnimationFrameSafe(); else { lastFrameAt = performance.now(); loop(); }
+  b.textContent = paused ? '재개' : '일시정지';
+  return paused;
+});
+
+/* 2초 창으로 보는 처리량 — 본 창을 최소화한 채 이 숫자를 봐야 throttle 이 보인다 */
+let mark = frames, markT = performance.now();
+setInterval(() => {
+  const now = performance.now();
+  const per = (frames - mark) / ((now - markT) / 1000);
+  H.set('최근 2초 fps', per.toFixed(1), per < 5 ? 'bad' : per < 20 ? 'warn' : 'ok');
+  H.set('본 창 visibility', document.visibilityState, document.visibilityState === 'visible' ? '' : 'warn');
+  mark = frames; markT = now;
+}, 2000);
+
+H.log('순서: ① PiP 열기 → ② 이동 후 컨텍스트/프레임 확인 → ③ 본 창 최소화하고 [최근 2초 fps] 관찰');
+H.log('③ 이 0 으로 떨어지면 rAF 를 PiP 창에서 받아야 한다는 뜻이다.');
+</script>
+</body>
+</html>

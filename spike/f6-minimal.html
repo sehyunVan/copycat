@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>f6 — 극단적 미니멀 · 직교</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<script type="module">
+/* f6 — 부품을 뺀다. 책상에서 서랍을, 책장에서 책을, 고양이에서 눈·코를 뺐다.
+   그리고 직교 카메라로 원근을 없앤다. 남는 건 실루엣과 색뿐이다.
+
+   이 방향의 진짜 논거는 미학이 아니라 위젯 모드다 —
+   380px 창에서 원근이 붙으면 뒷줄이 뭉개지는데, 직교 + 최소 형태는 안 뭉개진다.
+   비용: 사무실을 꾸미는 재미가 약해진다. 꾸밀 게 없으니까. */
+import { run } from './lib/vignette.js';
+import { PASTEL, PASTEL_PANELS } from './lib/pastel.js';
+
+run({
+  name: 'f6 · 극단적 미니멀 · 직교',
+  note: '부품을 빼고 원근을 없앴다. 실루엣과 색만 남는다. 작은 창에서 제일 잘 읽힌다.',
+  ref: 'Islanders, Mini Motorways, Monument Valley 계열',
+  tone: 'aces', exposure: 1.14,
+  softShadow: 4,
+  kit: { prim:'sharp', shading:'flat', detail:0 },
+  camera: { ortho:true, el:0.64, az:0.78, radius:4.0 },
+  pal: PASTEL,
+  panels: PASTEL_PANELS,
+});
+</script>
+</body>
+</html>

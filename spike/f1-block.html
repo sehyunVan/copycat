@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>f1 — 각진 박스</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<script type="module">
+/* f1 — 기준선. 모서리를 안 깎은 박스, 사실적인 비율, 표준 디테일.
+   나머지 여섯은 전부 이것과 비교해서 판단한다. */
+import { run } from './lib/vignette.js';
+import { PASTEL, PASTEL_PANELS } from './lib/pastel.js';
+
+run({
+  name: 'f1 · 각진 박스',
+  note: '깎지 않은 모서리 + 사실 비율. 정직하고 단단하다. 귀엽지는 않다.',
+  ref: 'Crossy Road, Kenney 계열 · 지금 3-lowpoly 와 같은 형태',
+  tone: 'aces', exposure: 1.18,
+  kit: { prim:'sharp', shading:'flat', detail:1 },
+  pal: PASTEL,
+  panels: PASTEL_PANELS,
+});
+</script>
+</body>
+</html>

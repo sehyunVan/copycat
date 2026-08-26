@@ -18,6 +18,10 @@ function lighten(buf){
     p += 8 + len + (len & 1);
   }
   if (!fmt || !data || fmt.bits !== 16) throw new Error('16비트 PCM WAV 만 줄일 수 있다');
+  /* 이미 줄여 둔 파일은 그대로 돌려준다. 쥬크박스가 생기면서 저장소에 들어온 곡들은
+     처음부터 모노 22.05kHz 로 넣었는데(전부 원본이면 68MB다), 여기를 한 번 더 지나면
+     11kHz 가 되어 리코더가 전화기 소리로 바뀐다. 줄이는 건 한 번뿐이어야 한다. */
+  if (fmt.ch === 1 && fmt.rate <= 24000) return buf;
 
   const n = data.length / 2 / fmt.ch;
   const mono = new Float32Array(n);

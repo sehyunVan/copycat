@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ko"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>로딩 화면 — copycat</title>
+<!-- **진짜 style.css 를 얹는다.** 목업용 CSS 를 새로 쓰면 색·간격·글꼴이 다 거짓말이
+     되어서 판단이 안 된다(7번에서 후보판을 만들던 규칙 그대로).
+     배경도 새로 정하지 않는다 — var(--cream) 은 eerie 에서 사무실의 그 어둠이다. -->
+<link rel="stylesheet" href="../style.css">
+<style>
+body{overflow:hidden;height:100dvh}
+
+/* 게임 위에 덮는 판 하나. 임의 배경을 안 넣는다 — **밝은 크림**이고, 그 값은
+   이 게임의 기본 팔레트에서 온 것이다(:root 의 --cream · --ink).
+
+   토큰(var)이 아니라 값을 직접 적는다. `body.eerie` 는 모듈이 올라올 때 붙는데
+   (js/three/eerie.js 의 skin) 로딩 화면은 **그 전에** 뜨고, 토큰을 쓰면 그 순간
+   판이 통째로 어두워진다 — 판이 살아 있는 동안 색이 바뀌면 그건 깜빡임이다.
+   (--paper/--paper-ink 를 테마 밖에 따로 둔 것과 같은 이유다.) */
+.load{position:fixed;inset:0;z-index:9000;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:20px;
+  background:#FFF6E9;color:#3A2E28}
+
+/* 그림은 게임이 구운 것(assets/loading-cat.png — 앉은 3/4, 검정, 투명 배경).
+   스피너 자리는 **도구가 알려준 좌표**를 쓴다(assets/loading-cat.json).
+   3/4 컷에서 머리는 가운데가 아니라 34% 쯤에 있어서 추측하면 귀 옆 허공을 돈다. */
+.thimk{position:relative;flex:0 0 auto;line-height:0}
+.thimk > img{display:block;width:100%;height:auto;image-rendering:pixelated}
+.thimk > .spin{position:absolute;transform:translate(-50%,-50%)}
+
+/* 12갈래 throbber — 밈에 찍혀 있는 그것이다.
+   **steps(12) 로 딱딱 끊어 돈다.** 부드럽게 돌리면 요즘 웹 로더가 되고,
+   이 게임의 나머지(도트·steps(8) 전이)와 결이 갈린다. */
+.spin{aspect-ratio:1;
+  /* 굽는 도구(tools/bake-loading-cat.js)가 낸 값. **읽어 오지 않고 박아 둔다** —
+     처음엔 loading-cat.json 을 fetch 했는데, 로딩 화면이 네트워크를 기다리는 것은
+     이 화면의 존재 이유와 정면으로 어긋난다. 실제로 폰 화면에서 그 요청이 늦어
+     스피너가 제자리를 못 찾고 왼쪽 아래에 300px 로 떴다.
+     실제 구현에서는 tools/logo.js 가 style.css 를 고치는 것과 같은 방식으로
+     이 세 값을 표시 구간에 써 넣는다(다시 구우면 같이 바뀌어야 한다). */
+  left:34.39%; top:34.43%; width:24.19%}
+.spin svg{width:100%;height:100%;animation:thr 1.05s steps(12) infinite;
+  }
+@keyframes thr{to{transform:rotate(360deg)}}
+
+/* 글자는 한 줄뿐이다 — **thimkning...** 밈의 오타 그대로.
+   세 언어를 두지 않는 이유: 이건 낱말이 아니라 그 밈의 이름이다(번역하면 사라진다).
+   소문자로 두고 자간만 조금 벌린다. 굵게 하면 회사 간판이 되고, 이건 혼잣말이다. */
+.lline{font-size:17px;font-weight:600;letter-spacing:.02em;color:#3A2E28;
+  text-align:center;opacity:.75}
+
+/* 크기는 화면에 맞춘다. 폰에서 190px 짜리 고양이는 화면의 4분의 1이다.
+
+   **aspect-ratio 로 자리를 미리 잡는다.** 안 잡으면 그림이 받아지기 전까지 이 상자가
+   높이 0 이고, 스피너는 %로 앉으므로 자리를 못 찾아 글자 위에 겹친다.
+   다른 화면이면 못 보고 지나갈 실패인데, 이건 **아무것도 캐시되지 않은 첫 페인트에
+   뜨는 화면**이라 그 순간이 곧 이 화면의 본론이다(실측: 그림이 늦은 판에서 실제로 무너졌다).
+   값은 구운 그림의 비율 그대로 — 455×512. */
+.thimk{width:236px;aspect-ratio:455/512}
+@media (max-width:700px){ .thimk{width:190px} .lline{font-size:16px} }
+</style></head>
+<body class="eerie">
+<div class="load">
+  <div class="thimk" id="t"><img src="../assets/loading-cat.png" alt=""><div class="spin" id="s"></div></div>
+  <div class="lline" id="l">thimkning...</div>
+</div>
+<script>
+/* 스피너 — 12갈래, 뒤로 갈수록 흐려진다. **색 하나로 끝난다.**
+
+   한동안 두 색을 섞고 테두리를 두르려 했는데, 그건 갈래가 머리 **밖으로** 나가서
+   배경 위에 놓이기 때문이었다. 굽는 도구가 원을 실루엣 안에 넣게 되면서
+   갈래는 늘 검은 털 위에만 있고, 그러면 크림색 하나로 충분하다 —
+   **배경색이 무엇이든 상관없어진다**(밝은 크림이든 어두운 방이든).
+   크기는 눈에 닿지 않는 한계까지 — 머리 폭의 40%. */
+let s = '';
+for (let i = 0; i < 12; i++){
+  const op = (0.16 + 0.84 * (i / 11)).toFixed(2);
+  s += `<rect x="45.2" y="6" width="9.6" height="26" rx="4.8" fill="#FFF6E9" opacity="${op}"
+          transform="rotate(${i * 30} 50 50)"/>`;
+}
+document.getElementById('s').innerHTML = `<svg viewBox="0 0 100 100">${s}</svg>`;
+
+
+/* 점 셋만 흐른다(thimkning. → .. → ...). 진행률은 못 준다 — 모듈 평가 시점을
+   나눠 셀 방법이 없고, 가짜 막대는 6초를 12초처럼 느끼게 한다. 대신 **멈춰 있지 않다는
+   것**만 보이면 되고, 그 일은 이마의 스피너가 이미 하고 있다. 점은 거드는 정도다. */
+const q = new URLSearchParams(location.search);
+const el = document.getElementById('l');
+if (q.get('dots') !== '0'){
+  let n = 3;
+  setInterval(() => { n = n % 3 + 1; el.textContent = 'thimkning' + '.'.repeat(n); }, 420);
+}
+</script>
+</body></html>

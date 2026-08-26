@@ -96,4 +96,35 @@ function encodePNG(w, h, rgba){
   ]);
 }
 
-module.exports = { decodePNG, encodePNG, crc32 };
+/* 겹선형 리샘플. 임의 배율로 줄일 때 최근접을 쓰면 귀 끝이 톱니가 된다.
+   **알파를 곱해서 섞는다** — 안 그러면 투명한 칸의 색이 테두리로 새어 나온다(검은 고양이라
+   흰 테두리가 눈에 확 띈다). 원본의 (sx0,sy0)-(sx1,sy1) 만 잘라 dw×dh 로 낸다. */
+function resample(sw, sh, src, dw, dh, sx0 = 0, sy0 = 0, sx1 = sw, sy1 = sh){
+  const out = Buffer.alloc(dw * dh * 4);
+  const bw = sx1 - sx0, bh = sy1 - sy0;
+  /* 축소 배율이 크면 2×2 로는 정보를 다 못 담는다 — 배율만큼 박스 평균을 낸다 */
+  const stx = Math.max(1, Math.floor(bw / dw)), sty = Math.max(1, Math.floor(bh / dh));
+  for (let y = 0; y < dh; y++){
+    for (let x = 0; x < dw; x++){
+      let r = 0, g = 0, b = 0, a = 0, n = 0;
+      for (let oy = 0; oy < sty; oy++)
+        for (let ox = 0; ox < stx; ox++){
+          const fx = sx0 + (x + (ox + 0.5) / stx) / dw * bw;
+          const fy = sy0 + (y + (oy + 0.5) / sty) / dh * bh;
+          const px = Math.min(sw - 1, Math.max(0, Math.floor(fx)));
+          const py = Math.min(sh - 1, Math.max(0, Math.floor(fy)));
+          const i = (py * sw + px) * 4, al = src[i + 3] / 255;
+          r += src[i] * al; g += src[i+1] * al; b += src[i+2] * al; a += src[i+3]; n++;
+        }
+      const o = (y * dw + x) * 4, k = a / 255;
+      out[o + 3] = Math.round(a / n);
+      if (k > 0.002){
+        out[o] = Math.min(255, Math.round(r / k)); out[o+1] = Math.min(255, Math.round(g / k));
+        out[o+2] = Math.min(255, Math.round(b / k));
+      }
+    }
+  }
+  return out;
+}
+
+module.exports = { decodePNG, encodePNG, crc32, resample };

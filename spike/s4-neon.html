@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>s4 — 네온 밀실</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<script type="module">
+/* s4 — 이 회사가 실제로 뭘 하는 회사인지 색으로 말하는 방향.
+   창문 없는 반지하, 형광등 청록, 캣닢 초록만 형광. 시간이 지나도 밝아지지 않는다
+   (밖이 안 보이니까). 오전·저녁·밤을 태양이 아니라 "형광등 / 간판 / 스탠드"로 구분한다.
+   위험: 근무 시간을 같이 견뎌주는 게임인데 화면이 사람을 피곤하게 만들 수 있다. */
+import { run } from './lib/vignette.js';
+
+run({
+  name: 's4 · 네온 밀실',
+  note: '창문 없는 반지하. 청록 형광등 + 마젠타. 농담은 사는데 오래 보기 피곤할 수 있다.',
+  tone: 'aces', exposure: 1.1,
+  outline: { color: 0x0A0E14, opacity: 0.5 },
+  pal: {
+    floor:0x2E3340, floorAlt:0x272B36, lounge:0x4A2E44,
+    wall:0x3A3446, wallTrim:0x272233,
+    wood:0x6B4A3A, woodDark:0x442F26,
+    metal:0x566072, metalDark:0x333B49,
+    screen:0x1C6E70, fabric:0x7A4FA8, fabric2:0xC2456E,
+    leaf:0x4FA86E, leafDark:0x2E6E4A, pot:0x8A4A46,
+    paper:0xE8E2D2, ink:0x14161C, catnip:0x7CFF9E, glow:0xFF9E5A,
+  },
+  panels: [
+    { label:'10:00 오전', bg:0x141A22,
+      hemi:[0x5AD8D0, 0x1A2028, 0.75], sun:[0x9FE8E0, 0.55, [4, 9, 5]],
+      fill:[0x3A6E8C, 0.35], lamp:0.2, screen:0x2FBFC0 },
+    { label:'18:00 퇴근 무렵', bg:0x1A1220,
+      hemi:[0xC44E96, 0x1E1424, 0.60], sun:[0xFF6EB0, 0.60, [8, 5, 2]],
+      fill:[0x4FD8D0, 0.45], lamp:0.6, screen:0x35E0D0 },
+    { label:'23:00 야근', bg:0x0B0E16,
+      hemi:[0x2E4A6E, 0x090C12, 0.40], sun:[0x3A5A8C, 0.20, [-4, 7, -4]],
+      fill:[0xC2456E, 0.35], lamp:1, screen:0x4FF0E0 },
+  ],
+});
+</script>
+</body>
+</html>

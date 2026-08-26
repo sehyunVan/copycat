@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>c6 — 살고 있는 사무실</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<script type="module">
+/* c6 — 가구는 그대로 두고 소품만 극단적으로 늘린다.
+
+   c2 가 "가구를 빽빽하게" 라면 이건 "잡동사니를 빽빽하게" 다. 둘은 다르다.
+   가구를 늘리면 사무실이 좁아지고, 소품을 늘리면 사무실이 오래돼 보인다.
+   후자가 아늑함에 가깝다는 게 이 프로토타입의 가설이다.
+
+   현재 게임도 같은 판단을 이미 한 적이 있다 — world.js 의 clutter 는
+   길찾기를 안 건드리는 순수 장식이고, 이유가 "정리된 전시장이 아니라 일하는 곳으로
+   보이게" 라고 적혀 있다. 여기서는 그 밀도를 몇 배로 올려본다. */
+import { run } from './lib/office.js';
+
+run({
+  name: 'c6 · 살고 있는 사무실',
+  note: '가구는 c1 수준, 소품만 몇 배로. 좁아 보이는 게 아니라 오래돼 보이는 쪽.',
+  room: { W:9, D:7, wallH:2.2 },
+  camera: { az:0.72, el:0.54, pad:0.5 },
+  time: 2,
+  floorAt: (x, z) => (x >= 5 && z >= 4) ? 0xE7BFB8 : ((x + z) % 2 ? 0xF3E9DE : 0xEBDCCF),
+
+  build(c){
+    const { LP, put } = c;
+    const R = (n => () => (n = (n * 1103515245 + 12345) % 2147483648) / 2147483648)(7);
+
+    put(LP.rug(3.2, 2.4, 0xE7BFB8), 6.8, 5.4);
+
+    const pods = [c.pod(2.4, 1.4), c.pod(5.8, 1.4)];
+    c.lamp(put(LP.lamp(), 3.5, 1.3, -0.4, 0.65));
+    c.lamp(put(LP.lamp(), 6.9, 1.3, -0.4, 0.65));
+
+    /* --- 책상 위 --- */
+    const MUG = [0xF0A9A0, 0xA8B8E0, 0xA8D3A0, 0xE8A98C];
+    [[1.8,1.2],[2.9,1.5],[3.1,1.2],[5.2,1.3],[6.3,1.5],[6.6,1.2]].forEach(([x, z], i) =>
+      put(LP.mug(MUG[i % 4]), x, z, R() * 3, 0.67));
+    put(LP.docStack(4), 2.2, 1.7, 0.4, 0.65);
+    put(LP.docStack(3), 6.0, 1.7, -0.3, 0.65);
+
+    /* --- 바닥 --- */
+    [[0.7,2.6],[8.3,2.4],[4.6,6.4],[8.2,6.4],[1.4,4.2]].forEach(([x, z], i) =>
+      put(LP.cardboard(i % 2 === 0), x, z, R() * 2 - 1));
+    [[4.2,3.4],[7.4,3.6],[2.6,5.4],[5.6,4.2],[0.8,6.2],[3.4,4.6]].forEach(([x, z]) =>
+      put(LP.docStack(3 + Math.floor(R() * 4)), x, z, R() * 2 - 1));
+    [[6.2,6.0,0xA8B8E0],[7.6,5.0,0xF0A9A0],[5.4,5.6,0xA8D3A0]].forEach(([x, z, col]) =>
+      put(LP.cushion(col), x, z, R() * 2 - 1));
+    put(LP.blanket(0xF0A9A0), 7.2, 6.3, 0.4);
+    put(LP.blanket(0xA8B8E0), 1.0, 5.4, -0.3);
+    put(LP.snackBowl(), 8.3, 4.2);
+    put(LP.snackBowl(), 2.0, 6.5);
+    put(LP.catnip(), 8.3, 5.6, -0.4);
+    put(LP.catnip(), 7.6, 1.6, -0.3);
+
+    put(LP.napBox(), 5.2, 6.4, 0.3);
+    put(LP.catTower(), 8.2, 0.9, -0.6);
+    put(LP.coffee(), 0.8, 0.9, 0.4);
+    put(LP.cooler(), 0.7, 3.4, 0.3);
+    put(LP.shelf(), 3.6, 0.45);
+    put(LP.inbox(), 8.4, 3.3, -0.5);
+    put(LP.plant(), 0.7, 7.3, 0.3);
+    put(LP.plant(), 6.6, 0.7, -0.2);
+    put(LP.plant(), 4.4, 7.3, 0.4);
+
+    c.onWallN(LP.wallShelf(1.4), 5.0, 1.40);
+    c.onWallN(LP.wallArt(0.55, 0.45, 0xF0A9A0), 1.4, 1.55);
+    c.onWallN(LP.wallArt(0.4, 0.5, 0xA8D3A0), 2.2, 1.60);
+    c.onWallN(LP.wallClock(), 7.0, 1.65);
+    c.onWallW(LP.wallShelf(1.2), 2.0, 1.45);
+    c.onWallW(LP.wallArt(0.5, 0.55, 0xA8B8E0), 5.0, 1.60);
+
+    pods.forEach((p, i) => {
+      c.cat([0xC9A06A, 0xE8A657][i], p.position.x - 0.45, p.position.z + 1.05, Math.PI, 'sit', 0.44);
+      c.cat([0xF2EDE4, 0x8C6A4A][i], p.position.x + 0.55, p.position.z + 1.05, Math.PI, 'sit', 0.44);
+    });
+    c.cat(0x3B3733, 5.2, 6.4, 0.4, 'sleep', 0.12);
+    c.cat(0x6E5B4C, 6.2, 6.0, -0.6, 'sleep', 0.14);
+    c.walker(0xD9C3A5, 4.6, 4.6, 1.8, 2.6);
+  },
+});
+</script>
+</body>
+</html>

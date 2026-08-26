@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>m3 — 악세사리 · 실제로 쓰고 두르고 신는다</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas><div id="labels"></div></div>
+<script type="module">
+/* m3 — 장비 3슬롯이 드디어 겉모습에 나온다.
+
+   게임에는 아이템 9개가 이미 있는데 README 가 "능력치에만 반영되고 겉모습은 안 바뀐다 —
+   분명한 손실"이라고 적어 뒀다. 도트 시트로는 방향 4 × 상태 5 × 아이템 9를 손으로
+   그릴 수 없었기 때문이다. 조형은 **머리가 어디 있는지 숫자로 알아서** 그 벽이 없다.
+
+   이 판은 게임에 넣기 전에 눈으로 보려고 만든 것이다. 한 마리씩 하나만 걸치고 서 있고,
+   맨 아래 줄은 실제로 게임에 나올 조합(경찰냥 · 대표 · 야근조)이다. */
+
+import * as THREE from 'three';
+import { hud } from './lib/hud.js';
+import { setKit, setPalette, PAL } from './lib/lowpoly.js';
+import { build, PRESETS } from './lib/sculpt.js';
+import { furMaterial } from './lib/facepaint.js';
+import * as GEAR from './lib/gear.js';
+import { PASTEL } from './lib/pastel.js';
+
+setPalette(PASTEL);
+setKit({ prim:'round', bevel:0.055, shading:'smooth', detail:1 });
+
+const CSS = `
+  #stage{right:340px !important;background:#D7D5D2}
+  #labels{position:absolute;inset:0;pointer-events:none}
+  #labels div{position:absolute;transform:translate(-50%,0);white-space:nowrap;text-align:center;
+    font:11px/1.5 ui-monospace,monospace;color:#4A423B}
+  #labels div small{display:block;color:#8a857e;font-size:9px;letter-spacing:.1em}
+  .hud .note{color:#8f9ab3;line-height:1.55;margin-bottom:10px}
+`;
+document.head.appendChild(Object.assign(document.createElement('style'), { textContent: CSS }));
+
+const H = hud('m3 · gear');
+H.el.querySelector('h1').insertAdjacentHTML('afterend',
+  `<div class="note">장비 3슬롯이 겉모습에 나온다. 아이템 id 는 <b>cats.js 의 것 그대로</b>다 —
+   새로 만든 건 경찰 정모 하나뿐이고, 나머지 아홉은 이미 게임에 있는 물건이다.</div>`);
+
+/* ---------- 판 ---------- */
+const stage = document.getElementById('stage');
+const canvas = document.getElementById('cv');
+const labelBox = document.getElementById('labels');
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setClearColor(0xD7D5D2, 1);
+
+const scene = new THREE.Scene();
+scene.add(new THREE.HemisphereLight(0xFFFFFF, 0xC6C3BF, 1.20));
+const sun = new THREE.DirectionalLight(0xFFFBF4, 1.75);
+sun.position.set(-3.4, 6.0, 5.0);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left:-6, right:6, top:6, bottom:-6, near:0.5, far:24 });
+sun.shadow.bias = -0.0012;
+scene.add(sun, sun.target);
+const rim = new THREE.DirectionalLight(0xE8ECF4, 0.32);
+rim.position.set(4, 2, -3);
+scene.add(rim);
+
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(60, 60),
+                              new THREE.ShadowMaterial({ opacity:0.18 }));
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+/* ---------- 몸 ---------- */
+/* 게임과 같은 값으로 깎는다 — 여기서 예쁜데 게임에서 다르면 볼 값어치가 없다 */
+const RES = 30, H_TARGET = 0.74;
+const poses = {};
+function poseOf(name){
+  if (poses[name]) return poses[name];
+  const r = build({ ...(name === 'stand' ? {} : PRESETS[name]), res: RES, pads: false });
+  r.geometry.computeBoundingBox();
+  const s = H_TARGET / (r.geometry.boundingBox.max.y || 1);
+  poses[name] = { geo: r.geometry, s, A: r.anchor, tris: r.tris };
+  return poses[name];
+}
+
+/* ---------- 시트 ---------- */
+const FUR = [0xE8A657, 0xA0714E, 0xF0E9DE, 0x4A4550, 0xC9BFC9, 0xD8B08A];
+const CELLS = [
+  { t:'뿔테 안경',  s:'HEAD · glasses',  e:{ head:'glasses' } },
+  { t:'사원 모자',  s:'HEAD · cap',      e:{ head:'cap' } },
+  { t:'대표 왕관',  s:'HEAD · crown',    e:{ head:'crown' } },
+  { t:'경찰 정모',  s:'HEAD · police',   e:{ head:'police' }, fur:0x6E7BA8 },
+
+  { t:'실크 넥타이', s:'NECK · tie',     e:{ neck:'tie' } },
+  { t:'황금 방울',   s:'NECK · bell',    e:{ neck:'bell' } },
+  { t:'목도리',      s:'NECK · scarf',   e:{ neck:'scarf' } },
+  { t:'경찰냥',      s:'police + tie',   e:{ head:'police', neck:'tie' },
+    fur:0x6E7BA8, tie:0x2A3050 },
+
+  { t:'러닝화',      s:'PAW · shoes',    e:{ paw:'shoes' } },
+  { t:'손목 보호대', s:'PAW · gloves',   e:{ paw:'gloves' } },
+  { t:'인체공학 방석', s:'PAW · cushion · 앉음', e:{ paw:'cushion' }, pose:'앉음' },
+  { t:'대표 풀세트', s:'crown + bell + shoes', e:{ head:'crown', neck:'bell', paw:'shoes' } },
+];
+
+const COLS = 4, GAP_X = 1.24, GAP_Z = 1.50;
+const cats = [];
+function buildSheet(){
+  CELLS.forEach((c, i) => {
+    const col = i % COLS, row = (i / COLS) | 0;
+    const P = poseOf(c.pose || 'stand');
+    const mat = furMaterial({ fur: c.fur ?? FUR[i % FUR.length] });
+    mat.userData.setAnchor(P.A);
+    mat.userData.set('eyeMode', c.e.head === 'police' ? 0 : 1);
+
+    const g = new THREE.Group();
+    g.position.set((col - (COLS - 1) / 2) * GAP_X, 0, (row - 1) * GAP_Z);
+    g.rotation.y = 0.26;                        // 살짝 틀어야 옆모습도 같이 보인다
+
+    const body = new THREE.Mesh(P.geo, mat);
+    body.castShadow = body.receiveShadow = true;
+    body.scale.setScalar(P.s);
+    g.add(body);
+
+    /* 악세사리는 몸과 같은 배율의 묶음에 넣는다 — 앵커가 깎기 전 좌표계이기 때문이다 */
+    const rig = new THREE.Group();
+    rig.scale.setScalar(P.s);
+    rig.traverse(o => { o.castShadow = true; });
+    rig.add(GEAR.dress(c.e, P.A, { neck: c.tie ? { color:c.tie } : {} }));
+    rig.traverse(o => { if (o.isMesh){ o.castShadow = true; o.receiveShadow = true; } });
+    g.add(rig);
+
+    scene.add(g);
+    cats.push({ g, c });
+
+    const el = document.createElement('div');
+    el.innerHTML = `${c.t}<small>${c.s}</small>`;
+    labelBox.appendChild(el);
+    c.el = el;
+  });
+}
+buildSheet();
+
+/* ---------- 카메라 ---------- */
+/* 사양서에는 **직교 카메라**가 맞다. 원근으로 두면 앞줄이 커지고 뒷줄이 작아져서
+   같은 물건을 견줄 수가 없고, 앞줄 양 끝이 화면 밖으로 밀린다. */
+const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 60);
+const target = new THREE.Vector3(0, 0.30, 0.05);
+const VIEW_H = 3.95;
+function layout(){
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h, false);
+  const a = w / h;
+  camera.left = -VIEW_H * a / 2; camera.right = VIEW_H * a / 2;
+  camera.top = VIEW_H / 2; camera.bottom = -VIEW_H / 2;
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', layout);
+
+let spin = 0, spinning = false;
+const tmp = new THREE.Vector3();
+function frame(){
+  if (spinning){ spin += 0.01; cats.forEach(c => { c.g.rotation.y = 0.26 + spin; }); }
+  camera.position.set(0, target.y + 4.3, target.z + 5.7);
+  camera.lookAt(target);
+  renderer.render(scene, camera);
+
+  const box = stage.getBoundingClientRect();
+  cats.forEach(({ g, c }) => {
+    tmp.set(g.position.x, 0, g.position.z + 0.36).project(camera);
+    c.el.style.left = ((tmp.x + 1) / 2 * box.width).toFixed(1) + 'px';
+    c.el.style.top  = ((1 - tmp.y) / 2 * box.height).toFixed(1) + 'px';
+  });
+  requestAnimationFrame(frame);
+}
+
+/* ---------- 계기판 ---------- */
+H.set('고양이', CELLS.length + ' 마리');
+H.set('자세', Object.keys(poses).join(' · '));
+H.set('몸 삼각형', poseOf('stand').tris.toLocaleString() + ' (공유)');
+H.set('드로우콜', renderer.info.render.calls || '—');
+
+H.btn('회전', () => { spinning = !spinning; if (!spinning){ spin = 0; cats.forEach(c => c.g.rotation.y = 0.26); } return spinning; });
+H.btn('정면', () => { cats.forEach(c => c.g.rotation.y = 0); spinning = false; });
+H.btn('3/4', () => { cats.forEach(c => c.g.rotation.y = 0.26); spinning = false; });
+H.btn('옆', () => { cats.forEach(c => c.g.rotation.y = Math.PI / 2); spinning = false; });
+
+layout();
+frame();
+setTimeout(() => H.set('드로우콜', renderer.info.render.calls), 300);
+
+window.M3 = {
+  stats: () => ({ cats: cats.length, calls: renderer.info.render.calls,
+                  tris: renderer.info.render.triangles }),
+  turn: r => cats.forEach(c => { c.g.rotation.y = r; }),
+};
+</script>
+</body>
+</html>

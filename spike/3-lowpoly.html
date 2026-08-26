@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>스파이크 3 — 코드로 짠 로우폴리</title>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas><div id="tags"></div></div>
+
+<script type="module">
+/* ============================================================
+   스파이크 3 — 에셋 없이 짠 로우폴리가 봐줄 만한가.
+
+   사는 팩 대신 lib/lowpoly.js 의 박스만 쓴다. 같이 확인하는 것:
+     · 앞벽이 씬을 가리는 문제 (2D 의 "양옆 벽 안 그리기" 트릭의 대체)
+     · 380px 위젯 창에서 고양이가 읽히는가 (원근 vs 직교)
+     · 털색·장비를 겉모습에 반영하기 — README 가 "분명한 손실"이라 적어둔 그것
+   ============================================================ */
+import * as THREE from 'three';
+import { hud, frameStats } from './lib/hud.js';
+import * as LP from './lib/lowpoly.js';
+
+const H = hud('3 · 코드로 짠 로우폴리');
+const stage = document.getElementById('stage');
+const canvas = document.getElementById('cv');
+const tagBox = document.getElementById('tags');
+Object.assign(tagBox.style, { position:'absolute', inset:'0', pointerEvents:'none', overflow:'hidden' });
+
+const W = 18, D = 14;
+const CFG = { ortho:false, cull:true, widget:false, shadow:true, tags:true, autoSpin:false };
+
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setClearColor(0x11151d);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x11151d, 34, 60);
+const { sun } = LP.lights(scene, { span: 16 });
+sun.position.set(W * 0.6 + 7, 16, D * 0.4 + 9);
+sun.target.position.set(W/2, 0, D/2);
+sun.target.updateMatrixWorld();
+
+/* ---------- 사무실 ---------- */
+const office = LP.room(W, D, {
+  zoneAt: (x, z) => (x < 6 && z > D - 5) ? 1 : (x > W - 7 && z > 5 && z < 9) ? 3 : 0,
+});
+scene.add(office);
+const loungeRug = LP.rug(5, 3, LP.PAL.lounge);
+loungeRug.position.set(W - 4, 0.011, 7);      // Object3D.position 은 읽기 전용 참조라 통째로 대입하면 안 된다
+scene.add(loungeRug);
+
+const seats = [];
+for (let z = 2; z <= D - 5; z += 3){
+  for (let x = 2; x + 3 < W - 3; x += 5){
+    const d = LP.desk(); d.position.set(x + 1, 0, z + 0.5); scene.add(d);
+    scene.add(LP.monitor(x + 0.45, z + 0.35, 0.12));
+    scene.add(LP.monitor(x + 1.55, z + 0.35, -0.12));
+    scene.add(LP.papers(x + 1.0, z + 0.15));
+    for (const sx of [x + 0.5, x + 1.5]){
+      const c = LP.chair(sx < x + 1 ? 0.12 : -0.12);
+      c.position.set(sx, 0, z + 1.6);
+      scene.add(c);
+      seats.push({ x: sx, z: z + 1.6, face: Math.PI });
+    }
+  }
+}
+const place = (obj, x, z, ry = 0) => { obj.position.set(x, 0, z); obj.rotation.y = ry; scene.add(obj); return obj; };
+place(LP.coffee(), 1.0, 1.0, 0.5);
+place(LP.cooler(), W - 1.4, 2.0, -0.4);
+place(LP.shelf(), 3.5, 0.6, 0);
+place(LP.shelf(), 8.5, 0.6, 0);
+place(LP.plant(), W - 1.4, D - 1.4, 0);
+place(LP.plant(), 1.2, D - 6.5, 0);
+place(LP.plant(), W - 5.5, 6.6, 0);
+const nap = place(LP.napBox(), 2.2, D - 2.0, 0.3);
+place(LP.inbox(), W / 2 + 1.5, D - 1.2, 0.1);
+
+/* ---------- 고양이 ---------- */
+const NAMES = ['나비','치즈','까망','두부','참치','유자','모찌','고등어','호빵','설탕'];
+const FUR = [0xC9A06A, 0x3B3733, 0xE8A657, 0xF2EDE4, 0x4A4640, 0x8C6A4A, 0xD9C3A5, 0x6E5B4C];
+
+/* 장비를 겉모습에 붙인다. 고정 스프라이트로는 못 하던 것 — 여기선 박스 두어 개다. */
+function equip(c, kind){
+  if (c.gear){ c.gear.parent.remove(c.gear); c.gear = null; }
+  if (!kind) return;
+  const head = c.root.children[1];
+  const g = kind === 'hat'
+    ? LP.group(LP.box(0.24, 0.03, 0.24, 0x3E4A6B, 0, 0.20, 0.01),
+               LP.box(0.16, 0.10, 0.16, 0x3E4A6B, 0, 0.25, 0.01))
+    : LP.group(LP.box(0.23, 0.07, 0.23, 0xC2705F, 0, -0.09, -0.03),
+               LP.box(0.06, 0.16, 0.05, 0xC2705F, 0.06, -0.17, 0.06));
+  head.add(g);
+  c.gear = g;
+  return g;
+}
+
+const cats = [];
+for (let i = 0; i < 8; i++){
+  const c = LP.cat(FUR[i % FUR.length]);
+  c.name = NAMES[i];
+  // 실제 비율대로 두면 한 칸의 절반이라 멀리서 안 읽힌다. 가구 대비 조금 크게 — 도트판도 같은 거짓말을 한다.
+  c.root.scale.setScalar(1.25);
+  c.root.position.set(1 + Math.random() * (W - 2), 0, 1 + Math.random() * (D - 2));
+  scene.add(c.root);
+  cats.push(c);
+  if (i % 3 === 0) equip(c, i % 2 ? 'hat' : 'scarf');
+}
+// 셋은 자리에 앉히고, 하나는 낮잠 상자에 넣는다 — 정지 상태가 섞여야 사무실로 보인다
+cats.slice(0, 3).forEach((c, i) => {
+  const s = seats[i * 2] || seats[i];
+  c.root.position.set(s.x, 0, s.z);
+  c.root.rotation.y = s.face;
+  c.setState('sit');
+  c.parked = true;
+});
+cats[3].root.position.set(nap.position.x, 0.12, nap.position.z);
+cats[3].root.rotation.y = 0.3;
+cats[3].setState('sleep');
+cats[3].parked = true;
+
+/* ---------- 카메라 ---------- */
+/* 거리는 방 크기에서 역산한다. 눈대중으로 박아 두면 사무실 등급이 오를 때마다 어긋난다. */
+let az = -0.95, el = 0.72;
+let dist = Math.max(W, D) / (2 * Math.tan(32 * Math.PI / 360)) * 1.15;
+const target = new THREE.Vector3(W / 2, 0.6, D / 2);
+let cam = makeCam();
+
+function makeCam(){
+  const a = stage.clientWidth / Math.max(1, stage.clientHeight);
+  const c = CFG.ortho
+    ? new THREE.OrthographicCamera(-dist*0.45*a, dist*0.45*a, dist*0.45, -dist*0.45, 0.1, 200)
+    : new THREE.PerspectiveCamera(32, a, 0.3, 200);
+  return c;
+}
+function placeCam(){
+  cam.position.set(
+    target.x + Math.cos(az) * Math.cos(el) * dist,
+    target.y + Math.sin(el) * dist,
+    target.z + Math.sin(az) * Math.cos(el) * dist);
+  cam.lookAt(target);
+}
+
+/* 손으로 짠 궤도 조작 — OrbitControls 는 examples/jsm 이라 벤더 파일이 하나 더 붙는다.
+   30줄로 되는 걸 굳이 들고 오지 않는다. */
+let drag = null;
+canvas.addEventListener('pointerdown', e => { drag = { x:e.clientX, y:e.clientY }; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointerup',   e => { drag = null; });
+canvas.addEventListener('pointermove', e => {
+  if (!drag) return;
+  az -= (e.clientX - drag.x) * 0.008;
+  el = Math.max(0.12, Math.min(1.40, el + (e.clientY - drag.y) * 0.006));
+  drag = { x:e.clientX, y:e.clientY };
+});
+canvas.addEventListener('wheel', e => {
+  e.preventDefault();
+  dist = Math.max(7, Math.min(42, dist * (1 + Math.sign(e.deltaY) * 0.08)));
+  if (CFG.ortho) resize();
+}, { passive:false });
+
+function resize(){
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  renderer.setSize(w, h, false);
+  const a = w / Math.max(1, h);
+  if (cam.isOrthographic){
+    cam.left = -dist*0.45*a; cam.right = dist*0.45*a;
+    cam.top = dist*0.45; cam.bottom = -dist*0.45;
+  } else cam.aspect = a;
+  cam.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stage);
+resize();
+
+/* ---------- 이름표 ----------
+   3D 씬 위에 DOM 을 얹는다. 지금 게임의 말풍선·이름표·플로팅 텍스트를
+   그대로 살릴 수 있는지 보는 것 — 결론은 살릴 수 있다, 투영만 하면 된다. */
+const tagEls = cats.map(c => {
+  const t = document.createElement('div');
+  t.textContent = c.name;
+  t.style.cssText = `position:absolute;transform:translate(-50%,-100%);background:#12151cd8;
+    border:1px solid #2c3446;border-radius:5px;padding:1px 6px;font:11px/1.4 ui-monospace,monospace;
+    color:#e6ebf3;white-space:nowrap`;
+  tagBox.appendChild(t);
+  return t;
+});
+const v = new THREE.Vector3();
+function updateTags(){
+  const w = stage.clientWidth, h = stage.clientHeight;
+  cats.forEach((c, i) => {
+    const t = tagEls[i];
+    if (!CFG.tags){ t.style.display = 'none'; return; }
+    v.set(c.root.position.x, c.root.position.y + 0.75, c.root.position.z).project(cam);
+    const on = v.z < 1;
+    t.style.display = on ? '' : 'none';
+    if (on) t.style.transform =
+      `translate(-50%,-100%) translate(${((v.x+1)/2*w).toFixed(1)}px,${((1-v.y)/2*h).toFixed(1)}px)`;
+  });
+}
+
+/* ---------- 루프 ---------- */
+const fs = frameStats(1000);
+let last = performance.now();
+
+function loop(){
+  requestAnimationFrame(loop);
+  const now = performance.now();
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+
+  if (CFG.autoSpin) az += dt * 0.12;
+
+  for (const c of cats){
+    c.update(dt);
+    if (c.parked) continue;
+    if (c.state !== 'walk') c.setState('walk');
+    if (!c.goal || c.root.position.distanceTo(c.goal) < 0.25)
+      c.goal = new THREE.Vector3(1.2 + Math.random() * (W - 2.4), 0, 1.2 + Math.random() * (D - 2.4));
+    const dir = c.goal.clone().sub(c.root.position).setY(0).normalize();
+    c.root.position.addScaledVector(dir, dt * 1.15);
+    let diff = Math.atan2(dir.x, dir.z) - c.root.rotation.y;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    c.root.rotation.y += diff * Math.min(1, dt * 6);
+  }
+
+  placeCam();
+  if (CFG.cull) LP.cullWalls(office, cam);
+  else office.userData.walls.forEach(w => { w.visible = true; });
+
+  renderer.render(scene, cam);
+  updateTags();
+
+  const s = fs.tick();
+  if (s){
+    H.set('fps', s.fps.toFixed(1), s.fps < 30 ? 'warn' : 'ok');
+    const i = renderer.info.render;
+    H.set('draw call / 삼각형', `${i.calls} / ${i.triangles.toLocaleString()}`, i.calls > 900 ? 'warn' : '');
+    const g = LP.stats();
+    H.set('지오메트리 / 머티리얼', `${g.geometries} / ${g.materials}`);
+    H.set('씬 오브젝트', String(scene.children.length));
+  }
+}
+
+/* ---------- 조작 ---------- */
+H.btn('원근 ⇄ 직교', b => {
+  CFG.ortho = !CFG.ortho;
+  cam = makeCam(); resize();
+  b.textContent = CFG.ortho ? '직교 ⇄ 원근' : '원근 ⇄ 직교';
+  H.log(CFG.ortho ? '직교 — 작은 창에서 뒷줄 고양이가 안 작아진다' : '원근 — 디오라마 느낌은 이쪽이 낫다');
+  return CFG.ortho;
+});
+H.btn('앞벽 감추기', () => { CFG.cull = !CFG.cull; return CFG.cull; }, true);
+H.btn('위젯 크기 380px', b => {
+  CFG.widget = !CFG.widget;
+  stage.classList.toggle('widget', CFG.widget);
+  resize();
+  H.log(CFG.widget ? '380×300 — 여기서 고양이가 안 읽히면 도트가 이긴다' : '전체 화면 복귀');
+  return CFG.widget;
+});
+H.btn('그림자', () => {
+  CFG.shadow = !CFG.shadow;
+  renderer.shadowMap.enabled = CFG.shadow;
+  sun.castShadow = CFG.shadow;
+  scene.traverse(o => { if (o.isMesh) o.material.needsUpdate = true; });
+  return CFG.shadow;
+}, true);
+H.btn('이름표', () => { CFG.tags = !CFG.tags; return CFG.tags; }, true);
+H.btn('자동 회전', () => { CFG.autoSpin = !CFG.autoSpin; return CFG.autoSpin; });
+H.btn('털색 다시 뽑기', () => {
+  cats.forEach(c => c.setFur(Math.round(0xffffff * Math.random()) & 0xF0F0F0 | 0x604020));
+  H.log('머티리얼 색만 바꿨다 — 2D 의 hue-rotate 24종 제한이 여기선 없다');
+});
+H.btn('장비 바꾸기', () => {
+  const kinds = [null, 'hat', 'scarf'];
+  cats.forEach((c, i) => equip(c, kinds[(i + (equip.n = (equip.n || 0) + 1)) % 3]));
+  H.log('장비가 겉모습에 붙는다 — README 가 손실이라고 적어둔 그 항목');
+});
+H.btn('상태 순환', () => {
+  const st = ['idle','walk','sit','sleep'];
+  cats.forEach((c, i) => { c.parked = true; c.setState(st[(i + (Date.now()/1000|0)) % 4]); });
+  H.log('idle / walk / sit / sleep — 전환은 채널 8개를 당기는 것뿐이라 공짜로 부드럽다');
+});
+H.btn('다시 걷게', () => { cats.forEach(c => { c.parked = false; }); });
+
+H.log('드래그 회전 · 휠 확대. 먼저 [위젯 크기] 를 눌러 380px 에서 읽히는지부터 볼 것.');
+loop();
+</script>
+</body>
+</html>

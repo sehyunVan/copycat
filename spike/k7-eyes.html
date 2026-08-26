@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>k7 — 안 무서운 눈</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<script type="module">
+/* k7 — "큰 눈이 무섭다" 를 크기 문제로 보지 않고 처리 문제로 본 판.
+
+   k6 의 눈은 새까만 구가 얼굴 밖으로 튀어나와 있었고, 하이라이트도 눈꺼풀도 없이
+   완벽한 원 두 개가 대칭으로 박혀 있었다. 인형 눈이 무서운 조건과 정확히 같다.
+   크기를 줄이는 건 증상만 없애는 것이라, 대신 셋을 바꿨다:
+
+     · 납작하게 — 구가 아니라 얼굴에 붙은 판. 튀어나오면 벌레눈이 된다
+     · 하이라이트 — 이거 하나로 "구멍" 이 "눈" 이 된다. 제일 싼 레버다
+     · 순검정 금지 — 따뜻한 먹빛(#3A3038)으로. 순검정은 구멍으로 읽힌다
+     · 덤으로 눈 간격을 넓혔다. 좁으면 시선이 한 점에 몰려 노려보는 얼굴이 된다
+
+   ⑦⑧ 은 다른 접근이다 — 눈을 감기거나 눈꺼풀을 덮으면 표정이 생기고,
+   표정이 있는 얼굴은 거의 언제나 덜 무섭다. */
+import { run } from './lib/catlab.js';
+
+run({
+  name: 'k7 · 안 무서운 눈',
+  note: '납작하게 · 하이라이트 · 먹빛. 크기가 아니라 처리의 문제였다.',
+  cols: 8,
+  gapX: 0.78,
+  camera: { el: 0.14 },
+  lookY: 0.36,
+  variants: [
+    { label: '① 새 기준 (bean)' },
+    { label: '② 하이라이트 없음', shine:false },
+    { label: '③ 순검정 + 볼록',   shine:false, eyeColor:0x000000, eyes:'wide' },
+    { label: '④ 작게',            eyeR:0.032 },
+    { label: '⑤ 크게',            eyeR:0.056 },
+    { label: '⑥ 흰자 있는 눈',    eyes:'wide', eyeR:0.044 },
+    { label: '⑦ 웃는 눈 ^ ^',     eyes:'happy' },
+    { label: '⑧ 졸린 눈',         eyes:'sleepy', eyeR:0.046 },
+  ],
+});
+</script>
+</body>
+</html>

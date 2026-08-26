@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>k5 — 큰 귀 · 얇은 몸</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<script type="module">
+/* k5 — k3 ⑤ 를 기준선으로 굳히고, 거기서 두 가지만 더 민다: 귀를 더 크게, 몸을 더 얇게.
+
+   둘은 사실 같은 손잡이다. 몸이 얇아질수록 같은 크기의 귀가 더 커 보이고,
+   귀가 커질수록 몸이 더 가늘어 보인다. 대비로 버는 것이라
+   한쪽만 밀면 금세 기괴해지고 같이 밀면 계속 귀엽다.
+   그래서 이 파일은 두 축을 따로, 그리고 같이 민 것을 한 줄에 세운다.
+
+   확인할 것은 실루엣이 어디서 무너지는가다:
+     · 귀가 너무 크면 고양이가 아니라 토끼가 된다
+     · 몸이 너무 얇으면 머리가 꽂힌 막대기가 된다
+   [작게 보기 380px] 로 줄여서 그 지점을 찾는 게 목적이다. */
+import { run } from './lib/catlab.js';
+
+run({
+  name: 'k5 · 큰 귀 · 얇은 몸',
+  note: 'k3 ⑤ 기준. 귀 크기와 몸 두께를 따로, 그리고 같이 민다. 실루엣이 어디서 무너지나.',
+  cols: 8,
+  gapX: 0.78,
+  camera: { el: 0.14 },
+  lookY: 0.36,
+  variants: [
+    { label: '① 새 기준' },
+    { label: '② 귀 max',        ears:'max' },
+    { label: '③ 귀 max · 벌림',  ears:'max', earTilt:0.44, earSpread:0.70 },
+    { label: '④ 귀 max · 세움',  ears:'max', earTilt:0.08, earSpread:0.52 },
+    { label: '⑤ 몸 더 얇게',     bodySx:0.62, bodySz:0.68, armR:0.030 },
+    { label: '⑥ 몸 얇고 길게',   bodySx:0.62, bodySz:0.68, bodySy:1.62, legH:0.075 },
+    { label: '⑦ 다리 모으기',    bodySx:0.66, bodySz:0.72, legSpread:0.30, legR:0.038 },
+    { label: '⑧ 종합 (전부)',    ears:'max', earTilt:0.36, bodySx:0.58, bodySz:0.64,
+                                 bodySy:1.55, legSpread:0.30, legR:0.036, armR:0.028, tailR:0.032 },
+  ],
+});
+</script>
+</body>
+</html>

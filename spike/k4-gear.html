@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>k4 — 장비가 보이는 자리</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas></div>
+<script type="module">
+/* k4 — 장비를 겉모습에 붙인다.
+
+   게임에는 이미 장비 3슬롯(머리 / 목 / 발)이 있다. 그런데 README 에 이렇게 적혀 있다:
+   "능력치에만 반영되고 겉모습은 안 바뀐다 — 분명한 손실이고, 고양이가 고양이처럼
+   보이는 것과 맞바꿨다." 고정된 도트 시트로는 합성이 안 됐기 때문이다.
+
+   3D 에서는 그 맞바꿈이 필요 없다. 머리 그룹에 박스 몇 개를 더 붙이면 끝이고,
+   두 발로 서면 목·가슴·손까지 걸 자리가 생긴다.
+   분기 결산 드랍이 그때부터 화면에 보이는 보상이 된다. */
+import { run } from './lib/catlab.js';
+
+run({
+  name: 'k4 · 장비가 보이는 자리',
+  note: '머리 / 목 / 등 슬롯을 실제로 착용. 분기 드랍이 화면에 보이는 보상이 된다.',
+  cols: 8,
+  gapX: 0.80,
+  camera: { el: 0.22 },
+  lookY: 0.36,
+  variants: [
+    { label: '① 맨몸',        },
+    { label: '② 비니',       gear:['beanie'], gearColor:0xA8B8E0 },
+    { label: '③ 캡',         gear:['cap'],    gearColor:0xF0A9A0 },
+    { label: '④ 고깔',       gear:['party'],  gearColor:0xA8D3A0 },
+    { label: '⑤ 목도리',     gear:['scarf'],  gearColor:0xE8A657 },
+    { label: '⑥ 방울 목걸이', gear:['collar'], gearColor:0xC2705F },
+    { label: '⑦ 망토 + 캡',   gear:['cape','cap'], gearColor:0x8C93C4 },
+    { label: '⑧ 헤드폰 + 목도리', gear:['headphone','scarf'], gearColor:0x6E7684 },
+  ],
+});
+</script>
+</body>
+</html>

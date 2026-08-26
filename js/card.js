@@ -64,10 +64,10 @@ function cardRect(g, x, y, w, h, fill, border){
   if (border){ g.strokeStyle = CC.ink; g.lineWidth = 4; g.strokeRect(x + 2, y + 2, w - 4, h - 4); }
 }
 
-/* 고양이 시트를 캔버스에 올려도 되는지.
+/* 그 그림을 캔버스에 올려도 되는지.
    file:// 에서 외부 이미지를 그리면 캔버스가 오염돼 toDataURL()이 막힌다. 한 장짜리
-   배포본과 웹에 올린 판에서는 data:/같은 출처라 문제가 없다. 되는 데서는 진짜 스프라이트를
-   쓰고, 안 되는 데서는 그림을 바꾸는 대신 이모지로 간다 — 게임 UI가 이미 이모지를 쓴다. */
+   배포본과 웹에 올린 판에서는 data:/같은 출처라 문제가 없다. 안 되는 데서는 초상 대신
+   이모지로 간다 — 게임 UI가 이미 이모지를 쓴다. */
 function sheetUsable(img){
   try {
     const c = document.createElement('canvas'); c.width = c.height = 1;
@@ -139,11 +139,21 @@ async function drawCard(cv){
 
   let px = 112;
   if (d.star){
-    const im = await loadImg(catSrc(d.star));
+    /* **화면에 서 있는 그 고양이**를 굽는다. 사용자가 하루 종일 본 고양이가 아니라
+       처음 보는 고양이가 기록증에 박히면 그건 이 고양이의 기록증이 아니다.
+       (도트 시트를 폴백으로 쓰던 자리였다. 시트를 지웠으므로 못 구우면 🐈 로 간다.) */
+    const url3d = (typeof is3d === 'function' && is3d() && R3.portrait)
+                    ? R3.portrait(d.star, 128) : null;
+    const im = url3d ? await loadImg(url3d) : null;
     if (im && sheetUsable(im)){
       g.save();
-      if (d.star.hue) g.filter = `hue-rotate(${d.star.hue}deg)`;
-      g.drawImage(im, 16, 16, 16, 16, px, by + 14, 64, 64);   // 앉은 프레임
+      if (url3d){
+        g.imageSmoothingEnabled = true;                       // 도트가 아니므로 뭉개도 된다
+        g.drawImage(im, px - 8, by + 4, 84, 84);
+      } else {
+        if (d.star.hue) g.filter = `hue-rotate(${d.star.hue}deg)`;
+        g.drawImage(im, 16, 16, 16, 16, px, by + 14, 64, 64);   // 앉은 프레임
+      }
       g.restore();
     } else {
       cardText(g, '🐈', px, by + 66, { size: 52 });
@@ -195,6 +205,7 @@ async function showCard(){
         <button class="buy" id="cardSave">${L({ ko:'이미지로 저장', en:'Save as image', ja:'画像として保存' })}</button>
         <button class="buy alt" id="cardCopy">${L({ ko:'복사', en:'Copy', ja:'コピー' })}</button>
       </div>
+      ${typeof foundListHTML === 'function' ? foundListHTML() : ''}
       ${url ? '' : `<div class="hint center">${L({
         ko:'이 폴더에서 직접 연 경우 브라우저가 이미지 저장을 막습니다 — 배포본(copycat.html)이나 웹에서는 됩니다.',
         en:'Opened straight from this folder, the browser blocks saving — the single-file build and the web version can.',
