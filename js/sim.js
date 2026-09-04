@@ -232,7 +232,8 @@ function snapshotWorld(){
   S.layout = {
     tier: S.tier, seed: S.seed, w: W.W, h: W.H,
     grid: Array.from(W.grid), zone: Array.from(W.zone || []),
-    wallDecor: W.wallDecor, clutter: W.clutter, rot: W.rot || {}, machineSide: W.machineSide,
+    wallDecor: W.wallDecor, clutter: W.clutter, tops: W.tops || [], lights: W.lights || null,
+    rot: W.rot || {}, machineSide: W.machineSide,
   };
 }
 /* 가구 한 개를 지금 사무실에 끼워 넣는다. 기존 배치는 그대로 둔다. */
@@ -393,10 +394,20 @@ function canHandleDocs(c){
 }
 
 /* 서류가 들어오면 가장 가까운 고양이가 곧바로 반응한다.
-   안 그러면 근무 중인 고양이는 다음 재판단(4~8초)까지 서류를 못 본다. */
+   안 그러면 근무 중인 고양이는 다음 재판단(4~8초)까지 서류를 못 본다.
+
+   깨어 있는 냥이 하나도 없으면 **자거나 쉬는 냥을 깨워서** 보낸다. 밤에는 전원이
+   자고 있을 수 있는데, 그때 이 줄이 없으면 서류가 다음 재판단(잠은 최대 22초)까지
+   결재함에 조용히 놓여 있다 — 올린 사람에게 그 침묵은 「밤이라 안 받는구나」로
+   읽힌다(11번이 걷어낸 그 침묵이 반쯤 남아 있던 것이다). 낮과 밤이 같은 규칙이다:
+   올린 서류는 언제 올려도 **바로** 받으러 온다. 기력·화장실이 바닥인 냥만 그대로
+   잔다(canHandleDocs — 그건 시각과 상관없는 사정이다). */
 bus.on('doc:spawn', () => {
-  const cands = S.cats.filter(c => !c.doc && canHandleDocs(c) &&
+  let cands = S.cats.filter(c => !c.doc && canHandleDocs(c) &&
     (c.act.s === 'work' || c.act.s === 'idle'));
+  if (!cands.length)
+    cands = S.cats.filter(c => !c.doc && canHandleDocs(c) &&
+      (c.act.s === 'sleep' || c.act.s === 'use'));
   if (!cands.length) return;
   const d = c => Math.abs(c.x - W.inbox.x) + Math.abs(c.y - W.inbox.y);
   cands.sort((a, b) => d(a) - d(b));
@@ -409,6 +420,86 @@ bus.on('doc:spawn', () => {
    표로 읽히게 하기 위해서다. */
 const NEED_FACILITY = { energy:'sleep', bladder:'litter', caffeine:'coffee', fun:'social' };
 const NEED_PLACES = { energy:['sleep'], bladder:['litter'], caffeine:['coffee'], fun:['play', 'social'] };
+
+/* ---------- 둘이 마주 본다 (TODO 60) ----------
+   여태 「수다」는 **가구와의 상호작용**이었다. fun 이 떨어지면 social 쓰임을 가진 가구를
+   찾아가서 그 앞에 서고, 혼자 「수다 중…」이라고 말한다. 스무 마리가 있는 사무실에서
+   수다가 독백인 게 이상했다.
+
+   새 상태(state)를 만들지 않는다. 고치는 건 **어느 자리를 고르는가** 하나뿐이고,
+   나머지(마주 보기·번갈아 말하기·회복량)는 「같은 가구에 둘이 있다」에서 유도한다.
+   그래서 저장 형식도 길찾기도 안 건드린다.
+
+   **복도에서 마주치는 건 안 만들었다.** 길에서 멈춰 서면 길찾기가 막히고(스무 마리가
+   한 줄로 서는 사무실을 한 번 봤다), 무엇보다 「일하다 말고」가 된다.
+   상호작용은 쉬는 자리에서만 일어난다. */
+
+/* 이 가구를 지금 쓰고 있는 냥들 */
+function usersOf(f, except){
+  return S.cats.filter(o => o !== except && o.act && o.act.s === 'use' && o.act.use
+                         && o.act.use.x === f.x && o.act.use.y === f.y);
+}
+
+/* 잡담 자리. 빈 가구만 보는 pickUse 와 달리 **한 자리 남은 가구**를 먼저 본다.
+   join 확률과 「한 명일 때만」이 둘 다 필요하다:
+     · 늘 붙으면 사무실의 잡담 가구 하나에 전부 몰려서 소파가 만원 버스가 된다
+     · 셋이 되면 서로를 볼 수가 없다 — 마주 보기는 둘의 일이다 */
+/* 「잡담 자리」는 social 쓰임을 가진 가구 전부가 아니다. 쥬크박스·캣타워·화분도
+   쓰임이 social 인데(TILE_INFO), 그 앞에서 하는 일은 음악 듣기·긁기·냄새 맡기다 —
+   DOING_TILE 이 그래서 있는 표다(cats.js: 「쓰임이 거짓말을 하는 가구만」).
+   둘이 쥬크박스 앞에 서 있는 건 같이 있는 게 아니라 각자 음악을 듣는 것이라,
+   거기서 하트가 뜨면 그림이 거짓말을 한다. **표에 안 걸린 가구만** 잡담 자리다. */
+const isChat = f => !DOING_TILE[tileAt(W, f.x, f.y)]
+                 && ((TILE_INFO[tileAt(W, f.x, f.y)] || {}).use === 'social');
+const chatSpots = () => (W.facilities.social || []).filter(isChat);
+
+function pickSocial(c){
+  const list = W.facilities.social;
+  if (!list || !list.length) return null;
+  if (Math.random() < 0.72){
+    const join = [];
+    for (const f of chatSpots()){
+      const there = usersOf(f, c);
+      if (there.length !== 1) continue;
+      for (const p of adjacentFree(W, f)){
+        /* 그 냥이 서 있는 칸은 뺀다 — 시뮬은 고양이끼리 안 막으므로
+           빼 두지 않으면 둘이 같은 칸에 겹쳐 선다. */
+        if (there.some(o => Math.round(o.x) === p.x && Math.round(o.y) === p.y)) continue;
+        join.push({ spot:p, target:f, d: Math.abs(p.x - c.x) + Math.abs(p.y - c.y) });
+      }
+    }
+    if (join.length){
+      join.sort((a, b) => a.d - b.d);
+      return join[0];
+    }
+  }
+  return pickUse(W, 'social', c);
+}
+/* 갈 곳 고르기 한 겹. 잡담만 다르게 고르고 나머지는 그대로다. */
+const pickSpot = (c, use) => use === 'social' ? pickSocial(c) : pickUse(W, use, c);
+
+/* 지금 누구와 마주 보고 있나. **저장하지 않고 매 틱 다시 센다** —
+   짝은 상태가 아니라 「같은 가구에 둘이 있다」의 결과라서, 들고 있으면 한쪽이 일어선
+   뒤에도 남는다(그러면 혼자 허공을 보고 하트를 띄운다). */
+function pairUp(){
+  const at = new Map();
+  for (const c of S.cats){
+    c._with = null;
+    const a = c.act;
+    if (!a || a.s !== 'use' || !a.use) continue;
+    if (!isChat(a.use)) continue;              // 쥬크박스 앞에 둘이 서 있는 건 짝이 아니다
+    const k = a.use.y * W.W + a.use.x;
+    if (!at.has(k)) at.set(k, []);
+    at.get(k).push(c);
+  }
+  /* 셋이 앉아 있으면 앞의 둘만 짝이다. 셋이 서로를 볼 수는 없고,
+     남은 하나는 혼자 있는 것과 같은 그림이 된다(그게 사실이다). */
+  for (const arr of at.values())
+    for (let i = 0; i + 1 < arr.length; i += 2){
+      arr[i]._with = arr[i + 1].id;
+      arr[i + 1]._with = arr[i].id;
+    }
+}
 function decide(c){
   const tr = traitOf(c);
   const p = phaseOf(S.clock);
@@ -434,7 +525,7 @@ function decide(c){
 
   // 점심시간: 다 같이 휴게실로 몰려간다. 밥이 먼저다.
   if (p === 'lunch' && Math.random() < 0.75){
-    const f = nearestUse(W, 'social', c);
+    const f = pickSocial(c);
     if (f && goTo(c, f.spot, 'use', f.target)){ chat(c, 'lunch', 0.3); return; }
   }
 
@@ -457,7 +548,7 @@ function decide(c){
     if (c.needs[need] >= th) continue;
     /* 갈 곳이 여러 종류일 수 있다 — 재미는 놀잇감이 먼저, 없으면 정수기 앞 잡담. */
     for (const use of (NEED_PLACES[need] || [NEED_FACILITY[need]])){
-      const f = pickUse(W, use, c);
+      const f = pickSpot(c, use);
       if (!f) continue;
       if (goTo(c, f.spot, use === 'sleep' ? 'sleep' : 'use', f.target)){ chat(c, use, 0.3); return; }
     }
@@ -519,7 +610,7 @@ function wander2(c, why){
     .slice().sort(() => Math.random() - 0.5);
   for (const use of order){
     if (use === 'sleep' && c.needs.energy > 70) continue;   // 안 졸린데 자러 가진 않는다
-    const f = pickUse(W, use, c);
+    const f = pickSpot(c, use);
     if (!f) continue;
     if (goTo(c, f.spot, use === 'sleep' ? 'sleep' : 'use', f.target)){
       /* 욕구가 다 안 찼어도 잠깐은 머문다 — 도착하자마자 자리로 돌아가면
@@ -557,15 +648,12 @@ function doingKind(c){
   const tile = tileAt(W, a.use.x, a.use.y);
   return DOING_TILE[tile] || (TILE_INFO[tile] || {}).use || 'social';
 }
-/* 지금 하는 일을 나타내는 한 줄. 고르기만 하고 띄우지는 않는다 —
-   가구를 쓰는 동안 말풍선을 **계속** 들고 있는 건 화면 쪽이다(ui.js syncBubbles).
-   거기서 말이 없는 고양이를 보면 이 함수로 한 줄을 받아 간다. */
-function doingLine(c){
-  const kind = doingKind(c);
-  if (!kind) return null;
-  const pool = DOING[kind] || DOING.social;
-  return pool[Math.floor(Math.random() * pool.length)];
-}
+/* doingLine 은 지웠다(TODO 61). 화면이 「말 없는 고양이에게 한 줄 물어보는」 함수였는데,
+   이제 가구를 쓰는 동안 머리 위에 있는 건 문장이 아니라 아이콘이라 물어볼 일이 없다.
+   문장은 sayDoing 이 띄우는 것만 남았다 — 누를 때와 이따금 하는 혼잣말. */
+
+/* 말은 짝이 있나에 따라 갈린다. 그림(아이콘)도 같은 자리에서 갈린다 — ui.js iconKind. */
+const chatKind = (c, kind) => (kind === 'social' && c._with) ? 'social2' : kind;
 
 /* 하고 있는 일을 **다른 줄로 바꿔** 말한다. chance 를 안 주면 반드시 바꾼다.
 
@@ -577,8 +665,14 @@ function sayDoing(c, chance){
   if (!kind) return false;
   const now = performance.now();
   if (now - (c._bubble || 0) < 2800) return false;
+  /* 짝이 있으면 **번갈아** 말한다. 각자 제 자물쇠만 보면 둘이 동시에 입을 열고,
+     머리 위에 두 줄이 나란히 뜬다 — 그건 대화가 아니라 자막 둘이다. */
+  if (c._with){
+    const o = S.cats.find(x => x.id === c._with);
+    if (o && now - (o._bubble || 0) < 2800) return false;
+  }
   if (chance != null && Math.random() > chance) return false;
-  const pool = DOING[kind] || DOING.social;
+  const pool = DOING[chatKind(c, kind)] || DOING.social;
   c._bubble = now;
   bus.emit('cat:say', { cat:c, text: pool[Math.floor(Math.random() * pool.length)] });
   return true;
@@ -704,7 +798,11 @@ function sendLegal(){
 
 /* ---------- 틱 ---------- */
 const RESTORE = { sleep:{ energy:6 }, coffee:{ caffeine:12, energy:2.5 }, litter:{ bladder:18 },
-                  social:{ fun:9 }, play:{ fun:15, energy:-1.5 } };   // 노는 건 재밌지만 기운을 쓴다
+                  social:{ fun:9 }, play:{ fun:15, energy:-1.5 },     // 노는 건 재밌지만 기운을 쓴다
+                  /* 마주 보고 있을 때(TODO 60). 혼자 앉아 있는 것보다 나아야
+                     「같이 있는 게 낫다」가 규칙이 된다 — 그림만 다르고 값이 같으면
+                     그건 연출이지 규칙이 아니다. 놀잇감(15)보다는 낮게 둔다. */
+                  social2:{ fun:13 } };
 const NEED_SCALE = 0.35;   // 욕구가 닳는 전체 속도. 낮출수록 고양이가 자리를 오래 지킨다.
 
 function simTick(dt){
@@ -718,9 +816,16 @@ function simTick(dt){
   if (S.bizKey !== bk){ const from = S.bizKey; S.bizKey = bk; bus.emit('biz:new', { from, to: bk }); }
 
   const hasCoffee = !!(W.facilities.coffee);
-  const decayMul = shopMul('decay', 1);
+  /* 쾌적도가 욕구 소모를 늦춘다 — 생산에 붙는 것과 **같은 곡선**의 절반이다
+     (game.js comfort). 아늑한 사무실에서는 자리를 덜 뜬다는 말이고, 상한이 −15% 라
+     캣타워(−30%) 하나만도 못하다. 가구는 시설을 대신하지 않는다. */
+  const decayMul = shopMul('decay', 1) * (1 - (typeof comfort === 'function' ? comfort() : 0) * 0.5);
   const raidMul = RAID ? 0.4 : 1;            // 압수수색 중에는 일이 손에 안 잡힌다
   let working = 0, income = 0;
+
+  /* 누가 누구와 마주 보고 있나. **루프 앞에서** 센다 — 아래에서 회복량이 이걸 보고,
+     같은 틱에 렌더러(방향)와 화면(하트)이 이어서 읽는다. */
+  pairUp();
 
   for (const c of S.cats){
     const tr = traitOf(c);
@@ -757,7 +862,7 @@ function simTick(dt){
       if (a.t > 1.7) finishStamp(c);
     } else if (a.s === 'use' || a.s === 'sleep'){
       const kind = a.s === 'sleep' ? 'sleep' : (a.use ? (TILE_INFO[tileAt(W, a.use.x, a.use.y)] || {}).use : null) || 'social';
-      const r = RESTORE[kind] || {};
+      const r = (kind === 'social' && c._with) ? RESTORE.social2 : (RESTORE[kind] || {});
       let full = true;
       for (const k in r){
         c.needs[k] = Math.min(100, c.needs[k] + r[k] * dt * shopMul('recover', 1));

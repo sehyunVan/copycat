@@ -163,6 +163,7 @@ function jukeBodyHTML(){
         ja:'買える物ではありません。家具を押して調べてください。',
       })}</span></div></div></div>` : ''}
 
+    ${!music.ytAllowed() ? '' : `
     <div class="jukesec">${music.track('yt').em} ${music.track('yt').n}</div>
     <div class="card ${ytNow ? 'owned' : ''}">
       <div class="ytrow">
@@ -175,15 +176,15 @@ function jukeBodyHTML(){
           en:'The <b>list</b> in this address can’t be loaded (a mix, or private), so a <b>single video</b> is looping. Paste a real <b>playlist</b> URL to get the list.',
           ja:'この住所の<b>リスト</b>は読み込めないため（ミックスか非公開）、<b>動画1本</b>を繰り返しています。リストで流すには<b>プレイリストのURL</b>を入れてください。' })
         : L({
-          ko:'플레이리스트 링크를 넣으면 그게 배경음악이 됩니다. 위의 음량과 밤 절반 볼륨은 여기에도 걸립니다.',
-          en:'Paste a playlist link and it becomes the background music. The volume above and the night halving apply here too.',
-          ja:'プレイリストのリンクを入れればそれがBGMになります。上の音量と夜の半分音量はこちらにも効きます。' })
+          ko:'유튜브 링크를 넣으면 노동요로 들을 수 있습니다. 위의 음량과 밤 절반 볼륨은 여기에도 걸립니다.',
+          en:'Paste a YouTube link and it plays as your work tunes. The volume above and the night halving apply here too.',
+          ja:'YouTubeのリンクを入れれば労働歌として流せます。上の音量と夜の半分音量はこちらにも効きます。' })
       }</div>
-    </div>`;
+    </div>`}`;
 }
 
 function showJuke(){
-  bus.emit('juke:open');      // 첫 출근 안내가 이 걸음을 기다린다 (js/tutor.js)
+  bus.emit('juke:open');      // 열렸다는 신호. 첫 출근 안내가 쓰던 것 — 지금은 안 듣는다
   const m = modal(`
     <div class="mhead"><div class="q">💿 ${L({ ko:'쥬크박스', en:'JUKEBOX', ja:'ジュークボックス' })}</div>
       <h3>${L({ ko:'오늘은 뭘 틀까요', en:'What are we playing today', ja:'今日は何をかけますか' })}</h3>

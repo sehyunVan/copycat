@@ -470,8 +470,19 @@ export function build(params = {}){
     if (pos[i + 1] < minY) minY = pos[i + 1];
   }
   const s = P.scale;
+  /* 무늬가 앉는 좌표계 — 껍질을 통째로 감싸는 상자.
+     얼굴은 머리를 단위구로 되돌려 놓고 칠하는데(facepaint.js), 무늬는 몸 전체가
+     바탕이라 기준이 더 커야 한다. 매개변수로 짐작해서 적어 두면 자세마다·프리셋마다
+     어긋나므로, **깎고 난 뒤의 실제 껍질을 재서** 그대로 쓴다. */
+  const bLo = [ Infinity,  Infinity,  Infinity];
+  const bHi = [-Infinity, -Infinity, -Infinity];
   for (let i = 0; i < pos.length; i += 3){
     pos[i] *= s; pos[i + 1] = (pos[i + 1] - minY) * s; pos[i + 2] *= s;
+    for (let k = 0; k < 3; k++){
+      const v = pos[i + k];
+      if (v < bLo[k]) bLo[k] = v;
+      if (v > bHi[k]) bHi[k] = v;
+    }
   }
 
   /* flat 셰이딩이라 인덱스를 쓰지 않는다 — 면마다 법선이 하나여야 면이 보인다 */
@@ -517,6 +528,19 @@ export function build(params = {}){
                       r: P.legR * P.legTaper * s });
         }
       return {
+        /* 무늬 좌표계. 껍질 상자의 한가운데와 반지름 셋 — 여기로 나누면 고양이가
+           공 하나로 펴지고, 무늬 하나는 그 공 위의 **방향 + 크기**가 된다.
+           자세가 바뀌면 상자도 같이 바뀌므로 무늬가 몸에 붙어 따라간다.
+
+           **가로 한가운데는 재지 않고 0 으로 못 박는다.** 고양이 몸은 x 대칭인데
+           꼬리만 안 그렇다 — 앉은 자세는 꼬리를 옆으로 흘리므로(tailSide) 상자의
+           한가운데가 0.086 만큼 옆으로 밀린다. 그대로 쓰면 **앉는 순간 양말 넷 중
+           오른쪽이 발에서 벗겨진다**. 재서 나온 값이라도 몸이 대칭이라는 사실보다
+           믿을 만하지는 않다. */
+        body:  [0, (bLo[1] + bHi[1]) / 2, (bLo[2] + bHi[2]) / 2],
+        bodyR: [Math.max(1e-3, (bHi[0] - bLo[0]) / 2),
+                Math.max(1e-3, (bHi[1] - bLo[1]) / 2),
+                Math.max(1e-3, (bHi[2] - bLo[2]) / 2)],
         head:  at(0, P.headY, P.headZ),
         headR: [P.headR * P.headSx * s, P.headR * P.headSy * s, P.headR * P.headSz * s],
         /* 정수리 — 모자가 앉는 자리.

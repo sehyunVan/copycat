@@ -355,6 +355,8 @@ function showInspect(u){
     got = c;
     if (c.track && typeof music !== 'undefined' && music.grant) music.grant(c.track);
     save();
+    /* 여덟 개가 다 모이면 마지막 장면이 열린다 — 그 문은 storyInit 이 듣는다. */
+    bus.emit('clue:found', { clue: c, n: foundIds().length, of: CLUES.length });
   }
 
   const m = modal(`
@@ -528,12 +530,17 @@ function storyInit(){
     /* CD 플레이어는 조사 대상이 아니라 **조작 대상**이다. 눌러서 나오는 게
        "먼지가 앉아 있다" 한 줄이면, 그건 이 방에서 유일하게 만질 수 있는 물건을
        설명문으로 바꿔 버리는 것이다 (juke.js). */
+    /* 폰에서는 이 넷이 문이 아니다 — 오른쪽 세로 열이 그 일을 하므로, 방 안의 물건은
+       그냥 가구로 돌려준다(조사 대상). 이유는 render3d.js 의 doorsInWorld 에 적었다. */
+    const asDoor = !(typeof R3 !== 'undefined' && R3.doorsInWorld) || R3.doorsInWorld();
+    if (asDoor){
     if (u.tile === TILE.JUKE && typeof showJuke === 'function'){ sfx.add(); showJuke(); return; }
     if (u.tile === TILE.BINDER && typeof showBinder === 'function'){ sfx.add(); showBinder(); return; }
     /* 벽걸이 달력도 같다 — 날짜를 보고 기한을 거는 물건이라 "먼지가 앉아 있다" 로
        바꿔 버리면 이 방에서 날짜를 볼 방법이 없어진다 (js/cal.js). */
     if (u.tile === TILE.CAL && typeof showCalendar === 'function'){ sfx.add(); showCalendar(); return; }
     if (u.tile === TILE.BOARD && typeof showBoard === 'function'){ sfx.add(); showBoard(); return; }
+    }
     showInspect(u);
   });
 
@@ -542,5 +549,299 @@ function storyInit(){
   bus.on('reward', ({ cat, doc }) => firstApproval(doc, cat));
   /* 분기가 넘어가면 새로 열린 단서가 있는지 본다. 사무실이 바뀌면 가구도 바뀐다. */
   bus.on('quarter:closed', () => setTimeout(clueNudge, 2600));
+  /* 바깥 겹의 사보 한 줄. 총무의 쪽지보다 한 박자 뒤에 온다 — 같은 순간에 둘이 뜨면
+     둘 다 안 읽힌다(위 beatNews). */
+  bus.on('quarter:closed', () => setTimeout(beatNews, 5200));
   bus.on('world:rebuilt', () => setTimeout(clueNudge, 400));
+  /* 아웃트로의 두 문 — 분기가 끝났을 때, 그리고 단서를 주웠을 때.
+     늦게 본다: 결산 창이 떠 있는 동안 컷신이 시작되면 창이 컷신 위에 남는다. */
+  bus.on('quarter:closed', () => setTimeout(endingCheck, 4000));
+  bus.on('clue:found', () => setTimeout(endingCheck, 2200));
+  /* 부팅 때 한 번. **이미 조건을 넘긴 저장**을 위한 문이다 — 이 기능이 없던 동안
+     분기 28 을 지나거나 단서를 다 모은 사람은 다음 분기까지 기다릴 이유가 없다.
+     늦게 본다: 시작화면과 프롤로그가 지나갈 시간을 준다(위 endingCheck 가 다시 미룬다). */
+  setTimeout(endingCheck, 20000);
 }
+
+/* ============================================================
+   바깥 겹의 문구 넷 (STORY.md 의 떡밥 배치표 · Q9 · Q13 · Q19 · Q25)
+   ------------------------------------------------------------
+   단서 여덟 개(CLUES)는 **가구를 눌러 찾는 것**이고, 이쪽은 **가만히 있어도 배달되는 것**이다.
+   찾는 것은 총무의 이야기(안쪽 겹)를 열고, 배달되는 것은 냥찰청의 이야기(바깥 겹)를 연다.
+   그래서 표를 따로 둔다 — 같은 표에 섞으면 「눌러야 나오는 것」과 「저절로 오는 것」이
+   한 목록에서 뒤섞이고, 그러면 안 눌러 본 사람에게 이야기가 반쪽으로 온다.
+
+   ── 규칙 ──
+   · **새 화면을 만들지 않는다.** 사보 한 줄 · 결산표의 칸 하나 · 통지서의 줄 하나가 전부다
+   · **설명하지 않는다**(톤 규칙 6). 어긋난 숫자 하나만 남기고 지나간다.
+     「그러니까 이 회사는 실은…」 하고 정리해 주는 문장을 쓰지 않는다
+   · **한 번만.** 본 것은 S.beats 에 남는다. 두 번 말하면 떡밥이 아니라 안내문이다
+   · **한 분기에 하나.** 단서 표와 분기가 안 겹치게 잡아 뒀다(Q6·Q10·Q15·Q21·Q28 은 그쪽)
+
+   where 는 이 줄이 어느 화면에 얹히나다.
+     news     사보 (S.log — pushLog)
+     quarter  분기 결산 보고 (ui.js showQuarter)
+     raid     조사 결과 통지서 (ui.js showRaidEnd)
+   ============================================================ */
+const BEATS = [
+  /* Q9 — 사보의 「본사 소식」. 지점 수가 적혀 있고, 그게 몇 번째인지도 적혀 있다.
+     앞뒤로 아무 설명이 없다. 이 게임에서 「본사」가 숫자로 나오는 첫 자리다. */
+  { id:'b9', q:9, where:'news', text: L({
+      ko:'📰 본사 소식 — 이번 달 신규 개소 <b>네 곳</b>. 전국 지점은 <b>서른아홉</b>이 되었습니다. '
+       + '우리 지점은 <b>서른두 번째</b>입니다.',
+      en:'📰 From HQ — <b>four</b> new branches this month. <b>Thirty-nine</b> nationwide. '
+       + 'Ours is the <b>thirty-second</b>.',
+      ja:'📰 本社だより——今月の新規開設<b>四か所</b>。全国の支店は<b>三十九</b>になりました。'
+       + 'うちの支店は<b>三十二番目</b>です。',
+    }) },
+
+  /* Q13 — 결산표에 칸이 하나 늘어 있다. 「반출」. 우리가 이번 분기에 번 숫자와 **같다.**
+     단위도 안 적혀 있고, 누가 반출했는지도 안 적혀 있다. */
+  { id:'b13', q:13, where:'quarter', row: d => L({
+      ko:{ k:'반출', v: fmt(Math.round(d.earned)) },
+      en:{ k:'Removed', v: fmt(Math.round(d.earned)) },
+      ja:{ k:'搬出', v: fmt(Math.round(d.earned)) },
+    }) },
+
+  /* Q19 — 사보의 지점 개소 기사. 사진이 실렸는데, 그 방이 우리 방이다.
+     「비슷하다」가 아니라 **가구 배치까지 같다**고 적는다 — 비슷한 건 우연이고 같은 건 아니다. */
+  { id:'b19', q:19, where:'news', text: L({
+      ko:'📰 <b>안양 남부점</b>이 문을 열었습니다. 사보에 실린 사무실 사진은 '
+       + '책상 배치도, 벽에 걸린 것도, 화분이 놓인 자리도 <b>우리 방과 같습니다</b>.',
+      en:'📰 <b>Namyang South</b> opened this week. In the photo the desks, the things on the wall, '
+       + 'even where the plant sits are <b>the same as ours</b>.',
+      ja:'📰 <b>南部支店</b>が開店しました。社報の写真は、机の配置も、壁に掛かったものも、'
+       + '鉢の位置も<b>うちの部屋と同じ</b>です。',
+    }) },
+
+  /* Q25 — 통지서 끝에 점검표가 한 번 비친다. 서른여섯 항목까지는 우리가 아는 것들이고,
+     서른일곱 번째는 **우리가 모르는 항목**이다. 무엇을 세는 표인지는 말하지 않는다. */
+  { id:'b25', q:25, where:'raid', note: L({
+      ko:'점검표 사본이 한 장 섞여 있었습니다. 36항까지는 시설·장부·인원입니다.<br>'
+       + '<b>37) 대상자 잔류 여부 — 양호</b>',
+      en:'A copy of their checklist was left in the folder. Items 1–36 are facilities, books, staff.<br>'
+       + '<b>37) Subject still in place — OK</b>',
+      ja:'点検表の写しが一枚まぎれていました。36項までは施設・帳簿・人員です。<br>'
+       + '<b>37) 対象者の残留 — 良好</b>',
+    }) },
+];
+
+/* 본 것은 남긴다. 두 번 말하면 떡밥이 아니라 안내문이다. */
+function beatSeen(id){
+  if (!S) return true;
+  if (!Array.isArray(S.beats)) S.beats = [];
+  return S.beats.includes(id);
+}
+/* 이 화면에 얹을 줄. 분기가 찼고 아직 안 본 것 중 첫 번째.
+   **꺼내는 순간 본 것으로 친다** — 화면이 닫히는 방법은 여러 개라(바깥 클릭·닫기·Esc)
+   닫힐 때 표시하게 두면 한 군데서 새고, 새면 영영 못 본다(단서 쪽과 같은 판단이다). */
+function beatTake(where){
+  if (!S) return null;
+  const b = BEATS.find(x => x.where === where && (S.quarter | 0) >= x.q && !beatSeen(x.id));
+  if (!b) return null;
+  if (!Array.isArray(S.beats)) S.beats = [];
+  S.beats.push(b.id);
+  save();
+  return b;
+}
+
+/* 결산 보고의 칸 하나 — ui.js showQuarter 가 부른다. 없으면 빈 문자열이라 표가 그대로다. */
+function beatQuarterRow(d){
+  const b = beatTake('quarter');
+  if (!b) return '';
+  const r = b.row(d);
+  return `<div class="rrow"><span>${r.k}</span><b>${r.v}</b></div>`;
+}
+/* 통지서의 줄 하나 — ui.js showRaidEnd 가 부른다. */
+function beatRaidNote(){
+  const b = beatTake('raid');
+  if (!b) return '';
+  return `<div class="evt" style="margin-top:12px">${b.note}</div>`;
+}
+/* 사보 한 줄 — 분기가 끝날 때 흘린다. 총무의 쪽지(clueNudge)와 같은 자리에 오지 않게
+   한 박자 늦춘다: 같은 순간에 둘이 뜨면 둘 다 안 읽힌다. */
+function beatNews(){
+  const b = beatTake('news');
+  if (!b) return false;
+  pushLog(b.text, '');
+  return true;
+}
+
+/* ============================================================
+   아웃트로 — 마지막 장면
+   ------------------------------------------------------------
+   그림은 js/three/outro.js 가 그리고(격자·냥찰청·옥상의 둘), 카메라 길도 거기 있다.
+   이 파일이 하는 일은 **언제 열리나 · 화면에 무엇을 얹나 · 끝나면 어디로 돌아가나**다.
+
+   ── 언제 열리나 ──
+   둘 중 하나면 열린다. 둘을 다 요구하면 아무도 못 보고, 하나만 두면 한쪽 길로 온
+   사람에게 결말이 안 온다.
+     · **단서 여덟 개를 다 모았다** — 이야기를 끝까지 찾아 읽은 사람
+     · **분기 28** — 마지막 사무실. 끝까지 버틴 사람 (STORY.md 의 Q28)
+
+   ── 끝나면 ──
+   **원래 하던 상태로 돌아간다.** 게임을 끝내지 않는다 — 이 게임은 근무 시간을 같이
+   견디는 물건이고, 결말을 봤다고 사무실 문을 닫으면 그 물건을 뺏는 것이다.
+   엔딩 두 개(STORY.md 의 A·B)는 이 컷신 다음에 고르는 것이라 아직 없다. 지금은 컷신까지다.
+
+   ── 본 사람의 시작화면 ──
+   한 번 본 사람은 첫 화면이 사무실이 아니라 **그 정경**이 된다(js/title.js).
+   그 판단에 필요한 것은 「봤나」 하나뿐이라 작은 키에 비춰 둔다 — title.js 는 저장을
+   읽을 수 없다(부팅 맨 앞에서 돌고, 그때는 게임 코드도 파싱된 저장도 없다.
+   간판 키와 같은 이유이고 같은 방식이다 — game.js 의 LOGO_KEY).
+   ============================================================ */
+const ENDING_KEY = 'copycat.ending';
+
+/* 열려 있나 — 이유까지 돌려준다. 왜 열렸는지는 기록에 남길 값어치가 있다. */
+function endingWhy(){
+  if (!S) return null;
+  if (foundIds().length >= CLUES.length) return 'clues';
+  if ((S.quarter | 0) >= 28) return 'q28';
+  return null;
+}
+const endingSeen = () => !!(S && S.ending);
+
+function endingMark(){
+  if (!S) return;
+  S.ending = 1;
+  try { localStorage.setItem(ENDING_KEY, '1'); } catch(e){}
+  save();
+}
+
+/* 문을 두드린다. 이미 봤으면 안 열고, 창이나 배치 모드 중이면 다음 기회에 본다 —
+   컷신이 창 아래에서 시작되면 그 창이 컷신 위에 남는다. */
+function endingCheck(){
+  if (!S || endingSeen()) return false;
+  if (!endingWhy()) return false;
+  if (typeof R3 === 'undefined' || !R3 || !R3.ready || !R3.outroBuild) return false;
+  if ($('.veil') || $('.opening') || $('.outro')){ setTimeout(endingCheck, 6000); return false; }
+  if (typeof EDIT !== 'undefined' && EDIT.on){ setTimeout(endingCheck, 6000); return false; }
+  /* 시작화면이 떠 있는 동안에는 안 된다 — 그 화면을 아직 안 누른 사람은 게임을
+     시작하지도 않았다. 프롤로그·계약서도 이 판(#cctitle · body.titleon)에 산다. */
+  if ($('#cctitle') || DOC.body.classList.contains('titleon')){ setTimeout(endingCheck, 6000); return false; }
+  return playOutro();
+}
+
+/* ---------- 화면에 얹는 것 ----------
+   상하 검은 띠 · 자막 · 암전 · 마지막 로고. 프롤로그와 같은 규칙이다(opening.js) —
+   같은 게임의 두 컷신이 다른 판을 쓰면 그중 하나는 광고로 읽힌다. */
+const OUTRO_CSS = [
+  '.outro{position:fixed;inset:0;z-index:9990;cursor:pointer}',
+  '.outro .obar{position:absolute;left:0;right:0;height:7.5%;background:#000}',
+  '.outro .obar.t{top:0}.outro .obar.b{bottom:0}',
+  '.outro .osub{position:absolute;left:0;right:0;bottom:11.5%;text-align:center;padding:0 8%;',
+  '  font:600 clamp(13px,2.1vw,22px)/1.7 "Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;',
+  '  color:#EFE4D2;text-shadow:0 2px 10px rgba(0,0,0,.85);opacity:0;transition:opacity .5s ease}',
+  '.outro .ofade{position:absolute;inset:0;background:#000;opacity:1}',
+  '.outro .oskip{position:absolute;right:16px;bottom:calc(7.5% + 12px);font-size:11.5px;',
+  '  letter-spacing:.06em;color:#9C8C78;opacity:.7}',
+  /* 마지막 로고 — 검은 판 위에 간판 하나. 고른 간판이 있으면 그것이다(TODO 59). */
+  '.outro .ologo{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;',
+  '  background:#000;opacity:0;transition:opacity 1.1s ease;pointer-events:none}',
+  '.outro .ologo img{width:min(46vw,180px);height:auto;filter:drop-shadow(0 4px 14px rgba(0,0,0,.6))}',
+  '.outro.logoon .ologo{opacity:1}',
+].join('\n');
+
+function outroLogoHTML(){
+  /* 고른 간판이 있으면 그것, 없으면 시작화면이 쓰는 그 그림. **새 그림을 만들지 않는다** —
+     엔딩에서 처음 보는 로고가 나오면 그건 이 회사의 로고가 아니다. */
+  const f = (S.branch && S.branch.logo) || '';
+  if (f && typeof LOGO_FILES !== 'undefined' && LOGO_FILES.indexOf(f) >= 0)
+    return '<img src="' + assetURL('assets/logos/' + f) + '" alt="copycat">';
+  const t = DOC.querySelector('#cctitle .logo img');
+  if (t) return '<img src="' + t.getAttribute('src') + '" alt="copycat">';
+  return '<div style="font:800 26px/1 system-ui;letter-spacing:.22em;color:#EFE4D2">COPYCAT</div>';
+}
+
+let outroOn = false;
+function playOutro(){
+  if (outroOn) return false;
+  if (typeof R3 === 'undefined' || !R3 || !R3.outroBuild) return false;
+  const info = R3.outroBuild();
+  if (!info) return false;
+  outroOn = true;
+
+  /* ── 시각을 밤으로 고정한다 ──
+     이 게임은 당신의 시계로 돈다. 그런데 이 장면은 「무수한 창이 켜져 있고 그 위에서
+     둘이 내려다본다」이고, **대낮에는 성립하지 않는다** — 낮의 격자는 그냥 주차장이다.
+     엔딩을 몇 시에 보든 같은 장면이어야 하므로 밤으로 고정한다.
+     전역광은 렌더러 쪽에서 한 번 더 눌러 둔다(render3d 의 OUT_LIGHT) — 시간대를 고정해도
+     그 시간대의 전역광은 여전히 밝기 때문이다.
+     끝나면 되돌린다 — 게임의 시각을 컷신이 바꿔 놓고 가지 않는다(sim.js setSkyForce). */
+  const sky0 = (typeof skyForced === 'function') ? skyForced() : null;
+  if (typeof setSkyForce === 'function') setSkyForce('night');
+
+  if (!$('#outroCSS')){
+    const st = DOC.createElement('style');
+    st.id = 'outroCSS';
+    st.textContent = OUTRO_CSS;
+    DOC.head.appendChild(st);
+  }
+  const root = DOC.createElement('div');
+  root.className = 'outro';
+  root.innerHTML = '<div class="obar t"></div><div class="obar b"></div>'
+    + '<div class="osub"><span></span></div><div class="ofade"></div>'
+    + '<div class="oskip">' + L({ ko:'눌러서 건너뛰기', en:'tap to skip', ja:'タップでスキップ' }) + '</div>'
+    + '<div class="ologo">' + outroLogoHTML() + '</div>';
+  DOC.body.appendChild(root);
+  const sub = root.querySelector('.osub'), subT = root.querySelector('.osub span');
+  const fade = root.querySelector('.ofade');
+  DOC.body.classList.add('titleon');            // 게임 UI 를 감춘다 — 시작화면과 같은 손
+
+  const dur = info.dur || 24;
+  /* ── 시각은 **벽시계**로 잰다 ──
+     처음엔 프레임마다 dt 를 더해 나갔다(dt 는 0.05 로 상한). 그러면 **프레임이 느린
+     기계에서 컷신이 슬로우 모션으로 간다** — 헤드리스에서 재 보니 12초를 기다려도
+     자막(11.4초)이 안 떴다. 상한은 고양이 애니메이션을 위한 것이지 시간을 위한 것이 아니다.
+     화면이 몇 프레임 나오든 24.6초는 24.6초여야 한다. */
+  const t0 = performance.now();
+  let t = 0, last = t0, raf = 0, phase = 'play';
+
+  const finish = () => {
+    if (phase === 'done') return;
+    phase = 'done';
+    cancelAnimationFrame(raf);
+    /* **원래 하던 상태로 돌려준다.** 격자는 걷고, 천장·안개·추적·화각·노출을 되돌린다. */
+    R3.outroStop();
+    if (typeof setSkyForce === 'function') setSkyForce(sky0);
+    DOC.body.classList.remove('titleon');
+    root.remove();
+    outroOn = false;
+    endingMark();
+    pushLog(L({
+      ko: '<b>냥찰청</b>. 우리 지점은 서른두 번째였습니다. 사무실은 닫히지 않습니다.',
+      en: 'The <b>Cat Bureau</b>. Ours was the thirty-second branch. The office does not close.',
+      ja: '<b>猫察庁</b>。うちの支店は三十二番目でした。事務所は閉じません。',
+    }), 'good');
+  };
+
+  /* 마지막 로고 — 암전이 다 내린 다음에 뜬다. 그림 위에 겹치면 둘 다 안 읽힌다. */
+  const showLogo = () => {
+    if (phase !== 'play') return;
+    phase = 'logo';
+    root.classList.add('logoon');
+    setTimeout(finish, 3400);
+  };
+
+  const step = now => {
+    raf = requestAnimationFrame(step);
+    const dt = Math.min(0.05, (now - last) / 1000);   // 고양이 몫 — 여기엔 상한이 맞다
+    last = now;
+    if (phase !== 'play') return;
+    t = (now - t0) / 1000;                           // 컷신 몫 — 벽시계 (위 주석)
+    const st = R3.outroSeek(t, dt);
+    if (!st){ showLogo(); return; }
+    fade.style.opacity = st.fade.toFixed(3);
+    const line = st.sub ? L(st.sub) : '';
+    if (line && subT.textContent !== line) subT.textContent = line;
+    sub.style.opacity = line ? '1' : '0';
+    if (st.done || t > dur + 1) showLogo();
+  };
+  raf = requestAnimationFrame(step);
+
+  /* 건너뛰기 — 한 번 누르면 로고로, 로고에서 누르면 끝난다.
+     못 건너뛰는 컷신은 두 번째부터 벌이다(opening.js 도 같은 규칙이다). */
+  root.addEventListener('click', () => { if (phase === 'play') showLogo(); else finish(); });
+  return true;
+}
+

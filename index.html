@@ -172,12 +172,21 @@
 </div>
 
 
+<!-- 시작화면. **제일 먼저** 읽는다 — 화면을 덮는 것이 이 파일의 일이라
+     게임이 뜨기 전에 떠 있어야 한다. -->
+<!-- assets.js 가 title.js 보다 먼저다. 시작화면이 **고른 간판 그림**을 띄우려면
+     경로 표(assetURL)가 이미 서 있어야 한다 — 단일 파일 배포본에서는 그 표가
+     그림의 유일한 출처다(TODO 59). assets.js 는 아무것도 안 부르므로 순서를 올려도 된다. -->
 <script src="js/assets.js?v=13"></script>
+<script src="js/title.js?v=13"></script>
 <script src="js/i18n.js?v=13"></script>
 <script src="js/decor.js?v=13"></script>
 <script src="js/world.js?v=13"></script>
 <script src="js/cats.js?v=13"></script>
 <script src="js/sim.js?v=13"></script>
+<script src="js/icons.js?v=13"></script>
+<!-- 간판 목록. tools/split-logos.js 가 만든다(그림은 assets/logos/). -->
+<script src="js/logolist.js?v=13"></script>
 <script src="js/game.js?v=13"></script>
 <script src="js/ui.js?v=13"></script>
 <script src="js/widget.js?v=13"></script>
@@ -197,6 +206,22 @@
 <script src="js/story.js?v=13"></script>
 <script src="js/tutor.js?v=13"></script>
 <script src="js/main.js?v=13"></script>
+<!-- 본사 택배(TODO 57). 2026-09-02 에 태그만 내렸다가 2026-09-03 에 다시 올렸다 —
+     그때 「파일은 남겨 둔다, 57번이 gaPull·gaPool 을 다시 쓸 설계라서」라고 적어 둔 그것이다.
+     안에 든 것이 넷으로 늘었고(가구·멸치·장비·벽돌) 여는 값은 멸치가 아니라 티켓이다. -->
+<script src="js/gacha.js?v=13"></script>
+<!-- 계정과 저장 동기화(Supabase). 게임을 안 고치고 밖에서 얹는다 — 설정이 비었거나
+     file:// 이거나 네트워크가 없으면 통째로 잠든다(그래서 단일 파일 배포본이 그대로 산다). -->
+<script src="js/cloud.js?v=13"></script>
+<!-- 상자의 **장부**. 잔액과 추첨이 서버에 있다(유료로 팔기로 했으므로) —
+     cloud.js 가 세운 연결을 빌려 쓰므로 그 뒤여야 한다. -->
+<script src="js/parcel.js?v=13"></script>
+<!-- 상자를 **사는** 자리. 장부(parcel.js)와 계정(cloud.js) 둘 다 필요해서 그 뒤다.
+     웹에는 결제 플러그인이 없으므로 첫 판에 그걸 알고 잠든다 — 상점 칸도 안 그려진다. -->
+<script src="js/store.js?v=13"></script>
+<!-- 폰 UI 아늑 스킨. **맨 마지막**이다 — 게임이 다 올라온 뒤에 그 위에 얹는다.
+     선택자가 전부 `body.eerie #app.tabbar …` 라 데스크톱·위젯에는 안 걸린다. -->
+<script src="js/cozy.js?v=13"></script>
 <!-- 3D 렌더러. 모듈이라 file:// 에서는 안 뜨고, 그때는 도트 렌더러로 그냥 돈다.
      배포본(단일 파일)에서는 tools/pack-single.js 가 인라인한다. -->
 <!-- onerror: 모듈을 못 불러오면(파일로 열었거나 경로가 깨졌거나) 그 사실을 알려야 한다.

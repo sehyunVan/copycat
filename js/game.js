@@ -61,9 +61,9 @@ const SHOP = [
      성격이라 벽지·바닥을 상점 목록에 스물여덟 줄로 붓지 않고, **문 하나만 판다.**
      한 번 사면 그 안에서 고르는 건 전부 무료다(4번: 안 산 것은 목록에 없다). */
   { id:'binder',  em:'📕', n: L({ ko:'인테리어 견본책', en:'Sample Binder', ja:'内装の見本帳' }),
-    d: L({ ko:'벽에 걸리는 견본 바인더 · 벽지 · 바닥 · 러그 · 가구 톤을 고를 수 있게 됩니다 (생산 효과 없음)',
-           en:'A sample binder on the wall · lets you pick wallpaper, flooring, rugs and furniture tone (no production effect)',
-           ja:'壁に掛かる見本帳・壁紙／床／ラグ／家具のトーンを選べるようになります（生産効果なし）' }),
+    d: L({ ko:'벽에 걸리는 견본 바인더 · 벽지 · 바닥 · 러그 · 가구 톤을 고를 수 있게 됩니다',
+           en:'A sample binder on the wall · lets you pick wallpaper, flooring, rugs and furniture tone',
+           ja:'壁に掛かる見本帳・壁紙／床／ラグ／家具のトーンを選べるようになります' }),
     cost:480,     tier:0, wallTile:'BINDER' },
   { id:'snack',   em:'🍪', n: L({ ko:'간식바',       en:'Snack Bar',      ja:'おやつバー' }),
     d: L({ ko:'전 직원 생산 +12% · 카페인 욕구 해소',
@@ -87,7 +87,108 @@ const SHOP = [
   { id:'rocket',  em:'🚀', n: L({ ko:'사내 로켓',   en:'Company Rocket', ja:'社用ロケット' }),
     d: L({ ko:'전 직원 생산 +120%',                 en:'All staff +120%',                    ja:'全員の生産+120%' }),
     cost:1500000, tier:6, prod:1.20 },
+
+  /* ============================================================
+     가구 카탈로그 (2026-09-01)
+
+     위의 비품과 **같은 표에 살지만 다른 물건이다.** 비품은 저마다 다른 숫자를
+     건드리고(생산·욕구·KPI·오프라인), 가구는 전부 **쾌적도 하나**에만 기여한다.
+     그래서 `furn` 이 붙어 있고, 상점 화면은 그 표시로 둘을 갈라 그린다.
+
+     ── 왜 효과를 하나로 묶었나 ──
+
+     스물넷에 각자 다른 효과를 달면 표가 스물네 줄 느는 게 아니라 **곱이 스물네 겹**이
+     된다. 이 게임은 정제실 하나가 +90% 인 게임이고, +2% 짜리 스물넷이 그 옆에 붙으면
+     플레이어가 읽을 수 있는 숫자가 아니게 된다. 그리고 무엇보다 가구를 고르는 이유가
+     「예뻐서」가 아니라 「효율 좋아서」가 되는데, 그건 인테리어가 아니라 스프레드시트다.
+
+     쾌적도는 **개수만 센다**(comfort). 무엇을 놓든 같은 값이라, 어떤 가구를 살지는
+     순수하게 취향의 문제로 남는다. 그게 이 카탈로그가 있어야 하는 이유다.
+
+     ── 가구도 등급을 탄다 (2026-09-02) ──
+
+     처음에는 전부 tier 0 이었다(「가구의 관문은 등급이 아니라 돈」). 그런데 그러면
+     상점 화면에 **규칙이 둘**이 된다: 비품은 열리고 가구는 처음부터 다 있다.
+     한 화면에서 잠금 규칙이 둘이면 「이건 왜 안 열리지」를 물건마다 따로 배워야 하고,
+     스물다섯이 한꺼번에 깔린 첫 화면은 고를 것이 너무 많아 아무것도 안 고르게 된다.
+
+     그래서 **가구도 등급으로 열린다.** 값이 싼 것부터 차례로 — 첫 사무실에서는
+     상자·메모·화분 같은 것들만 있고, 소파는 사옥에 가야 나온다. 4번 규칙(안 산 것은
+     목록에 없다)이 그대로 적용되므로 잠긴 가구는 **아예 안 보인다**(개수만 알린다).
+     ============================================================ */
+  ...furnCatalog(),
 ];
+
+/* 카탈로그 스물넷. 한 줄에 하나씩 스물넷을 손으로 적으면 이름 셋(ko/en/ja) 때문에
+   백 줄이 넘는데, 그중 다른 것은 이름·값·분류 셋뿐이다. 표로 적고 펼친다. */
+function furnCatalog(){
+  /* [id, 분류, 이모지, 값, 등급, 한국어, English, 日本語]
+
+     **등급은 값을 따라간다.** 싼 것이 먼저 열린다 — 종이상자 지점에서 소파를 파는
+     것보다 박스와 메모를 파는 쪽이 그 사무실의 이야기에 맞고, 값이 곧 순서라서
+     「왜 이건 아직 안 열리지」를 따로 배울 필요가 없다.
+     한 등급에 일곱→여섯→다섯→넷→둘→하나. 사무실을 옮길 때마다 목록이 눈에 띄게
+     늘지만, 뒤로 갈수록 새로 열리는 수가 줄어 마지막까지 아껴 둘 것이 남는다. */
+  const T = [
+    ['f_box',       'store', '📦',   60, 0, '박스',        'Box',           '段ボール'],
+    ['f_memo',      'wall',  '🗒️',   60, 0, '스티커 메모',  'Sticky Notes',  '付箋メモ'],
+    ['f_bin',       'store', '🗑️',   70, 0, '휴지통',      'Trash Bin',     'ごみ箱'],
+    ['f_penholder', 'deco',  '🖊️',   70, 0, '펜 홀더',     'Pen Holder',    'ペン立て'],
+    ['f_plantS',    'deco',  '🌵',   80, 0, '화분 (소)',    'Plant (S)',     '鉢植え(小)'],
+    ['f_papertray', 'store', '📄',   90, 0, '서류 트레이',  'Paper Tray',    '書類トレイ'],
+    ['f_candle',    'deco',  '🕯️',  120, 0, '캔들',        'Candles',       'キャンドル'],
+    ['f_cafechair', 'rest',  '🪑',  150, 1, '카페 의자',    'Café Chair',    'カフェチェア'],
+    ['f_meetchair', 'work',  '🪑',  160, 1, '회의용 의자',  'Meeting Chair', '会議用椅子'],
+    ['f_lantern',   'deco',  '🏮',  180, 1, '랜턴',        'Lantern',       'ランタン'],
+    ['f_bookrack',  'store', '📚',  220, 1, '책꽂이',      'Book Rack',     '本立て'],
+    ['f_drawer',    'work',  '🗄️',  240, 1, '서랍장',      'Drawer Unit',   '引き出し'],
+    ['f_curtain',   'wall',  '🪟',  240, 1, '커튼',        'Curtains',      'カーテン'],
+    ['f_plantL',    'deco',  '🌴',  260, 2, '화분 (대)',    'Plant (L)',     '鉢植え(大)'],
+    ['f_openshelf', 'store', '🪜',  300, 2, '오픈 선반',    'Open Shelving', 'オープン棚'],
+    ['f_lowtable',  'rest',  '🪵',  300, 2, '테이블',      'Low Table',     'ローテーブル'],
+    ['f_cafetable', 'rest',  '☕',  320, 2, '카페 테이블',  'Café Table',    'カフェテーブル'],
+    ['f_beanbag',   'rest',  '🫘',  340, 2, '빈백',        'Bean Bag',      'ビーズクッション'],
+    ['f_floorlamp', 'deco',  '🛋️',  340, 3, '스탠드 조명',  'Floor Lamp',    'スタンドライト'],
+    ['f_cabinet',   'store', '🗄️',  360, 3, '수납장',      'Cabinet',       '収納棚'],
+    ['f_filecab',   'work',  '🗃️',  380, 3, '파일 캐비닛',  'File Cabinet',  'ファイルキャビネット'],
+    ['f_locker',    'store', '🚪',  420, 3, '락커',        'Lockers',       'ロッカー'],
+    ['f_armchair',  'rest',  '💺',  460, 4, '안락 의자',    'Lounge Chair',  'アームチェア'],
+    ['f_sofa1',     'rest',  '🛋️',  520, 4, '소파 (1인)',   'Sofa (1)',      'ソファ(1人)'],
+    ['f_sofa2',     'rest',  '🛋️',  880, 5, '소파 (2인)',   'Sofa (2)',      'ソファ(2人)'],
+  ];
+  /* 설명은 스물넷이 다 같다 — 실제로 하는 일이 같기 때문이다. 물건마다 그럴듯한
+     문장을 지어내면 그건 없는 차이를 말하는 것이고, 이 게임은 그걸 안 한다. */
+  const d = L({ ko:'사무실 쾌적도 +1 — 가구가 늘수록 생산이 오르고 욕구가 천천히 닳습니다',
+                en:'Office comfort +1 — more furniture means better output and slower needs',
+                ja:'オフィス快適度+1 — 家具が増えるほど生産が上がり欲求がゆっくり減ります' });
+  return T.map(([id, furn, em, cost, tier, ko, en, ja]) => ({
+    id, furn, em, cost, tier, d, n: L({ ko, en, ja }),
+    /* 벽에 거는 둘은 바닥 자리를 안 먹는다 — 견본책과 같은 배선이다(buyItem 의 wallTile).
+       다만 견본책과 달리 **여러 장 걸 수 있다**: 커튼은 창마다 하나씩이 자연스럽다. */
+    ...(furn === 'wall' ? { wallTile: id === 'f_curtain' ? 'CURTAIN' : 'MEMO', wallMany:1 } : {}),
+  }));
+}
+
+/* ---------- 사무실 쾌적도 ----------
+   가진 **가구 개수**만 센다. 종류가 아니라 개수인 이유: 화분 하나짜리 사무실과
+   화분 여섯짜리 사무실은 다른 방이고, 종류로 세면 두 번째 화분을 살 이유가 없어진다.
+
+   **수확 체감이다.** 개수에 비례시키면 값싼 박스(60멸치)를 백 개 사는 게 최적해가
+   되고, 그러면 이 카탈로그는 사무실을 꾸미는 물건이 아니라 창고에 상자를 쌓는 버그가
+   된다. 지수 포화 곡선이라 열 개쯤에서 절반이 차고 마흔 개 넘으면 거의 안 움직인다.
+
+     0개 +0%   ·   6개 +8.4%   ·   12개 +14.6%   ·   24개 +22.1%   ·   ∞ +30%
+
+   상한 30% 는 이 게임의 다른 값들과 나란히 놓고 정했다 — 커피머신 15%, 건조실 35%,
+   헬스장 55%, 정제실 90%. 「사무실을 잘 꾸미면 건조실 하나쯤」이 맞는 크기다.
+   공짜가 아니라 값을 치른 결과이기도 하고(가구 스물넷이면 7천 멸치쯤 든다). */
+const COMFORT_CAP = 0.30, COMFORT_HALF = 18;
+function furnOwned(){
+  let n = 0;
+  SHOP.forEach(i => { if (i.furn) n += shopCount(i.id); });
+  return n;
+}
+function comfort(){ return COMFORT_CAP * (1 - Math.exp(-furnOwned() / COMFORT_HALF)); }
 
 const SIZE_INFO = {
   s:{ kpi:1, mult:1,   sec:35,  label: L({ ko:'작음', en:'Small',  ja:'小' }) },
@@ -203,9 +304,16 @@ function newGame(){
     bizKey: bizKey(), days: {},
     /* 제휴 지점 — 내 초대 코드와 보낸 인사. 서버가 오면 이 칸이 그대로 쓰인다. */
     friends: { code:'', sent:{}, seen:{} },
+    /* 이 지점 — 간판 로고와 이름(TODO 59). 계약서 다음에 한 번 정한다(ui.js showBranchSetup).
+       로고를 비워 두면 시작화면은 박아 둔 글자 로고를 쓴다(js/title.js). */
+    branch: { logo:'', name:'' },
+    /* 마지막 장면(아웃트로)을 봤나 — js/story.js 가 세운다. 본 사람은 시작화면이
+       사무실이 아니라 그 정경이 된다(js/title.js). */
+    ending: 0,
+    beats: [],                      // 바깥 겹(냥찰청)의 문구 중 본 것 — js/story.js 의 BEATS
     routines: [],                   // 루틴 — 요일 규칙 (js/game.js runRoutines)
     cats: [first],
-    todos: [], shop: {}, log: [], bag: [],
+    todos: [], shop: {}, log: [],
     candidate: null,                                 // 문 앞에서 기다리는 지원자
     /* 근무 시간. 09–18 이 기본이고 ⚙️ 에서 바꾼다(자정을 넘어도 된다) — sim.js shiftOf */
     shift: { start: 9, end: 18 },
@@ -249,6 +357,12 @@ function loadSave(){
     d.bizKey = normDay(d.bizKey) || bizKey();
     d.days = d.days || {};
     d.friends = d.friends || { code:'', sent:{}, seen:{} };   // 제휴 지점 (js/friends.js)
+    /* 지점 간판은 나중에 생긴 칸이다. 옛 저장에는 빈 채로 둔다 — 로고를 골라 준
+       것으로 만들면 「내가 고른 것」이 아니게 되고, 시작화면은 빈 값에서 옛 로고로
+       내려가므로 화면이 깨지지도 않는다(js/title.js). */
+    d.branch = d.branch || { logo:'', name:'' };
+    d.ending = d.ending ? 1 : 0;                              // 마지막 장면을 봤나 (js/story.js)
+    d.beats = Array.isArray(d.beats) ? d.beats : [];          // 바깥 겹의 문구 중 본 것 (js/story.js)
     d.routines = Array.isArray(d.routines) ? d.routines : [];
     if (d.careDay) d.careDay.date = normDay(d.careDay.date);
     if (d.together) d.together.since = normDay(d.together.since);
@@ -286,7 +400,6 @@ function loadSave(){
     }
     d.cats.forEach(c => {
       c.stats = c.stats || rollStats();
-      c.equip = c.equip || { head:null, neck:null, paw:null };
       c.needs = c.needs || { energy:100, fun:100, caffeine:100, bladder:100 };
       c.act = { s:'idle', t:0 }; c.doc = null;
     });
@@ -326,7 +439,9 @@ function catRate(c){
   if (tr.needs && shopHas(tr.needs)) m *= (1 + tr.ifOwned);
   const statMul = 1 + mod(statOf(c,'int')) * 0.10 + mod(statOf(c,'str')) * 0.025;
   const moodMul = 0.40 + 0.80 * (moodOf(c, hasCoffee) / 100);
-  const office  = 1 + shopSum('prod') + teamProd();
+  /* 쾌적도가 여기 들어간다 — 비품의 prod 와 **같은 자리**다.
+     따로 곱하면 「가구 보너스」라는 새 축이 생기고, 이 게임의 숫자는 이미 충분히 많다. */
+  const office  = 1 + shopSum('prod') + teamProd() + comfort();
   const tierMul = 1 + S.tier * 0.22;
   const legalMul = legalDrag() * rivalDrag();
   /* 자리에 앉아 있는 동안만 번다. 그런데 고양이가 자리를 뜨는 빈도를 올렸으므로
@@ -742,8 +857,28 @@ function styleCandidate(look){
   /* 어떤 그림으로 그릴지. 도트 렌더러는 안 쓰지만 저장에는 남는다 —
      렌더러를 갈아 끼워도 고른 것이 유지되어야 한다. */
   if (look.draw != null) c.draw = look.draw;
+  /* 무늬 — 지원자도 찍을 수 있다. 저장에 남으므로 면접창을 닫았다 열어도 그대로다
+     (능력치를 지켜 주는 그 규칙이 겉모습에도 그대로 적용된다). */
+  if (look.marks != null) c.marks = normMarks(look.marks);
+  if (look.face != null) c.face = normFace(look.face);
   save();
   return c;
+}
+/* 이미 입사한 냥의 무늬를 바꾼다. **언제든 바꿀 수 있다** — 이 게임은 되돌릴 수 없는
+   소비를 벌로 취급하지 않는다(벽지도 가구도 몇 번을 갈아도 값이 안 든다).
+   화면의 배우와 목록의 초상은 다음 프레임에 저절로 따라온다(render3d sync·portrait). */
+function setCatMarks(cat, marks){
+  if (!cat) return null;
+  cat.marks = normMarks(marks);
+  save();
+  return cat.marks;
+}
+/* 표정도 같은 규칙이다 — 언제든 바꾸고, 0 이면 상태 연동으로 돌아간다. */
+function setCatFace(cat, i){
+  if (!cat) return 0;
+  cat.face = normFace(i);
+  save();
+  return cat.face;
 }
 /* 지원자 이름만 새로 뽑아준다 (🎲). 사내에 없는 이름을 고른다. */
 function rerollCandidateName(){
@@ -776,6 +911,28 @@ function hire(look){
 }
 /* 프롤로그 끝의 근로계약서. 1번 사원 = 프롤로그의 "나" = 플레이어다.
    채용(hire)과 달리 능력치를 다시 굴리지 않고, 돈도 받지 않는다 — 창업 멤버다. */
+/* ── 시작화면이 읽는 거울 키 ──
+   고른 로고는 저장(S.branch.logo)이 원본이다. 그런데 **시작화면은 저장을 읽기 전에
+   그려진다** — title.js 는 부팅 맨 앞에서 돌고, 그 시점에는 게임 코드도 저장도 없다.
+   거기서 저장 전체를 JSON.parse 하게 만들면 로고 한 줄 때문에 저장을 통째로 뜯게 되고,
+   저장 형식이 바뀔 때 시작화면이 같이 깨진다. 그래서 **작은 키 하나로 비춰 둔다.**
+   원본은 어디까지나 저장이고, 이 키는 그림 이름만 아는 사본이다. */
+const LOGO_KEY = 'copycat.logo';
+function setBranch(o){
+  if (!S.branch || typeof S.branch !== 'object') S.branch = { logo:'', name:'' };
+  if (o && typeof o.logo === 'string') S.branch.logo = o.logo;
+  if (o && typeof o.name === 'string') S.branch.name = o.name.trim().slice(0, 10);
+  try { localStorage.setItem(LOGO_KEY, S.branch.logo || ''); } catch(e){}
+  save();
+  return S.branch;
+}
+/* 「OO점」. 이름을 안 정했으면 지점 이름이 없는 것이고, 그 자리는 회사 이름이 채운다 —
+   빈 이름에 「점」만 붙여 「점」이라는 지점을 만들지 않는다. */
+const branchLabel = () => {
+  const n = (S.branch && S.branch.name || '').trim();
+  return n ? n + L({ ko:'점', en:' Br.', ja:'店' }) : '';
+};
+
 function signContract(look){
   const c = S.cats[0];
   if (!c) return null;
@@ -829,8 +986,11 @@ function buyItem(id){
      수익 같은 것)은 두 번 사도 놓일 게 없으므로 한 번으로 끝난다. */
   const again = shopHas(id);
   if (again && !SHOP_TILE[id] && !it.wallTile) return false;
-  /* 벽에 거는 비품(견본책)은 두 권 사도 걸 벽이 하나다 */
-  if (again && it.wallTile) return false;
+  /* 벽에 거는 비품(견본책)은 두 권 사도 걸 벽이 하나다.
+     **커튼·메모는 예외다**(wallMany) — 창이 여럿이면 커튼도 여럿이 자연스럽고,
+     메모는 애초에 여러 장 붙이는 물건이다. 견본책만 한 권인 이유는 그게 문이기 때문이고,
+     문이 둘이면 그건 문이 아니라 벽지다. */
+  if (again && it.wallTile && !it.wallMany) return false;
   const cost = shopCost(it);
   if (S.anchovy < cost) return false;
 
@@ -849,7 +1009,11 @@ function buyItem(id){
      그래서 「자리가 없다」로 실패할 수 없고, 대신 걸 벽이 없으면 실패한다. */
   if (it.wallTile){
     const wt = TILE[it.wallTile];
-    if (!ensureWallItem(W, wt, 7)){
+    /* 여러 장 걸 수 있는 것은 **이미 있어도 한 장 더** 건다 — ensureWallItem 은
+       「없으면 건다」라서 두 번째부터 조용히 실패한다(그러면 돈만 나간다). */
+    const hung = it.wallMany ? addWallItem(W, wt, shopCount(id))
+                             : ensureWallItem(W, wt, 7);
+    if (!hung){
       sfx.err();
       toast(L({ ko:`<b>${it.n}</b>을(를) 걸 벽이 없습니다.`,
                 en:`No wall to hang <b>${it.n}</b> on.`,
@@ -1007,28 +1171,6 @@ function decorSync(){
   const d = decorState();
   DECOR.set(d.wall, d.floor, d.tone, true);
   DECOR.clearCache();
-}
-
-function equipItem(catId, itemId){
-  const c = S.cats.find(x => x.id === catId);
-  const it = EQUIP.find(x => x.id === itemId);
-  if (!c || !it) return false;
-  const i = S.bag.indexOf(itemId);
-  if (i < 0) return false;
-  S.bag.splice(i, 1);
-  const old = c.equip[it.slot];
-  if (old) S.bag.push(old);
-  c.equip[it.slot] = itemId;
-  save();
-  return true;
-}
-function unequip(catId, slot){
-  const c = S.cats.find(x => x.id === catId);
-  if (!c || !c.equip[slot]) return false;
-  S.bag.push(c.equip[slot]);
-  c.equip[slot] = null;
-  save();
-  return true;
 }
 
 /* ============================================================
@@ -1265,10 +1407,12 @@ function closeQuarter(){
   }
   if (ev.heat){ S.penalty = Math.max(0, S.penalty + ev.heat); }
   if (ev.rival){ S.rival = Math.max(0, Math.min(RIVAL_MAX, S.rival + ev.rival)); }
+  /* 분기마다 가끔 떨어지던 것이 **장비**였는데 그 체계를 없앴다(js/cats.js 머리말).
+     빈자리를 두지 않고 **본사 택배 한 상자**로 갈음한다 — 얻는 리듬은 그대로 두되
+     그 보상이 이미 있는 물건(TODO 57)으로 흐르게 한다. 상자는 세는 데가 한 곳이다. */
   if (ev.drop || Math.random() < 0.35){
-    const it = EQUIP[Math.floor(Math.random() * EQUIP.length)];
-    S.bag.push(it.id);
-    evDrop = it;
+    if (typeof gaS === 'function') gaS().tix = (gaS().tix | 0) + 1;
+    evDrop = { n: L({ ko:'본사 택배 한 상자', en:'A parcel from HQ', ja:'本社からの宅配ひと箱' }) };
   }
   if (ev.k === 'hire'){
     if (S.cats.length < deskCount()){
@@ -1345,9 +1489,9 @@ function closeQuarter(){
     ja:`<b>Q${q}決算</b>——売上🐟${fmt(earned)}、決裁${done}件。${evText}`,
   }), 'big');
   if (evDrop) pushLog(L({
-    ko:`창고에 <b>${evDrop.n}</b>${evDrop.em} 이(가) 들어왔습니다.`,
-    en:`<b>${evDrop.n}</b>${evDrop.em} was added to storage.`,
-    ja:`倉庫に<b>${evDrop.n}</b>${evDrop.em}が入りました。`,
+    ko:`📦 <b>${evDrop.n}</b> 이(가) 도착했습니다.`,
+    en:`📦 <b>${evDrop.n}</b> arrived.`,
+    ja:`📦 <b>${evDrop.n}</b>が届きました。`,
   }), 'good');
   if (moved)  pushLog(L({
     ko:`🎉 <b>${TIERS[S.tier].name}</b>(으)로 이전했습니다. 자리 ${deskCount()}석`,

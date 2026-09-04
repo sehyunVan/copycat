@@ -608,10 +608,16 @@ function renderTodos(){
   { const t = $('#colTabs [data-col="inbox"]'); if (t) t.classList.toggle('od', over.length > 0); }
 
   if (!open.length && !done.length){
+    /* 달력이 **어디에** 있는지는 말하지 않는다. 판마다 다르고(폰은 오른쪽 세로 줄,
+       넓은 판은 벽), 무엇보다 이 빈 화면은 첫 그림에서 한 번 그려지는데 그때는
+       레이아웃 클래스가 아직 안 붙어 있다 — 자리를 말하면 첫 화면에서만 틀린 말을
+       하게 된다. 실제로 그렇게 만들어 놓고 「벽에 걸린」이 찍히는 것을 봤다. */
     el.innerHTML = `<div class="empty">${L({
-      ko:'오늘 결재함이 비었습니다.<br>고양이들이 창밖만 보고 있습니다 🐈<br><br><span class="tiny">올린 건은 고양이가 직접 물고 가서<br>자기 자리에서 도장을 찍습니다.<br>벽에 걸린 📅 달력에서 다른 날에 미리 적어 둘 수 있습니다.</span>',
-      en:'Nothing in today’s inbox.<br>The cats are just staring out the window 🐈<br><br><span class="tiny">Posted items get carried off by a cat<br>and stamped at their own desk.<br>The 📅 on the wall lets you write ahead on other days.</span>',
-      ja:'今日の決裁箱は空です。<br>猫たちは窓の外ばかり見ています 🐈<br><br><span class="tiny">上げた案件は猫がくわえて運び、<br>自分の席でハンコを押します。<br>壁の📅カレンダーで別の日に先に書いておけます。</span>',
+      /* 달력이 어디 있는지는 판마다 다르다 — 폰에서는 오른쪽 줄, 넓은 판에서는 벽.
+         이모지는 뺐다(이 화면의 나머지가 전부 그린 아이콘이다). */
+      ko:'오늘 결재함이 비었습니다.<br>고양이들이 창밖만 보고 있습니다<br><br><span class="tiny">올린 건은 고양이가 직접 물고 가서<br>자기 자리에서 도장을 찍습니다.<br><b>달력</b>에서 다른 날에 미리 적어 둘 수 있습니다.</span>',
+      en:'Nothing in today’s inbox.<br>The cats are just staring out the window<br><br><span class="tiny">Posted items get carried off by a cat<br>and stamped at their own desk.<br>The <b>calendar</b> lets you write ahead on other days.</span>',
+      ja:'今日の決裁箱は空です。<br>猫たちは窓の外ばかり見ています<br><br><span class="tiny">上げた案件は猫がくわえて運び、<br>自分の席でハンコを押します。<br><b>カレンダー</b>で別の日に先に書いておけます。</span>',
     })}</div>`;
     return;
   }
@@ -669,9 +675,9 @@ function renderTodos(){
   // 아직 한 건도 처리 안 했으면 어디를 눌러야 하는지 알려준다
   const hint = (open.length && !S.stats.done)
     ? `<div class="chkhint">${L({
-        ko:'👈 왼쪽 <b>네모 칸</b>을 누르면 완료 — 고양이가 서류를 가지러 옵니다',
-        en:'👈 Press the <b>square</b> on the left to finish — a cat comes for the papers',
-        ja:'👈 左の<b>四角</b>を押すと完了——猫が書類を取りに来ます',
+        ko:'👈 할 일이 끝나면 <b>체크</b> — 고양이가 서류를 가지러 옵니다',
+        en:'👈 <b>Check it off</b> when it’s done — a cat comes for the papers',
+        ja:'👈 終わったら<b>チェック</b>——猫が書類を取りに来ます',
       })}</div>` : '';
 
   /* 묶음을 세운다. 잎은 부모 밑에 들여쓰고, 부모가 목록에 없는 잎(있을 수 없지만)은
@@ -919,19 +925,21 @@ function floatAt(x, y, text, cls){
   setTimeout(() => d.remove(), 1650);
 }
 /* ---------- 말풍선 ----------
-   **한 고양이에 하나.** 예전에는 부를 때마다 새 div 를 만들어 2.6초 뒤에 지웠는데,
-   그러면 두 가지가 안 됐다:
+   **한 고양이에 하나.** 그 하나가 두 가지를 담는다.
 
-     1) **가구를 쓰는 동안 말이 사라진다.** 커피머신 앞에 3분을 서 있어도 「커피
-        마시는 중…」 은 2.6초만 뜬다. 무엇을 하고 있는지가 그 물건의 값어치인데,
-        그 표시가 제일 먼저 없어졌다.
-     2) **겹친다.** 액터 DOM 이 없으니 지울 옛 풍선을 몰라서 두 줄이 같은 자리에
-        붙었다(sim.js sayDoing 이 2.8초 자물쇠로 막고 있던 게 이 문제다).
+     · 가구를 쓰는 동안   → **아이콘**(js/icons.js) 이 계속 떠 있는다
+     · 말할 때            → 지금까지처럼 **문장**이 2.6초 떴다가, 다시 아이콘으로 돌아온다
 
-   그래서 풍선을 **고양이별로 하나씩 들고 있고 매 프레임 다시 투영한다.**
-   따라 그리면 카메라를 돌려도 말이 고양이 위에 남고, 걸어가도 따라간다.
-   목숨은 until 하나로 정한다 — 가구를 쓰는 동안에는 그 값이 Infinity 다. */
-const bubbles = new Map();          // catId → { el, until }
+   여태는 그 자리에 문장만 있었다. 50번이 「가구를 쓰는 동안 계속 떠 있게」 하면서
+   문장이 상주하게 됐는데, 스무 마리가 있는 사무실에서 그건 자막 판이었다 —
+   폰에서는 서로 겹쳐서 아무것도 안 읽힌다. 그래서 상주하는 쪽만 그림으로 바꿨다.
+   **판을 새로 만들지 않는다**: 같은 .bubble 이고, 같은 크림 바탕·같은 잉크 테두리·
+   같은 꼬리다. 머리 위에 두 가지 그림체가 번갈아 뜨면 그게 더 시끄럽다.
+
+   자리는 매 프레임 다시 투영한다. 따라 그리면 카메라를 돌려도 머리 위에 남고,
+   걸어가도 따라간다. 부를 때마다 새로 만들어 지우던 옛 방식은 지울 옛 것을 몰라서
+   두 줄이 같은 자리에 겹치는 문제가 있었다. */
+const bubbles = new Map();          // catId → { el, until, kind }
 
 function bubbleEl(catId){
   let b = bubbles.get(catId);
@@ -940,7 +948,7 @@ function bubbleEl(catId){
     el.className = 'bubble hold';
     el.style.cssText = 'bottom:auto;transform:translate(-50%,-100%)';
     fxLayer().appendChild(el);
-    b = { el, until: 0 };
+    b = { el, until: 0, kind: null };
     bubbles.set(catId, b);
   }
   return b;
@@ -949,9 +957,13 @@ function dropBubble(catId){
   const b = bubbles.get(catId);
   if (b){ b.el.remove(); bubbles.delete(catId); }
 }
+/* 문장을 띄운다. 아이콘이 떠 있었으면 그 위에 덮이고, 2.6초 뒤 syncBubbles 가
+   원래 아이콘으로 되돌린다(kind 를 비워 두면 다음 프레임이 다시 그린다). */
 function sayAt(catId, text){
   if (!is3d()) return;
   const b = bubbleEl(catId);
+  b.el.classList.remove('ico', 'ic-rise', 'ic-beat', 'ic-sway');
+  b.kind = null;
   if (b.el.textContent !== text) b.el.textContent = text;
   b.until = performance.now() + 2650;
   /* 말이 뜨는 순간 귀가 한 번 튕긴다(TODO 39). 말풍선만 뜨고 몸이 가만히 있으면
@@ -960,47 +972,46 @@ function sayAt(catId, text){
   syncBubbles();                     // 만든 프레임에 바로 자리를 잡는다
 }
 
-/* 매 프레임. 자리를 다시 잡고, 수명이 다한 것을 걷고,
-   **가구를 쓰는 중인데 할 말이 없는 고양이에게는 말을 준다.** */
+/* 어느 그림을 띄우나. 하는 일은 시뮬이 이미 갈래로 갖고 있다(sim.js doingKind) —
+   여기서 갈리는 건 하나뿐이다: **잡담은 혼자냐 둘이냐로 그림이 다르다**(TODO 60).
+   짝이 있으면 하트고, 혼자면 말풍선 아이콘이다. */
+function iconKind(c){
+  const k = (typeof doingKind === 'function') ? doingKind(c) : null;
+  if (!k) return null;
+  if (k === 'social') return c._with ? 'heart' : 'social';
+  return (typeof ICON_SVG !== 'undefined' && ICON_SVG[k]) ? k : null;
+}
+/* 풍선 하나를 아이콘 판으로 만든다. 갈래가 그대로면 아무것도 안 건드린다 —
+   매 프레임 innerHTML 을 다시 쓰면 SVG 가 새로 만들어져서 움직임이 첫 칸에 갇힌다. */
+function setIcon(b, kind){
+  if (b.kind === kind) return;
+  b.kind = kind;
+  b.el.textContent = '';
+  b.el.innerHTML = iconSVG(kind);
+  b.el.className = 'bubble hold ico ic-' + ((typeof ICON_ANIM !== 'undefined' && ICON_ANIM[kind]) || 'sway');
+}
+
+/* 매 프레임. 자리를 다시 잡고, 수명이 다한 문장을 아이콘으로 되돌리고,
+   하는 일이 없어진 고양이의 풍선을 걷는다. */
 function syncBubbles(){
   if (!is3d() || !S) return;
   const all = S.cats.concat(NPCS);
   const now = performance.now();
   const alive = new Set();
   for (const c of all){
-    /* 무엇을 하는 중인가 — 가구를 안 쓰면 null 이다(sim.js doingKind).
-       근무·이동·대기에 말풍선이 붙으면 그건 상태 표시가 아니라 자막이다. */
-    const doing = (typeof doingKind === 'function') ? doingKind(c) : null;
-    const line = () => ((typeof doingLine === 'function') ? doingLine(c) : null);
-    let b = bubbles.get(c.id);
-    if (doing){
-      /* 쓰는 동안에는 안 사라진다(until = Infinity). 그 사이에 다른 말이 끼어들면
-         (수다·쓰다듬기 — sayAt 이 2.6초짜리로 덮는다) 그 말이 끝나는 순간
-         **다시 하는 일로 돌아온다.** 돌아올 때 줄을 새로 뽑으므로 말이 조금씩 바뀐다 —
-         3분 동안 같은 줄이 떠 있으면 그건 말이 아니라 간판이다. */
-      if (!b){
-        const t = line();
-        if (!t) continue;
-        b = bubbleEl(c.id);
-        b.el.textContent = t;
-        b.until = Infinity;
-      } else if (b.until !== Infinity && now > b.until){
-        b.el.textContent = line() || b.el.textContent;
-        b.until = Infinity;
-      }
-    } else if (b && b.until === Infinity){
-      /* 가구에서 떨어졌다. 곧바로 지우면 말이 뚝 끊기므로 짧게 남겨 두고 걷는다. */
-      b.until = now + 1100;
-    }
-    if (!b) continue;
-    if (!doing && now > b.until){ dropBubble(c.id); continue; }
+    const kind = iconKind(c);
+    const talking = (() => { const b = bubbles.get(c.id); return !!b && b.until > now; })();
+    if (!kind && !talking){ dropBubble(c.id); continue; }
+    const b = bubbleEl(c.id);
+    /* 말이 끝났으면 하던 일로 돌아온다. 할 일이 없으면 위에서 이미 걷혔다. */
+    if (!talking) setIcon(b, kind);
+    alive.add(c.id);
     /* 화면 밖으로 나간 고양이의 풍선은 감춘다 — 지우면 돌아왔을 때 말이 끊긴다 */
     const p = R3.project(c.x, c.y, 1.0);
-    if (!p){ b.el.style.visibility = 'hidden'; alive.add(c.id); continue; }
+    if (!p){ b.el.style.visibility = 'hidden'; continue; }
     b.el.style.visibility = '';
     b.el.style.left = p.x + 'px';
     b.el.style.top  = p.y + 'px';
-    alive.add(c.id);
   }
   /* 퇴사·구금으로 목록에서 빠진 고양이의 풍선 */
   bubbles.forEach((b, id) => { if (!alive.has(id)) dropBubble(id); });
@@ -1035,11 +1046,12 @@ function renderRight(){
 
 
 
-function portrait(c, size){
+function portrait(c, size, opt){
   /* 3D 일 때는 같은 3D 고양이를 구운 그림을 쓴다. 목록만 도트로 남으면
-     한 화면 안에서 두 그림체가 싸운다. */
+     한 화면 안에서 두 그림체가 싸운다.
+     opt 는 렌더러의 초상 손잡이를 그대로 넘긴다(표정·정면·얼굴 컷). 안 주면 지금까지 그대로다. */
   if (is3d() && R3.portrait){
-    const url = R3.portrait(c, Math.max(64, size));
+    const url = R3.portrait(c, Math.max(64, size), opt);
     const eerie = document.body.classList.contains('eerie');
     /* 조형 초상은 구울 때 이미 색을 입힌다(three/eerie.js 의 bakePortrait).
        손그림은 그림 파일 그대로라 손댈 자리가 없어서 여기서 필터로 맞춘다 —
@@ -1153,16 +1165,6 @@ function staffHTML(){
   </div>`;
   }
 
-  if (S.bag.length){
-    h += `<div class="card" style="background:#FFFBF3"><div class="crow"><span class="em">🎁</span>
-      <div class="info"><b>${L({ ko:'창고', en:'Storage', ja:'倉庫' })}</b><span>${S.bag.map(id=>{const e=EQUIP.find(x=>x.id===id);return e?e.em+e.n:'';}).join(' · ')}</span></div>
-    </div></div><div class="hint">${L({
-      ko:'고양이 카드를 누르면 장비를 채울 수 있습니다',
-      en:'Click a cat card to equip gear',
-      ja:'猫のカードを押すと装備できます',
-    })}</div>`;
-  }
-
   h += S.cats.map(c => {
     const tr = traitOf(c), rn = rankName(c), nx = nextRank(c);
     const pc = promoCost(c);
@@ -1193,47 +1195,136 @@ function staffHTML(){
 
    대신 잠긴 **개수**는 남긴다 — 아무것도 없는 것과 아직인 것은 다르고,
    그 차이를 안 알려주면 등급을 올릴 이유가 사라진다. 개수만, 이름은 말고. */
+/* 상점은 **격자 하나**다 (2026-09-02).
+   한동안 비품은 세로 한 줄짜리 카드, 가구는 격자였다. 한 화면에 목록 모양이 둘이면
+   그 둘이 다른 종류의 물건으로 보이는데, 사는 사람에게는 둘 다 「사무실에 들어오는
+   물건」 하나다. 그래서 같은 칸으로 통일한다 — 비품은 설명이 필요해서 두 칸 폭,
+   가구는 이름과 값이면 되어서 세 칸 폭. 칸의 생김새는 같다.
+
+   잠긴 것은 **아예 안 보인다**(4번 규칙). 이제 가구도 등급을 타므로(game.js
+   furnCatalog) 그 규칙이 화면 전체에 하나로 걸린다 — 맨 아래 줄이 몇 개가 잠겨
+   있는지만 알린다. 개수만, 이름은 말고. */
 function shopHTML(){
-  const open = SHOP.filter(it => S.tier >= it.tier);
-  const hidden = SHOP.length - open.length;
+  const goods = SHOP.filter(it => !it.furn);
+  const open = goods.filter(it => S.tier >= it.tier);
+  const head = `<div class="furnhead"><b>${L({ ko:'비품', en:'Equipment', ja:'備品' })}</b>
+      <span>${L({ ko:`${open.filter(it => shopCount(it.id) > 0).length}/${open.length}종 · 저마다 다른 효과`,
+                  en:`${open.filter(it => shopCount(it.id) > 0).length}/${open.length} kinds · each does its own thing`,
+                  ja:`${open.filter(it => shopCount(it.id) > 0).length}/${open.length}種・それぞれ別の効果` })}</span>
+    </div>`;
+  const grid = `<div class="furngrid g2">${open.map(it => {
+    const n = shopCount(it.id);
+    /* 가구가 있는 비품은 몇 번이고 더 살 수 있다 — 효과는 그대로고 가구만 늘어난다.
+       두 대째 커피머신의 값어치는 "생산 두 배" 가 아니라 "줄을 안 선다" 이고,
+       그건 이 게임에서 눈에 보이는 차이다. 대신 값이 사본마다 오른다. */
+    const again = n > 0 && !!SHOP_TILE[it.id];
+    const done = n > 0 && !again;                 // 견본책처럼 한 번만 사는 것
+    const cost = shopCost(it);
+    const off = done || S.anchovy < cost;
+    return `<button class="fcell wide${n ? ' has' : ''}" data-act="buy" data-id="${it.id}"
+        ${off ? 'disabled' : ''} title="${esc(it.n)}">
+      ${furnPic(it)}
+      <b>${it.n}</b>
+      <span class="fdesc">${it.d}</span>
+      <span class="fcost">${done
+        ? L({ ko:'설치됨 ✓', en:'Installed ✓', ja:'設置済み ✓' })
+        : (again ? '+1 ' : '') + '🐟' + fmt(cost)}</span>
+      ${n ? `<i class="fn">${n}</i>` : ''}
+    </button>`;
+  }).join('')}</div>`;
+  return head + grid + furnHTML() + shopLockedHTML();
+}
+
+/* 잠긴 것 — 비품과 가구를 **합쳐서** 한 줄로 센다. 규칙이 하나이므로 알림도 하나다. */
+function shopLockedHTML(){
+  const hidden = SHOP.filter(it => S.tier < it.tier).length;
+  if (!hidden) return '';
   const soon = SHOP.filter(it => it.tier === S.tier + 1).length;
-  const foot = !hidden ? '' : `<div class="card lockedrow"><div class="crow">
+  return `<div class="card lockedrow"><div class="crow">
       <span class="em">🔒</span>
       <div class="info"><b>${soon ? L({
         ko:`다음 등급에서 ${soon}개가 더 열립니다`,
         en:`${soon} more open at the next grade`,
         ja:`次の等級であと${soon}個開きます`,
       }) : L({
-        ko:`아직 열리지 않은 비품이 ${hidden}개 있습니다`,
+        ko:`아직 열리지 않은 물건이 ${hidden}개 있습니다`,
         en:`${hidden} items are still sealed`,
-        ja:`まだ開いていない備品が${hidden}個あります`,
+        ja:`まだ開いていない品が${hidden}個あります`,
       })}</b><span>${L({
         ko:'사무실을 넓히면 총무가 목록을 갱신합니다.',
         en:'Move to a bigger office and Admin will update the list.',
         ja:'オフィスを広げれば総務が目録を更新します。',
       })}</span></div>
     </div></div>`;
-  return open.map(it => {
-    const n = shopCount(it.id);
-    /* 가구가 있는 비품은 몇 번이고 더 살 수 있다 — 효과는 그대로고 가구만 늘어난다.
-       두 대째 커피머신의 값어치는 "생산 두 배" 가 아니라 "줄을 안 선다" 이고,
-       그건 이 게임에서 눈에 보이는 차이다. 대신 값이 사본마다 오른다. */
-    const again = n > 0 && !!SHOP_TILE[it.id];
-    const cost = shopCost(it);
-    const buyBtn = `<button class="buy${again?' alt':''}" data-act="buy" data-id="${it.id}"
-        ${S.anchovy < cost ? 'disabled' : ''}>${again ? '+1 ' : ''}🐟${fmt(cost)}</button>`;
-    return `<div class="card ${n?'owned':''}">
-      <div class="crow"><span class="em">${it.em}</span>
-        <div class="info"><b>${it.n}${n > 1 ? ` <span class="tiny">×${n}</span>` : ''}</b><span>${it.d}</span></div>
-        ${n && !again ? `<span class="okmark">${L({ ko:'설치됨 ✓', en:'Installed ✓', ja:'設置済み ✓' })}</span>`
-          : buyBtn}
-      </div>
-      ${n && again ? `<div class="hint">${L({
-        ko:'하나 더 놓으면 가구만 늘어납니다 — 효과는 그대로입니다',
-        en:'Another copy adds furniture only — the effect does not stack',
-        ja:'もう一つ置くと家具が増えるだけです — 効果は重なりません',
-      })}</div>` : ''}</div>`;
-  }).join('') + foot;
+}
+
+/* ---------- 가구 카탈로그 ----------
+   레퍼런스 「사무실 가구 목록」의 구조를 그대로 옮겼다: 다섯 분류 · 격자 · 보유 개수.
+   비품이 **한 줄에 하나**인 것과 반대로 가구는 **한 칸에 하나**다. 이유는 두 가지다.
+
+     · 스물넷이 전부 같은 일을 한다(쾌적도 +1). 그래서 읽을 것은 이름과 값뿐이고,
+       설명 줄을 스물네 번 반복하면 그건 정보가 아니라 소음이다.
+     · 고르는 기준이 **생김새**다. 글자보다 그림이 커야 하는 목록이고,
+       그래서 칸마다 그 물건을 실제로 구운 모형이 들어간다(R3.furnPortrait).
+
+   모형은 render3d 가 캐시한다(furnShots) — 첫 그리기에서 스물넷을 굽고 그 뒤로는
+   같은 URL 을 돌려준다. 그래서 여기서 따로 캐시를 두지 않는다. 굽지 못하면
+   (WebGL 이 아직 안 섰거나 벽에 거는 물건이거나) 이모지로 조용히 내려간다. */
+const FURN_CATS = [
+  ['work',  L({ ko:'업무 가구',    en:'Work',    ja:'業務家具' })],
+  ['store', L({ ko:'수납 가구',    en:'Storage', ja:'収納家具' })],
+  ['deco',  L({ ko:'데코 가구',    en:'Decor',   ja:'デコ家具' })],
+  ['rest',  L({ ko:'휴식 가구',    en:'Lounge',  ja:'休憩家具' })],
+  ['wall',  L({ ko:'벽 장식',      en:'Wall',    ja:'壁の装飾' })],
+];
+function furnPic(it){
+  try {
+    /* 바닥 가구는 SHOP_TILE 이, 벽에 거는 것은 wallTile 이 어느 칸인지 안다.
+       둘 다 안 보면 커튼·메모만 이모지로 남아서 격자에서 그 둘만 다른 물건처럼 보인다. */
+    const t = (typeof SHOP_TILE !== 'undefined' ? SHOP_TILE[it.id] : undefined)
+           ?? (it.wallTile && typeof TILE !== 'undefined' ? TILE[it.wallTile] : undefined);
+    const u = (t !== undefined && window.R3 && R3.furnPortrait) ? R3.furnPortrait(t, 72) : null;
+    return u ? `<img class="fpic" src="${u}" alt="">` : `<span class="fpic fem">${it.em}</span>`;
+  } catch (e){ return `<span class="fpic fem">${it.em}</span>`; }
+}
+function furnHTML(){
+  /* 잠긴 가구는 목록에 없다 — 비품과 **같은 규칙**이다(2026-09-02).
+     세는 것도 열린 것만 센다: 「0/25종」은 아직 못 사는 것까지 세어서, 첫 사무실에서
+     영원히 못 채울 분모를 보여 주고 있었다.
+
+     **다만 가진 것은 보인다.** 본사 택배는 등급을 안 보고 주므로(js/gacha.js gaFurn)
+     아직 못 사는 가구가 창고에 들어올 수 있는데, 그때 목록에서 빠지면 **가진 채로
+     안 보인다** — 그게 「10연에서 나온 게 창고로 안 간다」의 정체였다. */
+  const list = SHOP.filter(it => it.furn && (S.tier >= it.tier || shopCount(it.id) > 0));
+  if (!list.length) return '';
+  const kinds = list.filter(it => shopCount(it.id) > 0).length;
+  const pieces = list.reduce((n, it) => n + shopCount(it.id), 0);
+  /* 쾌적도 수치를 여기 적어 뒀었다(「+0.0% — 생산이 오르고…」). 뺐다 —
+     가구를 고르는 이유는 취향이지 퍼센트가 아니고, 0개일 때 +0.0% 는 특히
+     아무 말도 안 한다. 효과는 칸마다 붙은 설명 한 줄이 이미 말한다. */
+  const head = `<div class="furnhead">
+      <b>${L({ ko:'사무실 가구', en:'Office Furniture', ja:'オフィス家具' })}</b>
+      <span>${L({ ko:`${kinds}/${list.length}종 · ${pieces}개`,
+                  en:`${kinds}/${list.length} kinds · ${pieces} pcs`,
+                  ja:`${kinds}/${list.length}種 · ${pieces}個` })}</span>
+    </div>`;
+  const body = FURN_CATS.map(([cat, label]) => {
+    const items = list.filter(it => it.furn === cat);
+    if (!items.length) return '';
+    return `<div class="furncat">${label}</div><div class="furngrid">` + items.map(it => {
+      const n = shopCount(it.id);
+      const cost = shopCost(it);
+      const off = S.anchovy < cost;
+      return `<button class="fcell${n ? ' has' : ''}" data-act="buy" data-id="${it.id}"
+          ${off ? 'disabled' : ''} title="${it.n}">
+        ${furnPic(it)}
+        <b>${it.n}</b>
+        <span class="fcost">🐟${fmt(cost)}</span>
+        ${n ? `<i class="fn">${n}</i>` : ''}
+      </button>`;
+    }).join('') + '</div>';
+  }).join('');
+  return head + body;
 }
 
 function logHTML(){
@@ -1263,19 +1354,14 @@ function showCat(id){
   if (!c) return;
   selCat = id;
   const tr = traitOf(c), r = { n: rankName(c) };
+  /* 굴린 값이 곧 그 냥이의 값이다 — 위에 얹는 층(장비)을 없앴다(js/cats.js 머리말).
+     빈 <small> 은 남긴다: 칸 높이를 그게 잡고 있어서 지우면 표가 들쭉날쭉해진다. */
   const statCell = k => {
-    const v = statOf(c, k), base = c.stats[k];
+    const v = statOf(c, k);
     const cls = v >= 15 ? 'hi' : v <= 8 ? 'lo' : '';
     return `<div class="st ${cls}" title="${STAT_DESC[k]}"><small>${STAT_NAME[k]}</small><b>${v}</b>
-      ${v!==base?`<small class="plus">+${v-base}</small>`:'<small>&nbsp;</small>'}</div>`;
+      <small>&nbsp;</small></div>`;
   };
-  const slotHTML = ([sl, kr]) => {
-    const cur = c.equip[sl];
-    const it = cur && EQUIP.find(x => x.id === cur);
-    return `<div class="eslot ${it?'filled':''}" data-slot="${sl}">
-      <span class="em">${it ? it.em : '➕'}</span>${it ? esc(it.n) : kr}</div>`;
-  };
-  const bagFor = sl => S.bag.map(id => EQUIP.find(x=>x.id===id)).filter(e => e && e.slot === sl);
 
   const m = modal(`
     <div class="mhead"><div class="q">EMPLOYEE FILE</div><h3>${esc(c.name)} ${r.n}</h3>
@@ -1293,35 +1379,23 @@ function showCat(id){
       </div>
       <div class="statgrid">${STAT_KEYS.map(statCell).join('')}</div>
       <div class="tiny">${L({
-        ko:'입사 시 4d6 중 최저값 1개를 버려 굴린 값입니다. 장비는 능력치에만 반영되고 겉모습은 안 바뀝니다.',
-        en:'Rolled at hiring with 4d6, dropping the lowest. Gear affects stats only, not looks.',
-        ja:'入社時に4d6の最低値1つを捨てて振った値です。装備は能力値のみで、見た目は変わりません。',
+        ko:'입사 시 4d6 중 최저값 1개를 버려 굴린 값입니다.',
+        en:'Rolled at hiring with 4d6, dropping the lowest.',
+        ja:'入社時に4d6の最低値1つを捨てて振った値です。',
       })}</div>
+      ${/* 무늬는 **입사 뒤에도** 바꿀 수 있다. 되돌릴 수 없는 소비를 벌로 취급하지
+            않는다는 그 규칙 안에 무늬도 둔다 — 무늬는 몸이 아니라 내가 고른 것이다. */''}
+      ${sculptCats() ? markRowHTML(c, 'catMark') : ''}
       ${recordHTML(c)}
-      <div class="slotrow">${SLOTS.map(slotHTML).join('')}</div>
-      <div id="bagList"></div>
     </div>
     <div class="mfoot"><button class="okbtn" data-close>${L({ ko:'닫기', en:'Close', ja:'閉じる' })}</button></div>`,
     () => { selCat = null; });
 
-  const bagBox = m.veil.querySelector('#bagList');
-  m.veil.querySelectorAll('.eslot').forEach(el => el.onclick = () => {
-    const sl = el.dataset.slot;
-    if (c.equip[sl]){ unequip(c.id, sl); m.close(); showCat(id); renderRight(); return; }
-    const items = bagFor(sl);
-    bagBox.innerHTML = items.length
-      ? `<div class="hint">${L({ ko:'창고에서 고르기', en:'Pick from storage', ja:'倉庫から選ぶ' })}</div>` + items.map(it =>
-          `<button class="card bagitem" data-eq="${it.id}"><div class="crow"><span class="em">${it.em}</span>
-           <div class="info"><b>${it.n}</b><span>${Object.entries(it.s).map(([k,v])=>STAT_NAME[k]+' +'+v).join(' · ')}</span>
-           </div></div></button>`).join('')
-      : `<div class="hint center">${L({
-          ko:'이 부위에 맞는 장비가 창고에 없습니다.<br>분기 결산에서 가끔 나옵니다.',
-          en:'No gear for this slot in storage.<br>Drops sometimes at quarter close.',
-          ja:'この部位に合う装備が倉庫にありません。<br>決算でたまに出ます。',
-        })}</div>`;
-    bagBox.querySelectorAll('[data-eq]').forEach(b => b.onclick = () => {
-      equipItem(c.id, b.dataset.eq); m.close(); showCat(id); renderRight();
-    });
+  /* 찍는 즉시 그 냥에게 들어간다. 사무실의 배우는 다음 프레임에 저절로 따라오고
+     (render3d sync), 오른쪽 목록의 얼굴만 여기서 다시 그려 준다. */
+  bindMarkRow(m.veil, 'catMark', c, {
+    marks: v => { setCatMarks(c, v); renderRight(); },
+    face:  v => { setCatFace(c, v);  renderRight(); },
   });
 }
 
@@ -1350,6 +1424,337 @@ function recordHTML(c){
     ${row(L({ ko:'첫 결재', en:'First stamp', ja:'初決裁' }),
         rec.first ? `Q${rec.first.q}${rec.first.t ? ' · “' + esc(rec.first.t) + '”' : ''}` : none)}
   </div>`;
+}
+
+/* ============================================================
+   꾸미기 작업대 — 돌려서 보고, 연필로 그린다  (TODO 73)
+
+   지금까지 고양이를 고르는 손은 **색 하나**뿐이었다. 그건 「내 고양이」가 아니라
+   「그 색 고양이」다. 무늬는 색과 다르다 — 어디에 넣는지를 사람이 고르는 순간
+   그 고양이는 자기가 만든 고양이가 된다. 그래서 돌려가면서 그린다:
+   등에 넣은 얼룩이 앞에서 안 보이면 그건 무늬가 아니라 설정값이다.
+
+   ── 손이 둘로 갈려 있다 ──
+   **연필**과 **이동**은 따로다. 한 손가락에 「끌면 돌아가고 누르면 찍힌다」를 같이
+   걸어 뒀더니, 등을 보려고 끄는 것과 등에 획을 긋는 것이 같은 동작이 된다 —
+   폰에서는 그 둘을 손가락 이동 거리로 가를 수 없다. 그래서 단추로 가른다.
+
+   ── 판을 새로 만들지 않는다 ──
+   이미 있는 모달(.veil/.modal) 위에 얹는다. 면접창 위에서도 열리고 인사 파일
+   위에서도 열리므로, 두 자리에 각각의 화면을 그리는 대신 같은 창 하나가 둘 다 맡는다.
+
+   ── 획은 점이 아니다 ──
+   손가락이 지나간 자리를 **선분으로 이어** 텍스처에 칠한다(js/three/facepaint.js).
+   그래서 몇 획을 긋든 상한이 없다 — 셰이더가 읽는 것은 언제나 텍스처 한 장이다.
+   저장에는 지나간 점만 남으므로, 되돌리기는 획 목록에서 마지막 하나를 빼면 된다.
+
+   ── 취소가 없다 ──
+   그리는 즉시 그 고양이에게 들어간다. 이 게임은 되돌릴 수 없는 소비를 벌로 취급하지
+   않으므로 「확인/취소」로 가둘 이유가 없고, 대신 **되돌리기**가 있다(한 획이 한 번).
+   ============================================================ */
+/* 연필과 이동 — 이 창에서만 쓰는 그림 둘. cozy.js 의 그림표를 못 빌린다:
+   그건 폰 스킨(#app.tabbar)에서만 돌아서 넓은 화면에서는 아예 없다.
+   currentColor 라 켜진 단추에서는 강조색이 되고 꺼진 단추에서는 흐린 글자색이 된다. */
+const ICON_PENCIL = `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor"
+  d="M17.3 2.5a1.6 1.6 0 0 1 2.3 0l1.9 1.9a1.6 1.6 0 0 1 0 2.3l-2.2 2.2-4.2-4.2 2.2-2.2Zm-3.5 3.5 4.2 4.2-8.6 8.6H5.2v-4.2L13.8 6Z"/></svg>`;
+const ICON_MOVE = `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor"
+  d="M12 1.4 15.8 5.2h-2.6v5.6h5.6V8.2L22.6 12l-3.8 3.8v-2.6h-5.6v5.6h2.6L12 22.6 8.2 18.8h2.6v-5.6H5.2v2.6L1.4 12l3.8-3.8v2.6h5.6V5.2H8.2L12 1.4Z"/></svg>`;
+
+function showMarks(c, api){
+  if (!is3d() || !R3.studio){
+    sfx.err();
+    toast(L({ ko:'무대가 아직 안 섰습니다.', en:'The stage is not up yet.', ja:'ステージがまだです。' }));
+    return;
+  }
+  let face = faceOf(c);                 // { e: 눈(-1 = 그때그때), m: 입 }
+  const st = R3.studio({ fur: R3.catFur(c), marks: marksOf(c), face });
+  if (!st){
+    sfx.err();
+    toast(L({ ko:'여기서는 꾸밀 수 없습니다.', en:'Not available here.', ja:'ここでは飾れません。' }));
+    return;
+  }
+  const pal = R3.markPalette ? R3.markPalette() : [0xF0E9DE, 0x8E6242, 0x38323A];
+  /* 획 목록. 깊은 사본이라 「완료」를 안 눌러도 원본이 안 흔들린다 — 실제 반영은
+     획이 끝날 때 api.marks 로 한 번에 간다. */
+  let marks = marksOf(c).map(k => ({ ...k, p: k.p.slice() }));
+  /* 되돌리기는 **화면 한 장**을 통째로 되돌린다. 획 목록에서 하나 빼고 다시 그리면
+     획이 서른이면 서른 번을 다시 그려야 한다(제곱으로 는다). 판 한 장이 147KB 이고,
+     스무 걸음이면 3MB — 창을 닫을 때 같이 없어진다. */
+  const undo = [];
+  let mode = 'draw';
+  /* 처음 잡히는 잉크는 **바탕에서 제일 잘 보이는 것**이다. 검정 고양이에 검정 연필을
+     쥐여 주면 첫 획이 아무 일도 안 일어난 것처럼 보이고, 그러면 이 화면이 고장 난
+     것으로 읽힌다. (facepaint.inkFor 가 눈 색을 뒤집는 것과 같은 이유다.) */
+  const base = R3.catFur(c) | 0;
+  const lum = ((base >> 16 & 255) * 0.2126 + (base >> 8 & 255) * 0.7152 + (base & 255) * 0.0722) / 255;
+  let ink = lum < 0.42 ? 0 : 2, size = 1;
+
+  const hex = i => '#' + pal[i].toString(16).padStart(6, '0');
+  const T = (ko, en, ja) => L({ ko, en, ja });
+
+  const m = modal(`
+    <div class="mhead"><div class="q">CUSTOMISE</div>
+      <h3>${T('꾸미기', 'Customise', 'かざる')}</h3>
+      <p>${T('연필로 그리고, 이동으로 돌린다',
+              'Pencil draws. Move turns it.',
+              '鉛筆で描いて、移動で回す')}</p></div>
+    <div class="mbody">
+      <div class="mkstage" id="mkStage">
+        <button class="mkspin" id="mkSpin" title="${T('정면으로', 'Reset view', '正面へ')}">↺</button>
+      </div>
+      ${/* 무늬와 표정을 한 화면에 다 세우면 폰에서 연필이 화면 밖으로 밀린다.
+            둘은 서로 안 섞이는 일이므로 **칸을 나눈다** — 무대는 위에 그대로 남아서
+            어느 칸에서 무엇을 만져도 같은 고양이가 바뀌는 것이 보인다. */''}
+      <div class="mktabs" id="mkTabs">
+        <button class="mktab" data-tab="mark">${T('무늬', 'Marks', 'もよう')}</button>
+        <button class="mktab" data-tab="face">${T('표정', 'Face', 'かお')}</button>
+      </div>
+
+      <div class="mkpane" data-pane="mark">
+        ${/* **손이 먼저다.** 색·굵기와 같은 줄에 세워 뒀더니 「무엇을 고르는가」와
+              「무엇을 하는가」가 한 줄에서 섞였다 — 성질이 다른 단추다.
+              제 줄로 올리고 아래에 선을 그어 갈라 둔다. 낱말은 title 로 남긴다:
+              두 개뿐이고 하나는 늘 켜져 있으므로 그림으로 읽힌다. */''}
+        <div class="mkhand" id="mkMode">
+          <button class="mkmode" data-mode="draw"
+            title="${T('연필 — 그린다', 'Pencil — draw', '鉛筆 — 描く')}"
+            aria-label="${T('연필', 'Pencil', '鉛筆')}">${ICON_PENCIL}</button>
+          <button class="mkmode" data-mode="move"
+            title="${T('이동 — 돌려 본다', 'Move — turn it', '移動 — 回す')}"
+            aria-label="${T('이동', 'Move', '移動')}">${ICON_MOVE}</button>
+        </div>
+        <div class="mkbar">
+          <div class="mksizes" id="mkSize">
+            ${MARK_SIZES.map((r, i) => `<button class="mksize" data-size="${i}">
+               <i style="width:${5 + i * 5}px;height:${5 + i * 5}px"></i></button>`).join('')}
+          </div>
+          <div class="mkinks" id="mkInk">
+            ${pal.map((_, i) => `<button class="mkink" data-ink="${i}" title="${MARK_INKS[i]}">
+               <i style="background:${hex(i)}"></i></button>`).join('')}
+            <button class="mkink erase" data-ink="-1"
+              title="${T('지우개', 'Erase', 'けしゴム')}"><i></i></button>
+          </div>
+        </div>
+      </div>
+
+      <div class="mkpane" data-pane="face" hidden>
+        <div class="hint">${T('눈', 'Eyes', 'め')}</div>
+        <div class="swatches mkface" id="mkEye"></div>
+        <div class="hint">${T('입', 'Mouth', 'くち')}</div>
+        <div class="swatches mkface" id="mkMouth"></div>
+      </div>
+    </div>
+    <div class="mfoot">
+      ${/* 화살표 글리프(↶)는 글꼴에 따라 가는 갈고리로 떨어져서 무엇을 하는 단추인지
+            안 읽힌다. 낱말 하나면 어느 글꼴에서도 같은 뜻이다. */''}
+      <button class="okbtn alt" id="mkUndo">${T('되돌리기', 'Undo', 'もどす')}</button>
+      <button class="okbtn" data-close>${T('완료', 'Done', 'かんりょう')}</button>
+    </div>`, () => { removeEventListener('resize', fitStage); st.dispose(); });
+
+  const stage = m.veil.querySelector('#mkStage');
+  stage.insertBefore(st.canvas, stage.firstChild);
+  /* 창이 방금 붙었을 때는 아직 폭이 0 인 판이 있다. 다음 프레임에 재서 그린다.
+     WebGL 컨텍스트는 창을 닫을 때 반드시 버린다(onClose) — 안 버리면 창을 몇 번
+     여닫는 것만으로 브라우저의 컨텍스트 한도에 걸리고, 그러면 **사무실이 안 뜬다.** */
+  function fitStage(){
+    const r = stage.getBoundingClientRect();
+    if (r.width > 1) st.resize(r.width, r.height);
+  }
+  requestAnimationFrame(fitStage);
+  addEventListener('resize', fitStage);
+
+  let tab = 'mark';
+  const chips = () => {
+    m.veil.querySelectorAll('[data-ink]').forEach(b => b.classList.toggle('on', +b.dataset.ink === ink));
+    m.veil.querySelectorAll('[data-size]').forEach(b => b.classList.toggle('on', +b.dataset.size === size));
+    m.veil.querySelectorAll('[data-mode]').forEach(b => b.classList.toggle('on', b.dataset.mode === mode));
+    m.veil.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('on', b.dataset.tab === tab));
+    m.veil.querySelectorAll('[data-pane]').forEach(p => { p.hidden = p.dataset.pane !== tab; });
+    stage.classList.toggle('drawing', mode === 'draw');
+    m.veil.querySelector('#mkUndo').disabled = !undo.length;
+  };
+  m.veil.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
+    tab = b.dataset.tab;
+    /* 표정 칸에서는 연필을 쥐고 있을 이유가 없다 — 얼굴을 고르는 동안에도 고양이는
+       돌려 볼 수 있어야 하고, 그 손이 무대를 긋고 있으면 사고가 된다. */
+    mode = tab === 'face' ? 'move' : 'draw';
+    sfx.add();
+    chips();
+  });
+
+  /* 표정 — **실제 얼굴 컷으로** 보여 준다. 낱말만으로는 「시무룩」과 「졸린 눈」이
+     무엇이 다른지 알 수 없고, 이 화면은 그걸 보러 오는 자리다.
+     눈 줄은 지금 고른 입을 쓰고, 입 줄은 지금 고른 눈을 쓴다 — 두 줄이 각자 기본
+     얼굴을 쓰면 고르는 동안 조합이 안 보인다. */
+  const eyeRow = m.veil.querySelector('#mkEye');
+  const mouthRow = m.veil.querySelector('#mkMouth');
+  const drawFaces = () => {
+    eyeRow.innerHTML = EYE_NAMES.map((n, i) => {
+      const e = i - 1;                                  // 첫 칸이 「그때그때」(-1)
+      /* 첫 칸은 **얼굴이 아니라 「안 고름」**이다. 무엇으로 그려도 나머지 열 중 하나와
+         같은 그림이 되므로(정적인 한 장으로 「그때그때」를 그릴 방법은 없다),
+         그림을 흐리고 테두리를 점선으로 둬서 다른 성질의 칸임을 표시한다. */
+      return `<button class="swatch ${e < 0 ? 'auto ' : ''}${e === face.e ? 'on' : ''}" data-eye="${e}" title="${n}">
+        ${portrait({ ...c, marks, face: { e: e < 0 ? 0 : e, m: face.m } }, 40, { frame:'head' })}
+        <span>${n}</span></button>`;
+    }).join('');
+    mouthRow.innerHTML = MOUTH_NAMES.map((n, i) =>
+      `<button class="swatch ${i === face.m ? 'on' : ''}" data-mouth="${i}" title="${n}">
+        ${portrait({ ...c, marks, face: { e: face.e < 0 ? 0 : face.e, m: i } }, 40, { frame:'head' })}
+        <span>${n}</span></button>`).join('');
+    const pickFace = (k, v) => {
+      face = { ...face, [k]: v };
+      st.setFace(face);
+      api.face(face);
+      sfx.add();
+      drawFaces();
+    };
+    eyeRow.querySelectorAll('[data-eye]').forEach(b =>
+      b.onclick = () => pickFace('e', +b.dataset.eye));
+    mouthRow.querySelectorAll('[data-mouth]').forEach(b =>
+      b.onclick = () => pickFace('m', +b.dataset.mouth));
+  };
+
+  const push = () => { undo.push(st.snapshot()); if (undo.length > 20) undo.shift(); };
+  /* 획이 끝났을 때만 부른다. 그리는 중에 부르면 초상 여섯 장을 매 프레임 다시 굽는다. */
+  const commit = () => {
+    st.adopt(R3.markKey(marks));      // 지금 판을 캐시로 — 초상이 다시 안 그린다
+    api.marks(marks);
+    drawFaces();
+    chips();
+  };
+
+  m.veil.querySelectorAll('[data-ink]').forEach(b => b.onclick = () => {
+    ink = +b.dataset.ink;
+    mode = 'draw';                 // 색을 고르는 것은 그리겠다는 뜻이다
+    chips();
+  });
+  m.veil.querySelectorAll('[data-size]').forEach(b => b.onclick = () => {
+    size = +b.dataset.size; mode = 'draw'; chips();
+  });
+  m.veil.querySelectorAll('[data-mode]').forEach(b => b.onclick = () => {
+    mode = b.dataset.mode; sfx.add(); chips();
+  });
+  m.veil.querySelector('#mkSpin').onclick = () => st.reset();
+  m.veil.querySelector('#mkUndo').onclick = () => {
+    if (!undo.length) return;
+    st.restore(undo.pop());
+    marks.pop();
+    sfx.add();
+    commit();
+  };
+
+  /* ── 한 획 ──
+     손가락이 지나간 점을 이어 붙인다. 점 사이는 **선분**으로 칠하므로 빨리 그어도
+     점선이 안 되고, 천천히 그어도 같은 자리를 겹쳐 칠하지 않는다(EPS 로 거른다).
+
+     지우개는 같은 붓으로 알파만 깎는다 — 「어느 무늬를 지울까」를 고를 필요가 없다.
+     그 질문은 도장을 찍던 시절의 것이고, 그림에서는 지운 자리가 곧 답이다. */
+  const EPS = 0.012;                  // 이만큼은 움직여야 다음 점이다
+  let cur = null;                     // 지금 긋고 있는 획
+
+  function startStroke(x, y){
+    const d = st.pick(x, y);
+    if (!d) return;
+    push();
+    cur = { c: Math.max(0, ink), r: MARK_SIZES[size], p: d.slice() };
+    if (ink < 0) cur.e = 1;
+    st.seg(d, d, cur.r, cur.c, !!cur.e);
+  }
+  function moveStroke(x, y){
+    if (!cur) return;
+    const d = st.pick(x, y);
+    if (!d) return;
+    const n = cur.p.length;
+    const px = cur.p[n - 3], py = cur.p[n - 2], pz = cur.p[n - 1];
+    if (Math.hypot(d[0] - px, d[1] - py, d[2] - pz) < EPS) return;
+    st.seg([px, py, pz], d, cur.r, cur.c, !!cur.e);
+    cur.p.push(d[0], d[1], d[2]);
+  }
+  function endStroke(){
+    if (!cur) return;
+    const drawn = cur;
+    cur = null;
+    /* 고양이를 스치지도 못한 획은 남기지 않는다 — 되돌리기를 눌렀는데 아무 일도
+       안 일어나는 것이 제일 나쁘다 */
+    marks.push(drawn);
+    sfx.add();
+    commit();
+  }
+
+  let drag = null;
+  const at = e => {
+    const r = stage.getBoundingClientRect();
+    return [e.clientX - r.left, e.clientY - r.top];
+  };
+  stage.addEventListener('pointerdown', e => {
+    if (e.target.closest('#mkSpin')) return;
+    try { stage.setPointerCapture(e.pointerId); } catch(err){}
+    drag = { px: e.clientX, py: e.clientY, moved: 0 };
+    e.preventDefault();
+    if (mode === 'draw') startStroke(...at(e));
+  });
+  stage.addEventListener('pointermove', e => {
+    if (!drag) return;
+    const dx = e.clientX - drag.px, dy = e.clientY - drag.py;
+    drag.px = e.clientX; drag.py = e.clientY;
+    drag.moved += Math.abs(dx) + Math.abs(dy);
+    if (mode === 'draw') moveStroke(...at(e));
+    else if (drag.moved > 4) st.spin(dx, dy);
+  });
+  const end = () => {
+    if (mode === 'draw'){
+      if (cur) endStroke();
+      else if (drag && undo.length) undo.pop();     // 허공을 그은 획
+    }
+    drag = null;
+    chips();
+  };
+  stage.addEventListener('pointerup', end);
+  stage.addEventListener('pointercancel', end);
+
+  drawFaces();
+  chips();
+}
+
+/* 꾸미기 창을 여는 단추. 면접창·계약서·인사 파일이 같은 줄을 쓴다 —
+   세 자리에 다른 모양의 입구를 두면 같은 기능이 셋으로 보인다. */
+function markRowHTML(c, id){
+  return `<div class="markwrap" id="${id}">
+    <div class="hint">${L({ ko:'꾸미기', en:'Customise', ja:'かざる' })}</div>
+    <button class="markopen">${portrait(c, 30)}
+      <b>${L({ ko:'커스터마이징 하기', en:'Customise', ja:'カスタマイズする' })}</b><i>›</i></button>
+  </div>`;
+}
+/* 폰의 직원 탭(js/cozy.js)이 부르는 입구. 거기는 인사 파일 모달이 아예 안 열리므로
+   — 카드를 누르면 고르기만 한다 — 사원증 옆에서 이 창을 바로 연다.
+   저장·목록 갱신은 인사 파일에서 여는 것과 **같은 길**이다. */
+function customizeCat(id, after){
+  const c = (typeof S !== 'undefined' && S.cats || []).find(x => x.id === id);
+  if (!c) return;
+  const done = () => { renderRight(); if (after) after(); };
+  showMarks(c, {
+    marks: v => { setCatMarks(c, v); done(); },
+    face:  v => { setCatFace(c, v);  done(); },
+  });
+}
+
+function bindMarkRow(root, id, c, api){
+  const wrap = root.querySelector('#' + id);
+  if (!wrap) return;
+  wrap.querySelector('.markopen').onclick = () => {
+    sfx.add();
+    showMarks(c, {
+      marks: v => { api.marks(v); redrawMarkRow(root, id, c, api); },
+      face:  v => { api.face(v);  redrawMarkRow(root, id, c, api); },
+    });
+  };
+}
+function redrawMarkRow(root, id, c, api){
+  const wrap = root.querySelector('#' + id);
+  if (!wrap) return;
+  wrap.outerHTML = markRowHTML(c, id);
+  bindMarkRow(root, id, c, api);
 }
 
 /* ---------- 면접 (신입 채용) ----------
@@ -1400,6 +1805,11 @@ function showHire(){
          ${HUE_CHOICES.map(h => swatch({ fur:c.fur, hue:h.h }, h.h === c.hue, h.n)).join('')}
        </div>`;
 
+  /* 색 고르기 **바로 밑**이 무늬 자리다. 색과 무늬는 같은 질문("어떻게 생겼나")의
+     두 칸이라 떨어뜨려 놓으면 하나는 안 보인다. 손그림 판에서는 안 뜬다 —
+     그쪽은 그림 파일이 곧 그 고양이라 얹을 자리가 없다. */
+  const markSection = () => (is3d() && sculptCats()) ? markRowHTML(c, 'hireMark') : '';
+
   const m = modal(`
     <div class="mhead"><div class="q">JOB INTERVIEW</div>
       <h3>${L({ ko:'입사 지원서', en:'Job Application', ja:'入社応募書' })}</h3>
@@ -1423,6 +1833,7 @@ function showHire(){
       </div>
 
       ${lookSection()}
+      ${markSection()}
 
       <div class="statgrid">${STAT_KEYS.map(statCell).join('')}</div>
       <div class="tiny">${L({
@@ -1450,8 +1861,16 @@ function showHire(){
       m.veil.querySelector('#hireHue').innerHTML =
         HUE_CHOICES.map(h => swatch({ fur:c.fur, hue:h.h }, h.h === c.hue, h.n)).join('');
     }
+    /* 무늬 줄의 얼굴도 같이 갈아 준다 — 털색을 바꿨는데 그 줄만 옛 색이면
+       무늬가 색과 딴 물건으로 보인다. */
+    redrawMarkRow(m.veil, 'hireMark', c, markApply);
     bindSwatches();
   };
+  const markApply = {
+    marks: v => { styleCandidate({ marks: v }); m.veil.querySelector('#hirePic').innerHTML = portrait(c, 84); },
+    face:  v => { styleCandidate({ face: v });  m.veil.querySelector('#hirePic').innerHTML = portrait(c, 84); },
+  };
+  bindMarkRow(m.veil, 'hireMark', c, markApply);
   function bindSwatches(){
     m.veil.querySelectorAll('.swatch').forEach(b => b.onclick = () => {
       styleCandidate(b.dataset.draw != null
@@ -1469,7 +1888,8 @@ function showHire(){
     sfx.meow();
   };
   m.veil.querySelector('#hireGo').onclick = () => {
-    const r = hire({ name: nameEl.value, fur: c.fur, hue: c.hue, draw: c.draw });
+    const r = hire({ name: nameEl.value, fur: c.fur, hue: c.hue, draw: c.draw,
+                    marks: c.marks, face: c.face });
     if (r.err){ sfx.err(); toast(r.err); return; }
     m.close();
     sfx.buy(); setTimeout(sfx.meow, 200);
@@ -1495,6 +1915,7 @@ function showQuarter(d){
       <div class="rrow"><span>${L({ ko:'재직 직원', en:'Staff', ja:'在籍社員' })}</span><b>${L({ ko:`${S.cats.length} 냥`, en:`${S.cats.length} cats`, ja:`${S.cats.length}匹` })}</b></div>
       <div class="rrow"><span>${L({ ko:'평균 사기', en:'Avg morale', ja:'平均士気' })}</span><b>${Math.round(avgMood())}%</b></div>
       <div class="rrow"><span>${L({ ko:'분기 배당', en:'Dividend', ja:'四半期配当' })}</span><b class="good">+🐟 ${fmt(d.bonus)}</b></div>
+      ${typeof beatQuarterRow === 'function' ? beatQuarterRow(d) : ''}
       ${d.rival ? `<div class="rrow"><span>${L({ ko:'멍멍파 점유율', en:'Woof Gang share', ja:'ワンワン組シェア' })}</span><b class="${d.rival.delta>0?'bad':'good'}">
         ${Math.round(d.rival.before*100)}% → ${Math.round(d.rival.after*100)}%
         (${L({ ko:`처리 ${d.done}/${d.rival.par}건`, en:`${d.done}/${d.rival.par} done`, ja:`処理${d.done}/${d.rival.par}件` })})</b></div>` : ''}
@@ -1528,9 +1949,9 @@ function showQuarter(d){
             ja:`<b>${esc(d.evHire.name)}</b>がそのまま入社しました。（${traitOf(d.evHire).n}）`,
           })}</span></div>`:''}
         ${d.evDrop?`<div class="tiny" style="margin-top:8px">${L({
-          ko:`📦 창고에 <b>${d.evDrop.em} ${d.evDrop.n}</b> 획득 — ${Object.entries(d.evDrop.s).map(([k,v])=>STAT_NAME[k]+' +'+v).join(', ')}`,
-          en:`📦 Got <b>${d.evDrop.em} ${d.evDrop.n}</b> — ${Object.entries(d.evDrop.s).map(([k,v])=>STAT_NAME[k]+' +'+v).join(', ')}`,
-          ja:`📦 倉庫に<b>${d.evDrop.em} ${d.evDrop.n}</b>を獲得——${Object.entries(d.evDrop.s).map(([k,v])=>STAT_NAME[k]+' +'+v).join('、')}`,
+          ko:`📦 <b>${d.evDrop.n}</b> 도착 — 뜯는 것은 택배 화면에서.`,
+          en:`📦 <b>${d.evDrop.n}</b> arrived — open it on the parcel screen.`,
+          ja:`📦 <b>${d.evDrop.n}</b>が届きました——開けるのは宅配画面で。`,
         })}</div>`:''}
       </div>
 
@@ -1581,6 +2002,7 @@ function showRaidEnd(d){
         })}
         <div class="hireline" style="margin-top:8px">${portrait(d.taken,34)}<span class="tiny">${L({ ko:'“저는 인턴인데요”', en:'“I’m just an intern”', ja:'「ただのインターンです」' })}</span></div>
       </div>`:`<div class="okbox">${L({ ko:'연행 인원 없음. 전 직원 귀가 조치.', en:'Nobody taken. All staff sent home.', ja:'連行なし。全員帰宅となりました。' })}</div>`}
+      ${typeof beatRaidNote === 'function' ? beatRaidNote() : ''}
       <div class="tiny center" style="margin-top:12px">${L({
         ko:'재발 시 가중 처벌됩니다. 서류는 제때 정리하십시오.',
         en:'Repeat offenses are punished harder. File your papers on time.',
@@ -1692,6 +2114,17 @@ function showSettings(){
           <button class="buy alt" data-set="intro">${L({ ko:'다시 보기', en:'Replay', ja:'もう一度' })}</button>
         </div>
       </div>
+      <div class="card" data-card="outro">
+        <div class="crow"><span class="em">🌃</span>
+          <div class="info"><b>${L({ ko:'마지막 장면', en:'The last scene', ja:'最後の場面' })}</b>
+            <span>${L({
+              ko:'줌아웃하면 지점들이 깔리고, 그 위에서 누군가 내려다보고 있습니다.',
+              en:'Pull back far enough and the branches spread out — with someone watching from above.',
+              ja:'ズームアウトすると支店が広がり、その上から誰かが見下ろしています。',
+            })}</span></div>
+          <button class="buy alt" data-set="outro">${L({ ko:'다시 보기', en:'Replay', ja:'もう一度' })}</button>
+        </div>
+      </div>
       <div class="hint center" style="margin-top:8px">${L({
         ko:'음악과 음량은 <b>사무실의 CD 플레이어</b>에서 만집니다. 음량 0 이 곧 전체 음소거입니다.',
         en:'Music and volume are both handled at the <b>CD player in the office</b>. Volume 0 is the master mute.',
@@ -1734,6 +2167,14 @@ function showSettings(){
   const introBtn = m.veil.querySelector('[data-set="intro"]');
   if (!window.CCOpen) introBtn.closest('.card').style.display = 'none';
   else introBtn.onclick = () => { m.close(); playIntro({ replay:true }); };
+  /* 마지막 장면 — **본 사람에게만 보인다.** 안 본 사람에게 목록으로 걸어 두면
+     그건 다시 보기가 아니라 결말을 미리 알려 주는 것이다. */
+  const outBtn = m.veil.querySelector('[data-set="outro"]');
+  if (outBtn){
+    const can = typeof endingSeen === 'function' && endingSeen() && typeof playOutro === 'function';
+    if (!can) outBtn.closest('.card').style.display = 'none';
+    else outBtn.onclick = () => { m.close(); setTimeout(playOutro, 260); };
+  }
   /* 풍경 고정 — 누르는 즉시 반영된다(setSkyForce 가 renderNight 을 부른다).
      창을 닫고 다시 열 필요가 없어야 한다: 이건 눈으로 비교하려고 만든 것이다. */
   m.veil.querySelectorAll('[data-sky]').forEach(b => b.onclick = () => {
@@ -1799,6 +2240,7 @@ function showContract(onDone){
         </div>
       </div>
       ${lookSection()}
+      ${sculptCats() ? markRowHTML(c, 'cnMark') : ''}
       <div class="statgrid">${STAT_KEYS.map(k => {
         const v = c.stats[k], cls = v >= 15 ? 'hi' : v <= 8 ? 'lo' : '';
         return `<div class="st ${cls}" title="${STAT_DESC[k]}"><small>${STAT_NAME[k]}</small><b>${v}</b><small>&nbsp;</small></div>`;
@@ -1814,6 +2256,12 @@ function showContract(onDone){
     </div>`);
 
   const nameEl = m.veil.querySelector('#cnName');
+  /* 1번 사원은 이미 S.cats 에 있다(지원자가 아니다) — 그래서 무늬는 바로 그 냥에게 들어간다 */
+  const cnMarks = {
+    marks: v => { setCatMarks(c, v); m.veil.querySelector('#cnPic').innerHTML = portrait(c, 84); },
+    face:  v => { setCatFace(c, v);  m.veil.querySelector('#cnPic').innerHTML = portrait(c, 84); },
+  };
+  bindMarkRow(m.veil, 'cnMark', c, cnMarks);
   const refresh = () => {
     m.veil.querySelector('#cnPic').innerHTML = portrait(c, 84);
     const dr = m.veil.querySelector('#cnDraw');
@@ -1824,6 +2272,7 @@ function showContract(onDone){
       m.veil.querySelector('#cnHue').innerHTML =
         HUE_CHOICES.map(h => swatch({ fur:c.fur, hue:h.h }, h.h === c.hue, h.n)).join('');
     }
+    redrawMarkRow(m.veil, 'cnMark', c, cnMarks);
     bind();
   };
   function bind(){
@@ -1846,10 +2295,90 @@ function showContract(onDone){
     sfx.stamp(); setTimeout(sfx.meow, 220);
     confetti();
     renderTiles(); renderRight(); renderTop();
-    if (onDone) onDone();
+    /* 서명 다음이 지점 등록이다(TODO 59). 여기서 이어 붙이는 이유: 이 둘은
+       **첫 부팅에 한 번 지나가는 한 줄**이고, 그 순서를 부르는 쪽(main.js)이
+       알아야 할 이유가 없다. 계약서가 끝나면 다음 문이 열린다. */
+    if (typeof showBranchSetup === 'function') showBranchSetup(onDone);
+    else if (onDone) onDone();
   };
   nameEl.focus();
   nameEl.select();
+}
+
+/* ---------- 지점 등록 (TODO 59) ----------
+   이름이 showBranch 가 아닌 이유: **그 이름은 이미 쓰인다** — js/board.js 의
+   showBranch(id) 는 제휴 지점 **구경하기**다. 게다가 board.js 가 ui.js 보다 뒤에
+   실리므로, 같은 이름으로 두면 이쪽이 조용히 덮인다(실제로 한 번 덮였고,
+   창이 안 뜨는데 예외도 안 나는 모양으로 나타났다).
+   계약서에 서명한 **바로 다음**이다. 순서에 이유가 있다: 계약서에서 정하는 것은
+   「내가 누구인가」(이름·겉모습)이고, 여기서 정하는 것은 「이 지점이 어디인가」다.
+   같은 창에 합치면 폼이 길어지는데, 그 창은 이 게임에서 **닫을 수 없는 유일한 창**이라
+   길어지는 만큼 도망갈 데가 없다. 그리고 로고가 마흔넷이라 한 화면이 필요하다.
+
+   ── 왜 설정이 아닌가 ──
+   「설정은 기본값」이다 — 한 번 정하고 다시 안 여는 것을 설정 창에 넣으면 아무도
+   다시 안 연다. 그리고 이건 기본값이 아니다: 시작화면에 뜨는 간판은 **고른 사람의
+   것**이어야 하고, 아무도 안 고른 간판은 남의 사무실이다.
+
+   ── 왜 여기서 강제하지 않나 ──
+   건너뛸 수 있다. 이름을 비워 두면 지점 이름이 없는 것이고(회사 이름이 그 자리를
+   채운다), 로고를 안 고르면 시작화면은 박아 둔 글자 로고를 쓴다. 첫 화면에서
+   마흔네 개를 들여다보게 만들면 그건 등록이 아니라 시험이다. */
+function showBranchSetup(onDone){
+  const done = () => { if (onDone) onDone(); };
+  const files = (typeof LOGO_FILES !== 'undefined' && LOGO_FILES.length) ? LOGO_FILES : [];
+  /* 그림이 없으면(도구를 안 돌린 배포본) 이 창을 아예 안 띄운다 —
+     고를 것이 없는 고르기 창은 사고 보고다. */
+  if (!files.length){ done(); return; }
+
+  let pick = (S.branch && S.branch.logo) || '';
+  const cell = f =>
+    `<button class="logocell ${f === pick ? 'on' : ''}" data-logo="${f}">
+       <span style="background-image:${cssURL(assetURL(LOGO_PATH(f)))}"></span></button>`;
+
+  const m = modal(`
+    <div class="mhead contract"><div class="q">BRANCH REGISTRATION</div>
+      <h3>${L({ ko:'지점 등록', en:'Branch Registration', ja:'支店登録' })}</h3>
+      <p>${L({ ko:'간판과 지점명 · 나중에 벽의 액자에서 바꿉니다',
+               en:'Sign and branch name · change it later at the wall frame',
+               ja:'看板と支店名・あとで壁の額縁から変えられます' })}</p></div>
+    <div class="mbody">
+      <div class="sigrow"><span class="em">🏢</span>
+        <b>${L({ ko:'이 사무실은 본사의 한 지점입니다.',
+                 en:'This office is one branch of the company.',
+                 ja:'この事務所は本社の一支店です。' })}</b></div>
+      <label class="tiny" for="brName">${L({ ko:'지점 이름', en:'Branch name', ja:'支店名' })}</label>
+      <div class="namerow">
+        <input id="brName" maxlength="10" autocomplete="off" placeholder="${L({ ko:'예: 골목', en:'e.g. Alley', ja:'例：路地' })}"
+               value="${esc((S.branch && S.branch.name) || '')}">
+        <span class="brsuf" id="brSuf">${L({ ko:'점', en:'Br.', ja:'店' })}</span>
+      </div>
+      <div class="tiny">${L({
+        ko:'친구가 방문하면 이 이름으로 보입니다. 비워 두면 이름 없이 갑니다.',
+        en:'Visitors will see this name. Leave it blank to go without one.',
+        ja:'訪ねてきた人にはこの名前で見えます。空欄なら名前なしです。' })}</div>
+      <div class="hint">${L({ ko:'간판', en:'Sign', ja:'看板' })}</div>
+      <div class="logogrid" id="brGrid">${files.map(cell).join('')}</div>
+    </div>
+    <div class="mfoot">
+      <button class="okbtn" id="brGo">${L({ ko:'등록한다', en:'Register', ja:'登録する' })}</button>
+    </div>`);
+
+  const grid = m.veil.querySelector('#brGrid');
+  grid.querySelectorAll('.logocell').forEach(b => b.onclick = () => {
+    /* 같은 것을 다시 누르면 고르기를 **푼다**. 마흔넷 중 하나를 눌러 본 사람이
+       「글자 로고로 돌아가려면 어떻게 하나」에서 막히지 않게. */
+    pick = (pick === b.dataset.logo) ? '' : b.dataset.logo;
+    grid.querySelectorAll('.logocell').forEach(x => x.classList.toggle('on', x.dataset.logo === pick));
+    sfx.add();
+  });
+  m.veil.querySelector('#brGo').onclick = () => {
+    setBranch({ logo: pick, name: m.veil.querySelector('#brName').value });
+    m.close();
+    sfx.stamp();
+    renderTop();
+    done();
+  };
 }
 
 function showHelp(){

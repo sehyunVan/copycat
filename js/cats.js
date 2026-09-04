@@ -41,6 +41,106 @@ const HUE_CHOICES = [
   { h:190,  n: L({ ko:'회청',   en:'Blue-grey',ja:'青灰'   }) },
 ];
 
+/* ---------- 무늬 (TODO 73) ----------
+   무늬는 **획 목록**이다. 획 하나 = { c: 색번호, r: 굵기, e: 지우개인가, p: [x,y,z, x,y,z, …] }
+   이고 xyz 는 몸을 공 하나로 편 좌표계 위의 방향이다(js/three/facepaint.js).
+
+   처음엔 동그라미 목록이었다(무늬 하나 = 방향 + 크기 + 색, 스물넷까지). 그건 그리는 게
+   아니라 도장을 찍는 것이었고, 개수 상한이 곧 「몇 번 그릴 수 있나」였다. 이제 상한은
+   셰이더에 없다 — 남은 상한은 **저장 크기** 하나뿐이고, 그건 아래 POINT_CAP 이다.
+
+   색은 세 칸. 잉크 색이지 털색이 아니다 — 바탕은 그 고양이가 이미 가진 색 그대로다. */
+const MARK_INKS = [
+  L({ ko:'하양', en:'White', ja:'しろ' }),
+  L({ ko:'갈색', en:'Brown', ja:'ちゃ' }),
+  L({ ko:'검정', en:'Black', ja:'くろ' }),
+];
+/* 붓 굵기 셋. 제일 가는 것이 줄무늬 한 줄, 제일 굵은 것이 등의 얼룩 하나다.
+   도장을 찍던 시절보다 전부 가늘다 — 이제 선을 긋는 붓이다. */
+const MARK_SIZES = [0.085, 0.150, 0.260];
+/* 한 마리가 들고 갈 수 있는 점의 총수. 사람이 만나는 벽이 아니라 **저장을 지키는 벽**이다
+   (점 하나가 JSON 으로 20자 남짓이라 4000점이면 80KB, 스무 마리면 저장이 터진다).
+   2분을 쉬지 않고 그어야 1000점쯤이므로 실제로는 안 닿는다. */
+const MARK_POINT_CAP = 4000;
+
+/* 저장에서 읽은 무늬를 믿지 않는다 — 남의 기기에서 온 저장·손으로 고친 저장이 있다.
+   **옛 모양(동그라미 하나 = [x,y,z,크기,색])도 받는다**: 점 하나짜리 획으로 옮긴다. */
+function normMarks(list){
+  if (!Array.isArray(list)) return [];
+  const out = [];
+  let pts = 0;
+  for (const m of list){
+    let s = null;
+    if (Array.isArray(m)){
+      /* 옛 모양 — 도장 하나 */
+      if (m.length < 5) continue;
+      s = { c: m[4] | 0, r: +m[3] || 0.15, p: [+m[0] || 0, +m[1] || 0, +m[2] || 0] };
+    } else if (m && Array.isArray(m.p)){
+      s = { c: m.c | 0, r: +m.r || 0.15, p: m.p };
+      if (m.e) s.e = 1;
+    }
+    if (!s) continue;
+    const p = [];
+    for (let i = 0; i + 2 < s.p.length; i += 3){
+      const x = +s.p[i] || 0, y = +s.p[i + 1] || 0, z = +s.p[i + 2] || 0;
+      const len = Math.hypot(x, y, z);
+      if (!len) continue;
+      p.push(+(x / len).toFixed(3), +(y / len).toFixed(3), +(z / len).toFixed(3));
+    }
+    if (!p.length) continue;
+    pts += p.length / 3;
+    if (pts > MARK_POINT_CAP) break;
+    const o = { c: ((s.c % MARK_INKS.length) + MARK_INKS.length) % MARK_INKS.length,
+                r: Math.max(0.02, Math.min(0.6, s.r)), p };
+    if (s.e) o.e = 1;
+    out.push(o);
+  }
+  return out;
+}
+const marksOf = c => (c && Array.isArray(c.marks)) ? c.marks : [];
+
+/* ---------- 표정 ----------
+   **눈과 입이 따로다.** 눈 열 × 입 여덟 = 여든 얼굴이고, 만든 사람도 못 본 조합이
+   그 안에 있다 — 「얼굴 여섯 벌」을 목록으로 주는 것과 다른 물건이다.
+
+   눈의 첫 칸 「그때그때」는 지금까지의 그것이다: 상태가 표정을 정한다(자면 감은 눈,
+   놀면 반달, 일하면 뜬 눈). 그걸 고르면 한 글자도 안 달라진다 — 되돌릴 자리가 목록
+   안에 있어야 고르는 것이 실험이 된다.
+
+   모양(음함수·SDF)은 js/three/facepaint.js 가 들고 있고 여기는 이름만 있다.
+   털색이 그런 것과 같은 나눔이다 — 색은 렌더러가, 이름은 여기가. */
+const EYE_NAMES = [
+  L({ ko:'그때그때', en:'By mood',   ja:'そのとき' }),   // -1
+  L({ ko:'기본',     en:'Default',   ja:'ふつう'   }),   // 0
+  L({ ko:'반달 눈',  en:'Happy',     ja:'にっこり' }),
+  L({ ko:'졸린 눈',  en:'Sleepy',    ja:'うとうと' }),
+  L({ ko:'시무룩',   en:'Glum',      ja:'しょんぼり' }),
+  L({ ko:'동그란 눈',en:'Wide',      ja:'まんまる' }),
+  L({ ko:'초롱초롱', en:'Sparkly',   ja:'きらきら' }),
+  L({ ko:'별 눈',    en:'Star',      ja:'ほし'     }),
+  L({ ko:'X 눈',     en:'X eyes',    ja:'ばたんきゅう' }),
+  L({ ko:'찡긋',     en:'Wink',      ja:'ウインク' }),
+];
+const MOUTH_NAMES = [
+  L({ ko:'기본',     en:'Default',   ja:'ふつう'   }),
+  L({ ko:'미소',     en:'Smile',     ja:'ほほえみ' }),
+  L({ ko:'활짝',     en:'Grin',      ja:'にぱー'   }),
+  L({ ko:'놀람',     en:'Surprise',  ja:'おどろき' }),
+  L({ ko:'동글 입',  en:'Round',     ja:'まるくち' }),
+  L({ ko:'삐침',     en:'Pout',      ja:'ぶすっ'   }),
+  L({ ko:'무표정',   en:'Blank',     ja:'むひょう' }),
+  L({ ko:'없음',     en:'None',      ja:'なし'     }),
+];
+/* 저장에서 읽은 표정을 믿지 않는다. 옛 저장(얼굴 여섯 벌의 번호 하나)도 받아 옮긴다 —
+   그 판정은 렌더러가 들고 있다(js/three/facepaint.js normFaceObj), 여기서 또 쓰지 않는다. */
+function normFace(v){
+  if (typeof R3 !== 'undefined' && R3 && R3.faceNorm) return R3.faceNorm(v);
+  return (v && typeof v === 'object') ? { e: v.e | 0, m: v.m | 0 } : { e: -1, m: 0 };
+}
+const faceOf = c => normFace(c && c.face);
+/* 「아무것도 안 고른 얼굴인가」 — 입구 문구가 이걸 읽는다 */
+const faceSet = c => { const f = faceOf(c); return f.e >= 0 || f.m > 0; };
+
 /* D&D식 6능력치. 이름만 사무직으로 갈아끼웠다. */
 const STAT_KEYS = ['str','dex','con','int','wis','cha'];
 const STAT_NAME = {
@@ -103,23 +203,21 @@ const TRAITS = [
 
 const ACCS = ['tie','tie','glasses','headset','bow','none'];
 
-/* 장비: 분기 이벤트로 얻는다. 3슬롯. */
-const EQUIP = [
-  { id:'glasses',  em:'👓', n: L({ ko:'뿔테 안경',    en:'Horn-rim Glasses',  ja:'黒縁メガネ' }),        slot:'head', s:{int:2} },
-  { id:'cap',      em:'🧢', n: L({ ko:'사원 모자',    en:'Company Cap',       ja:'社員帽' }),            slot:'head', s:{wis:2} },
-  { id:'crown',    em:'👑', n: L({ ko:'대표 왕관',    en:'CEO Crown',         ja:'代表の王冠' }),        slot:'head', s:{cha:3, int:1} },
-  { id:'tie',      em:'👔', n: L({ ko:'실크 넥타이',  en:'Silk Tie',          ja:'シルクのネクタイ' }),  slot:'neck', s:{cha:2} },
-  { id:'bell',     em:'🔔', n: L({ ko:'황금 방울',    en:'Golden Bell',       ja:'金の鈴' }),            slot:'neck', s:{cha:2, dex:1} },
-  { id:'scarf',    em:'🧣', n: L({ ko:'목도리',       en:'Muffler',           ja:'マフラー' }),          slot:'neck', s:{con:2} },
-  { id:'shoes',    em:'👟', n: L({ ko:'러닝화',       en:'Running Shoes',     ja:'ランニングシューズ' }),slot:'paw',  s:{dex:3} },
-  { id:'gloves',   em:'🧤', n: L({ ko:'손목 보호대',  en:'Wrist Guards',      ja:'リストガード' }),      slot:'paw',  s:{str:2, con:1} },
-  { id:'cushion',  em:'🪑', n: L({ ko:'인체공학 방석',en:'Ergonomic Cushion', ja:'人間工学クッション' }),slot:'paw',  s:{con:3} },
-];
-const SLOTS = [
-  ['head', L({ ko:'머리', en:'Head', ja:'あたま' })],
-  ['neck', L({ ko:'목',   en:'Neck', ja:'くび'   })],
-  ['paw',  L({ ko:'발',   en:'Paw',  ja:'あし'   })],
-];
+/* ── 장비를 없앴다 (2026-09-03) ──
+   머리·목·발 세 칸에 아홉 종을 끼우고 능력치가 오르는 체계가 있었다. 걷어냈다.
+
+   왜: **아무도 안 열어 봤고, 열어 봐도 할 일이 없었다.** 아홉 종이 슬롯 셋에
+   나뉘니 부위마다 셋이고, 그중 제일 좋은 것 하나가 정해져 있어서 고르는 순간이
+   없었다. 고르는 게 아니면 그건 선택지가 아니라 **한 번 하고 마는 정리**다.
+   그리고 이 게임의 능력치는 이미 입사 굴림(4d6)과 성격으로 갈리는데, 거기에
+   +2 를 얹는 층을 하나 더 두면 두 층 다 흐릿해진다.
+
+   겉모습도 안 바뀌게 만들어 뒀던 터라(「장비는 능력치에만 반영되고 겉모습은
+   안 바뀝니다」) 눈에 보이지도 않았다. 보이지 않고, 고를 것도 없고, 열지도 않는
+   체계다.
+
+   남긴 것: **NPC 의 착용**(render3d.js 의 POLICE_EQUIP — 냥찰 모자). 그건 능력치가
+   아니라 **누구인지**를 말하는 그림이라 성격이 다르다. 조형 쪽 setGear 도 그대로다. */
 
 const CHAT = L({
   ko: {
@@ -177,6 +275,11 @@ const CHAT = L({
    새 장치를 만들지 않았다. 같은 말풍선(bus 의 cat:say → sayAt)을 그대로 쓴다 —
    머리 위에 글자가 뜨는 자리가 이미 하나 있는데 상태 표시를 위해 둘로 만들 이유가 없다.
 
+   **social 이 둘이다.** 혼자 정수기 앞에 서 있는 것과 짝과 마주 보고 있는 것은 다른
+   일이다(TODO 60). 혼자일 때 「그래서 말이야…」 라고 하면 그건 수다가 아니라 혼잣말이고,
+   둘일 때 「잠깐 쉬는 중…」 이라고 하면 옆에 있는 냥이 안 보인다.
+   어느 쪽을 쓸지는 짝이 있나(c._with)로 갈린다 — sim.js 의 chatKind.
+
    **가구별로 갈라 둔 칸이 있다.** 쓰임(use)만 보면 자동급식기 앞의 고양이가
    「커피 마시는 중」이라고 말하고(급식기의 use 가 coffee 다) CD 플레이어 앞에서
    「수다 중」이라고 말한다(use 가 social 이다). 쓰임은 시뮬레이션의 분류이고
@@ -187,7 +290,8 @@ const DOING = L({
     snack:   ['밥 먹는 중…','오물오물…','한 입만 더…'],
     sleep:   ['낮잠 자는 중…','골골골…','zzz…'],
     litter:  ['…잠깐만','볼일 보는 중…'],
-    social:  ['수다 중…','골골골…','그래서 말이야…'],
+    social:  ['한숨 돌리는 중…','골골골…','잠깐 쉬는 중…'],
+    social2: ['그래서 말이야…','응, 응…','진짜? 그랬다냥?','우리끼리 하는 말인데…'],
     play:    ['노는 중…','한 번 더…','이게 제일 재밌다냥'],
     juke:    ['음악 듣는 중…','골골골…','이 곡 좋다냥'],
     game:    ['게임 중…','한 판만 더…','아, 졌다냥'],
@@ -201,7 +305,8 @@ const DOING = L({
     snack:   ['eating…','nom nom…','one more bite…'],
     sleep:   ['napping…','purrrr…','zzz…'],
     litter:  ['…just a sec','occupied…'],
-    social:  ['chatting…','purrrr…','so anyway…'],
+    social:  ['taking a breather…','purrrr…','resting a moment…'],
+    social2: ['so anyway…','mhm, mhm…','really? no way','just between us…'],
     play:    ['playing…','one more go…','this is the best, nya'],
     juke:    ['listening…','purrrr…','good track, nya'],
     game:    ['gaming…','one more round…','ah, lost again'],
@@ -215,7 +320,8 @@ const DOING = L({
     snack:   ['ごはん中…','もぐもぐ…','もう一口だけ…'],
     sleep:   ['お昼寝中…','ゴロゴロゴロ…','zzz…'],
     litter:  ['…ちょっと待って','用を足し中…'],
-    social:  ['おしゃべり中…','ゴロゴロゴロ…','それでね…'],
+    social:  ['ひと息ついてる…','ゴロゴロゴロ…','ちょっと休憩中…'],
+    social2: ['それでね…','うん、うん…','ほんとに？','ここだけの話…'],
     play:    ['遊んでる…','もう一回…','これが一番楽しいにゃ'],
     juke:    ['音楽聴いてる…','ゴロゴロゴロ…','この曲いいにゃ'],
     game:    ['ゲーム中…','あと一回だけ…','あー、負けたにゃ'],
@@ -336,16 +442,9 @@ const nextRank = c => {
 
 function traitOf(c){ return TRAITS.find(t => t.id === c.trait) || TRAITS[0]; }
 
-function statOf(c, k){
-  let v = c.stats[k] || 10;
-  SLOTS.forEach(([sl]) => {
-    const e = c.equip && c.equip[sl];
-    if (!e) return;
-    const it = EQUIP.find(x => x.id === e);
-    if (it && it.s[k]) v += it.s[k];
-  });
-  return v;
-}
+/* 능력치는 **입사 때 굴린 값 그대로**다. 장비로 올리는 층은 없앴다(위 머리말).
+   함수는 남긴다 — 부르는 데가 많고, 나중에 성격이나 직급이 여기 얹힐 자리다. */
+function statOf(c, k){ return c.stats[k] || 10; }
 const mod = v => (v - 10) / 2;   // D&D 능력 보정치
 
 function moodOf(c, hasCoffee){

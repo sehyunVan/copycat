@@ -192,7 +192,7 @@ function calRoutineHTML(){
 }
 
 function showCalendar(startKey){
-  bus.emit('cal:open');       // 첫 출근 안내가 이 걸음을 기다린다 (js/tutor.js)
+  bus.emit('cal:open');       // 열렸다는 신호. 첫 출근 안내가 쓰던 것 — 지금은 안 듣는다
   const today = bizKey();
   let sel = startKey || today;
   const d0 = keyToDate(sel);

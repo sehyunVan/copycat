@@ -16,8 +16,20 @@
      2. 체크한다                   → 서류가 결재함에 떨어지는 걸 눈으로 본다
      3. 그 사이에 시점을 익힌다     → 고양이가 걸어오는 몇 초를 그냥 버리지 않는다
      4. 도장이 찍히고 멸치가 들어온다 → 이 게임의 사업 방식 전부
-     5~8. 이 방에 만질 수 있는 것 넷 → 카메라가 하나씩 클로즈업한다 (아래 주석)
-     9. 그리고 경고 한 장
+     5. 그리고 경고 한 장
+
+   ── 무엇을 안 가르치나 (2026-09-03) ──
+
+   한때 5~8번이 있었다: CD 플레이어 · 벽걸이 달력 · 제휴 게시판 · 가구 배치를
+   카메라가 하나씩 클로즈업하며 소개했다. **뺐다.**
+
+   이 넷은 공통점이 있다 — **없어도 오늘 하루가 안 막힌다.** 첫 출근에 아홉 걸음을
+   받으면 앞의 넷(진짜 막히는 것)까지 같이 흘려듣는다. 그리고 이 방의 물건들은
+   눌러 보면 알게 되는 것들이고, 조작이 UI 패널이 아니라 세계 안의 물건에 있는 건
+   **설명을 안 해도 되게 하려고** 그렇게 만든 것이다. 설명을 붙이면 그 설계가 무색해진다.
+
+   지운 걸음이 쓰던 클로즈업 장치(tutCell · tutSpot — 벽 물건의 칸을 찾아 화면에 투사하고
+   그 위에 고리를 씌우던 것)도 같이 지웠다. 다시 필요하면 이 커밋 이전에 있다.
 
    각 단계는 **진짜 이벤트**로 넘어간다(bus). 「다음」을 눌러서 넘기는 안내는
    결국 아무도 아무것도 안 한 채로 끝난다.
@@ -26,56 +38,6 @@
    갑자기 게임이 말을 걸면 프롤로그가 세워 둔 것이 그 자리에서 무너진다.
    그리고 생산성으로 협박하지 않는다 (STORY.md 톤 규칙 1).
    ============================================================ */
-
-/* ---------- 이 방에 만질 수 있는 것 넷 ----------
-   프롤로그가 끝나면 사람은 결재함만 본다. 사무실은 배경이 되고, 벽에 걸린 달력과 게시판은
-   **끝까지 그림으로 남는다** — 실제로 그랬다. 그래서 안내가 하나씩 **클로즈업**해 준다:
-   카메라를 그 앞으로 데려가고, 그 자리에 고리를 씌우고, 한 문장으로 말한다.
-
-   각 걸음은 **진짜로 열어야** 넘어간다(`juke:open` · `cal:open` · `board:open` · `edit:on`).
-   「나중에」로 넘길 수도 있지만, 그때는 적어도 그것이 어디 있는지는 보고 지나간다.
-
-   3D 가 없는 화면(단일 파일 배포본)에서는 카메라가 없으므로 클로즈업을 건너뛴다 —
-   고리는 무대 전체에 두르고 문구가 어디를 보라고 말한다. 없는 것을 가리키지 않는다. */
-const tutCell = {
-  juke(){ return tutFindTile(TILE.JUKE); },
-  cal(){ return tutWallItem(TILE.CAL); },
-  board(){ return tutWallItem(TILE.BOARD); },
-  desk(){ const d = (W && W.desks && W.desks[0]); return d ? { x:d.x, y:d.y } : null; },
-};
-function tutFindTile(t){
-  if (!W || !W.grid) return null;
-  for (let y = 0; y < W.H; y++)
-    for (let x = 0; x < W.W; x++)
-      if (W.grid[y * W.W + x] === t) return { x, y };
-  return null;
-}
-function tutWallItem(t){
-  const d = ((W && W.wallDecor) || []).find(z => z.tile === t);
-  return d ? { x:d.x, y:d.y, face:d.face || 'n' } : null;
-}
-
-/* 화면 위의 그 자리. 3D 좌표를 투사해서 **보이지 않는 손잡이**를 그 위에 놓고,
-   고리와 안내판은 원래대로 그 손잡이를 따라간다 — 배치 로직은 한 줄도 안 바뀐다. */
-function tutSpot(cell, up){
-  const vp = $('#viewport');
-  /* 폰에서는 화면이 한 번에 하나다 — 무대가 다른 탭에 가 있으면 가구를 가리켜도
-     결재함 위에 고리가 떠 있을 뿐이다. 무대 탭으로 데려간다(js/col.js).
-     손잡이는 body 에 붙어 있어서 colFor 가 알아볼 수 없으므로 무대를 대신 준다. */
-  if (typeof colReveal === 'function' && vp) colReveal(vp);
-  if (!cell || !TUT || !TUT.spot) return vp;
-  if (!(typeof is3d === 'function' && is3d() && typeof R3 !== 'undefined' && R3 && R3.ready)) return vp;
-  const p = R3.project(cell.x, cell.y, up);
-  if (!p) return vp;
-  const b = vp.getBoundingClientRect();
-  const el = TUT.spot;
-  el.style.display = 'block';
-  /* 48 = 손잡이의 절반(style.css .tutspot). 투사한 점은 **칸의 중심**이고 가구 메시는
-     벽에 붙어 조금 밀려 있어서, 고리가 작으면 물건 옆의 빈 바닥을 두른다. */
-  el.style.left = (b.left + p.x - 48) + 'px';
-  el.style.top  = (b.top + p.y - 48) + 'px';
-  return el;
-}
 
 const TUTOR_STEPS = [
   {
@@ -138,90 +100,10 @@ const TUTOR_STEPS = [
       ja:'近くの猫が歩いてきて書類をくわえ、<b>自分の席で</b>判を押します。'
        + 'そのとき煮干しと成果が入ります。席に着いていないと稼げない会社です。' }),
   },
-  /* ---- 이 방에 만질 수 있는 것 넷. 하나씩 클로즈업한다 ---- */
-  {
-    id: 'juke',
-    at: () => tutSpot(tutCell.juke(), 0.5),
-    cam: { cell: () => tutCell.juke(), up: 0.45, el: 0.5, zoom: 0.52 },
-    on: 'juke:open',
-    t: L({ ko:'5. 💿 CD 플레이어 — 오늘은 뭘 틀까요',
-           en:'5. 💿 The CD player — what are we playing today',
-           ja:'5. 💿 CDプレーヤー——今日は何をかけますか' }),
-    b: L({
-      ko:'문 옆에 있습니다. <b>누르면 배경음악을 고릅니다</b> — 갖고 있는 곡, 멸치로 사는 음반, '
-       + '사무실에서 나오는 테이프, 그리고 <b>유튜브 링크</b>. 음량도 여기서 조절합니다.<br>'
-       + '고양이들도 그 앞에 모입니다.',
-      en:'It is by the door. <b>Click it to pick the background music</b> — what you own, records you can '
-       + 'buy with anchovies, tapes that turn up in the office, and a <b>YouTube link</b>. The volume lives '
-       + 'here too.<br>The cats gather in front of it.',
-      ja:'ドアの横にあります。<b>押すとBGMを選べます</b>——持っている曲、煮干しで買うレコード、'
-       + 'オフィスから出てくるテープ、そして<b>YouTubeのリンク</b>。音量もここです。<br>'
-       + '猫たちもその前に集まります。' }),
-  },
-  {
-    id: 'cal',
-    at: () => tutSpot(tutCell.cal(), 1.5),
-    cam: { cell: () => tutCell.cal(), up: 1.3, el: 0.36, zoom: 0.52 },
-    on: 'cal:open',
-    t: L({ ko:'6. 📅 벽걸이 달력 — 어느 날의 일인가',
-           en:'6. 📅 The wall calendar — which day is it for',
-           ja:'6. 📅 壁掛けカレンダー——どの日の仕事か' }),
-    b: L({
-      ko:'벽에 걸려 있습니다. <b>누르면 열립니다.</b> 지난 날짜를 누르면 그날 무엇을 냈는지 보이고, '
-       + '<b>앞날에 미리 적어 두면 그날 아침에 결재함으로 올라옵니다.</b><br>'
-       + '아래쪽 <b>🔁 루틴</b> 칸에 매일 하는 일을 정해 두면 그것도 매일 아침 올라와 있습니다.',
-      en:'It hangs on the wall. <b>Click it.</b> A past day shows what you filed; <b>write ahead on a future '
-       + 'day and it reaches the inbox that morning.</b><br>The <b>🔁 Routines</b> panel below holds the '
-       + 'chores you do every day.',
-      ja:'壁に掛かっています。<b>押すと開きます。</b>過去の日を押すとその日に何を出したかが見え、'
-       + '<b>先の日に書いておくとその日の朝、決裁箱に上がります。</b><br>'
-       + '下の<b>🔁 ルーティン</b>欄には毎日やることを入れておけます。' }),
-  },
-  {
-    id: 'board',
-    at: () => tutSpot(tutCell.board(), 1.5),
-    cam: { cell: () => tutCell.board(), up: 1.3, el: 0.36, zoom: 0.52 },
-    on: 'board:open',
-    t: L({ ko:'7. 📌 제휴 게시판 — 다른 지점을 구경합니다',
-           en:'7. 📌 The branch board — look in on another branch',
-           ja:'7. 📌 提携掲示板——ほかの支店をのぞく' }),
-    b: L({
-      ko:'벽에 붙은 사진들입니다. <b>누르면 다른 지점의 오늘 결재함과 사무실을 구경할 수 있습니다</b> — '
-       + '들어가면 끌어서 돌려 볼 수도 있습니다. 점수는 없습니다.<br>'
-       + '<span class="tiny">아직 이 기계 안에서만 도는 미리보기입니다.</span>',
-      en:'Those are the photos pinned to the wall. <b>Click it to look in on another branch’s inbox and '
-       + 'office</b> — you can walk in and drag to look around. There are no scores.<br>'
-       + '<span class="tiny">A preview that runs only on this machine for now.</span>',
-      ja:'壁に留めた写真です。<b>押すとほかの支店の今日の決裁箱とオフィスをのぞけます</b>——'
-       + '入ってドラッグで見回すこともできます。点数はありません。<br>'
-       + '<span class="tiny">まだこの機械の中だけで動くプレビューです。</span>' }),
-  },
-  {
-    id: 'edit',
-    at: () => $('#btnEdit'),
-    /* 여기만 클로즈업이 아니다. 배치는 방 전체의 이야기라 **한 걸음 물러서서** 보여준다 —
-       기본 3/4 각(0.72)으로 되돌리고 방이 다 들어오는 거리에 세운다. */
-    cam: { cell: () => ({ x: Math.floor((W ? W.W : 10) / 2), y: Math.floor((W ? W.H : 8) / 2) }),
-           up: 0.5, el: 0.55, zoom: 0.78, az: 0.72 },
-    on: 'edit:on',
-    t: L({ ko:'8. 🛋️ 가구는 직접 옮깁니다',
-           en:'8. 🛋️ You move the furniture yourself',
-           ja:'8. 🛋️ 家具は自分で動かします' }),
-    b: L({
-      ko:'상단 <b>🛋️</b> 를 누르면 배치 모드입니다. <b>옮길 물건을 누르고, 놓을 자리를 누르면 끝입니다.</b> '
-       + '한 칸짜리는 <b>R</b> 로 돌아갑니다. 길이 막히는 배치는 <b>빨간 칸으로 거부</b>됩니다 — '
-       + '고양이가 구석에 갇히면 안 되기 때문입니다.<br>배치는 그대로 저장됩니다. 여기가 당신 사무실입니다.',
-      en:'The <b>🛋️</b> up top opens decorate mode. <b>Click the piece, then click where it goes.</b> '
-       + 'Single-tile pieces turn with <b>R</b>. Layouts that block the way are <b>refused in red</b> — '
-       + 'no cat may end up trapped in a corner.<br>The layout is saved. This is your office.',
-      ja:'上の<b>🛋️</b>で模様替えモードです。<b>動かす物を押して、置く場所を押すだけ。</b>'
-       + '1マスのものは<b>R</b>で回ります。道をふさぐ配置は<b>赤いマスで拒否</b>されます——'
-       + '猫が隅に閉じ込められてはいけないからです。<br>配置はそのまま保存されます。ここがあなたのオフィスです。' }),
-  },
   {
     id: 'warn',
     at: () => $('#penChip'),
-    t: L({ ko:'9. 그리고 이것만은 알고 계십시오', en:'9. And this one thing you must know', ja:'9. これだけは知っておいてください' }),
+    t: L({ ko:'5. 그리고 이것만은 알고 계십시오', en:'5. And this one thing you must know', ja:'5. これだけは知っておいてください' }),
     b: L({
       ko:'줄마다 <b>⏰ 기한</b>을 걸 수 있습니다. <b>걸어 둔 건을 그날 안에 못 내면 서류가 밖으로 새고</b> '
        + '<b>혐의</b>가 쌓입니다. 혐의가 넘치면 <b>냥찰이 압수수색을 옵니다.</b><br><br>'
@@ -374,11 +256,13 @@ function tutorShow(){
     <b>${s.t}</b>
     <p>${s.b}</p>
     <div class="cacts">
-      <button class="buy alt" data-tut="skip">${L({ ko:'건너뛰기', en:'Skip', ja:'スキップ' })}</button>
+      <!-- 단추 둘의 무게를 갈랐다. 「건너뛰기 / 나중에」는 둘 다 빠져나가는 말처럼
+           읽혀서 어느 것이 앞으로 가는 길인지가 안 보였다 — 이제 **다음**이 주 단추고
+           **끝내기**는 회색이다. 안내를 끝까지 보는 쪽으로 눈이 가야 한다. -->
       <button class="buy" data-tut="next">${
         last ? L({ ko:'알겠습니다', en:'Understood', ja:'わかりました' })
-        : s.on ? L({ ko:'나중에', en:'Later', ja:'あとで' })
-        : L({ ko:'다음', en:'Next', ja:'次へ' })}</button>
+             : L({ ko:'다음', en:'Next', ja:'次へ' })}</button>
+      <button class="buy quit" data-tut="skip">${L({ ko:'끝내기', en:'End', ja:'終わる' })}</button>
     </div>`;
   TUT.panel.querySelector('[data-tut="skip"]').onclick = () => tutorEnd(false);
   TUT.panel.querySelector('[data-tut="next"]').onclick = () => tutorNext();

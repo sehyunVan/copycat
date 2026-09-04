@@ -24,8 +24,11 @@ import * as LP from './three/lowpoly.js';
 import { cat3 } from './three/cat3.js';
 import { cutoutFrom } from './three/doodle.js';
 import * as CS from './three/catsculpt.js';
+import * as FP from './three/facepaint.js';
 import { collapse } from './three/merge.js';
 import * as EERIE from './three/eerie.js';
+import * as OUTRO from './three/outro.js';
+import * as PARCEL from './three/parcel.js';
 import { DRAWS } from '../assets/cats_drawn/list.js';
 
 /* s3 에서 고른 파스텔. spike/lib/pastel.js 와 같은 값이다. */
@@ -36,7 +39,7 @@ const PASTEL = {
   metal:0xCBD4DE, metalDark:0x9AA6B4,
   screen:0xA8C4D8, fabric:0xA8B8E0, fabric2:0xF0A9A0,
   leaf:0xA8D3A0, leafDark:0x86BC8A, pot:0xE8A98C,
-  paper:0xFFFDF8, ink:0x6B6560, catnip:0xA9DE9C, glow:0xFFE7B8, sky:0xBBD9F0,
+  paper:0xFFFDF8, ink:0x6B6560, catnip:0xA9DE9C, glow:0xFFC672, sky:0xBBD9F0,
 };
 
 /* ---------- 벽지·바닥 ----------
@@ -149,18 +152,23 @@ const TIME = {
   /* 아침은 낮보다 어둡다 — eerie 쪽 표(three/eerie.js)와 같은 판단이다.
      해를 낮게 걸고(y 13 → 6) 형광등을 켜 둔다. 이 표는 도트 폴백 쪽 파스텔이지만
      같은 시각을 두 그림체가 다르게 말하면 스크린샷이 서로를 부정한다. */
+  /* **lampColor 가 이 표에 없었다.** 그래서 mixTime 이 기본값(흰색)을 돌려주고,
+     night() 의 `if (p.lampColor)` 가 그 흰색을 그대로 등에 칠했다 — 파스텔 판에서는
+     책상등도 천장등도 **순백**이었다는 뜻이다. 조명 색을 손보다가 발견했고,
+     eerie 표와 같은 값을 넣어 고쳤다. 두 그림체가 같은 시각을 다르게 말하면 안 된다는
+     이 표의 첫 줄이 색에도 그대로 걸린다. */
   morning: { tint:0xF0E4DC, bg:0xCFC6D4, hemi:[0xF4F0F4, 0xBEB6C0, 1.00], sun:[0xFFEEDA, 0.85, [9, 6, -2]],
-             fill:[0xD8E4FF, 0.52], lamp:0.45, pane:[0xF6C49C, 0.30] },
+             fill:[0xD8E4FF, 0.52], lamp:0.45, lampColor:0xFFC47C, pane:[0xF6C49C, 0.30] },
   day:     { bg:0xEDE9F2, hemi:[0xFFFFFF, 0xD8D2DC, 1.30], sun:[0xFFFAF0, 1.30, [6, 15, 0]],
-             fill:[0xD8E4FF, 0.42], lamp:0, pane:[0x9FCDEE, 0.30] },
+             fill:[0xD8E4FF, 0.42], lamp:0, lampColor:0xFFC069, pane:[0x9FCDEE, 0.30] },
   /* 오후 — 시간대가 다섯이 되면서 생긴 칸(sim.js SKY_AT). 파스텔판은 폴백이므로
      eerie 처럼 필름을 갈지 않고 **빛만** 낮과 저녁 사이에 앉힌다. */
   afternoon:{ tint:0xFFE4CC, bg:0xF0E0DA, hemi:[0xFFF4E6, 0xDCC8BA, 1.18], sun:[0xFFE0B4, 1.30, [7, 11, 1]],
-             fill:[0xD0DCFF, 0.40], lamp:0.18, pane:[0xE8CCA4, 0.32] },
+             fill:[0xD0DCFF, 0.40], lamp:0.18, lampColor:0xFFB050, pane:[0xE8CCA4, 0.32] },
   evening: { tint:0xFFCBA6, bg:0xF0D2C8, hemi:[0xFFEFE2, 0xD6BCB2, 1.10], sun:[0xFFC49A, 1.35, [10, 3.5, 2]],
-             fill:[0xC6D2FF, 0.40], lamp:0.35, screen:0xB6CFE0, pane:[0xFF9A68, 0.42] },
+             fill:[0xC6D2FF, 0.40], lamp:0.35, lampColor:0xFFA742, screen:0xB6CFE0, pane:[0xFF9A68, 0.42] },
   night:   { bg:0x8E93C4, hemi:[0xB9BEE8, 0x6F74A0, 0.80], sun:[0x9FA8E0, 0.50, [-3, 9, -6]],
-             fill:[0xC0B0E0, 0.40], lamp:1, screen:0xCDEAF2, pane:[0x2E3A78, 0.55] },
+             fill:[0xC0B0E0, 0.40], lamp:1, lampColor:0xFFCE8A, screen:0xCDEAF2, pane:[0x2E3A78, 0.55] },
 };
 
 /* 책상 등이 닿는 거리(칸). **5.5 였다가 3.2 로 줄였다.**
@@ -228,7 +236,21 @@ const DOOR_LAMP = 0xFF9F6B;      // UI 의 강조색 — 화면에서 「누를 
    그 조건이 story.js 에 이미 있으므로 여기 적는 것은 사본이 아니라 같은 사실이고,
    문을 하나 더 만들 때 **두 곳을 같이 고쳐야 한다**(안 그러면 표시가 거짓말을 한다). */
 function doorTiles(TILE){
+  if (!doorsInWorld()) return new Set();
   return new Set([TILE.JUKE, TILE.CAL, TILE.BOARD, TILE.BINDER]);
+}
+
+/* 방 안의 물건이 아직 「문」인가.
+   폰(M4)에서는 달력·게시판·CD·배치가 **화면 오른쪽 세로 열**로 나와 있다(js/cozy.js).
+   그러면 방 안의 표시등은 같은 일을 두 번 하는 것이고, 등 넷이 켜져 있는 사무실은
+   어두운 방의 그림체를 깎는다 — 그래서 폰에서는 표시등도 점광원도 만들지 않고,
+   눌렀을 때 모달을 여는 것도 story.js 에서 같이 끈다(물건은 조사 대상으로 돌아간다).
+
+   넓은 판에서는 그대로 둔다. 거기엔 세로 열이 없고, **이 물건이 그 기능으로 들어가는
+   유일한 문**이다. 지우면 달력·게시판·음악·견본책에 들어갈 길이 아예 없어진다. */
+function doorsInWorld(){
+  const a = document.getElementById('app');
+  return !(a && a.classList.contains('tabbar'));
 }
 
 /* 물건의 **제 좌표계**에서 부피를 잰다. setFromObject 는 월드로 재므로, 그 값을
@@ -424,8 +446,51 @@ function furnTable(T){
   /* 제휴 게시판. 이것도 원래 DECOR 변주(코르크 게시판)로 걸려 있던 메시 그대로다. */
   put(T.BOARD,     () => LP.corkBoard(0.86), { wall:true, y:1.48 });
   put(T.BINDER,    () => LP.sampleBinder(), { wall:true, y:1.46 });
-  put(T.WALLSHELF, () => LP.wallShelf(0.84), { wall:true, y:1.22, push:0.15 });
+  put(T.WALLSHELF, () => LP.wallShelf(0.84, { free:0.40 }), { wall:true, y:1.22, push:0.15 });
   put(T.CATWALK,   () => LP.catwalk(2.6), { wall:true, y:1.88, push:0.18 });
+
+  /* ---------- 가구 카탈로그 (2026-09-01) ----------
+     레퍼런스 「사무실 가구 목록」 스물넷. 위의 비품들과 달리 **숫자를 안 건드린다** —
+     쾌적도 하나에만 기여하고(game.js comfort), 여기서는 그냥 놓이기만 한다.
+
+     toWall 이 붙은 것은 벽을 등져야 하는 것들이다. 뒷면을 안 만들어서가 아니라
+     (전부 사방이 있다) **그게 그 가구가 실제로 놓이는 방식**이라서다 — 방 한가운데
+     선 락커는 가구가 아니라 장애물이고, 그건 CD 플레이어를 벽에 붙인 것과 같은 판단이다. */
+  put(T.DRAWER,    () => LP.drawerUnit(),  { toWall:true });
+  put(T.FILECAB,   () => LP.fileCabinet(), { toWall:true });
+  put(T.MEETCHAIR, () => LP.meetChair());
+  put(T.LOCKER,    () => LP.locker(),      { toWall:true });
+  put(T.CABINET,   () => LP.cabinet(),     { toWall:true });
+  put(T.OPENSHELF, () => LP.openShelf(),   { toWall:true });
+  put(T.BOOKRACK,  () => LP.bookRack(),    { toWall:true });
+  put(T.PAPERTRAY, () => LP.paperTray());
+  put(T.BOX,       () => LP.cardboard(true));
+  put(T.BIN,       () => LP.trashBin());
+  put(T.PLANT_S,   () => LP.plantSm());
+  put(T.PLANT_L,   () => LP.plantLg());
+  put(T.CANDLE,    () => LP.candles(3));
+  put(T.PENHOLDER, () => LP.penHolder());
+  put(T.LOWTABLE,  () => LP.lowTable());
+  put(T.CAFETABLE, () => LP.cafeTable());
+  put(T.CAFECHAIR, () => LP.cafeChair());
+  /* 앉는 것들. perch 는 「고양이가 이 칸에 오면 몇 유닛 위에 앉는가」다 —
+     소파 좌판이 0.35, 빈백 윗면이 0.46 이라 그 값을 그대로 준다.
+     이걸 빼면 고양이가 소파를 **뚫고** 바닥에 앉는다. */
+  put(T.SOFA1,     () => LP.sofa1(),       { toWall:true, perch:0.42 });
+  put(T.SOFA2,     () => LP.sofa2(),       { toWall:true, perch:0.42, w:2 });
+  put(T.ARMCHAIR,  () => LP.loungeChair(), { toWall:true, perch:0.50 });
+  put(T.BEANBAG,   () => LP.beanBag(),     { perch:0.46 });
+  /* 스탠드 조명·랜턴은 **진짜 광원을 받는다**(아래 buildCozy 가 자동으로 놓는 것과
+     같은 기구다). 사서 놓은 등이 안 켜지면 그건 등이 아니라 등 모양 가구다. */
+  put(T.FLOORLAMP, () => LP.floorLamp(0), { lit:'lamp' });
+  put(T.LANTERN,   () => LP.lantern(),    { lit:'lantern' });
+
+  /* 벽에 거는 둘 */
+  put(T.CURTAIN,   () => LP.curtain(1.5, 1.2), { wall:true, y:1.42, push:0.06 });
+  /* d 를 안 받는 호출이 하나 있다 — 목록 모형(furnPortrait)은 F.b() 를 인자 없이
+     부른다. 여기서 d.v 를 그냥 읽으면 그 한 곳에서만 터지고, 터진 자리는 조용히
+     이모지로 내려가서 **격자에서 이것만 그림이 없다**로 나타난다. */
+  put(T.MEMO,      d => LP.stickyMemo((d && d.v) | 0), { wall:true, y:1.46 });
   return F;
 }
 /* 액자 바탕색 — 벽에 같은 색 액자가 줄지어 걸리면 그건 장식이 아니라 벽지다. */
@@ -455,6 +520,8 @@ let builtW = 0, builtD = 0;
    그대로 y=0 에 세우면 근무 중인 고양이가 의자 등받이 뒤에 통째로 숨는다. */
 const seatCells = new Set();
 const SEAT_Y = 0.47;
+/* 자리칸 → 그 자리의 의자. 택배 컷신이 의자를 고양이와 같이 물리는 데 쓴다. */
+const seatChairs = new Map();
 /* 시설 위에 올라앉는 높이. 시뮬은 (x,y)만 주므로 어디에 올라탔는지는 렌더러가 격자에서 본다. */
 const perchCells = new Map();
 const tmp = new THREE.Vector3();
@@ -470,6 +537,38 @@ function tickClocks(){
   const h = (d.getHours() % 12) + m / 60;
   const mr = -m / 60 * Math.PI * 2, hr = -h / 12 * Math.PI * 2;
   for (const c of clockHands){ c.min.rotation.z = mr; c.hour.rotation.z = hr; }
+}
+
+/* ---------- 촛불 ----------
+   **광원이 아니라 발광면을 흔든다**(lowpoly.candles 머리말). 촛불 하나가 방을 밝히지는
+   않고, 이 방에서 초가 하는 일은 「가만하지 않은 점이 하나 있다」이다. 그 일에
+   셰이더 루프를 한 칸 쓰는 것은 비싸다.
+
+   **초마다 위상을 어긋나게 한다.** 같이 떨면 그건 촛불 셋이 아니라 깜빡이는
+   형광등이다. 황금각(2.39rad)으로 벌리면 몇 개를 놓든 위상이 안 겹친다.
+
+   **세기를 여덟 단계로 끊는다.** matGlow 가 (색, 세기)로 재질을 캐시하므로 연속값을
+   주면 프레임마다 새 재질이 생기고, three 에서 새 재질은 곧 셰이더 컴파일이다.
+   여덟 단계면 재질이 여덟 개로 고정되고, 60fps 에서 그 계단은 눈에 안 보인다.
+
+   키도 같이 흔든다 — 세기만 바꾸면 「밝기가 변하는 조각」이고, 길이가 같이 흔들려야
+   불꽃이다. 폭은 좁게 둔다(±8%): 원뿔이 가운데를 기준으로 늘어나므로 크게 흔들면
+   불꽃이 심지 아래로 파고든다. */
+let flameT = 0;
+function tickFlames(){
+  if (!flames.length) return;
+  flameT += 1 / 60;
+  for (let i = 0; i < flames.length; i++){
+    const f = flames[i], ph = i * 2.39;
+    const k = 0.74 + 0.26 * (0.5 + 0.5 * Math.sin(flameT * 5.3 + ph))
+                   + 0.10 * Math.sin(flameT * 11.7 + ph * 1.7);
+    const q = Math.round(k * 8) / 8;
+    if (f.userData.q !== q){
+      f.userData.q = q;
+      f.material = LP.matGlow(COZY_HUE, Math.min(1.6, q * f.userData.lit * 1.3));
+      f.scale.y = 0.92 + q * 0.16;
+    }
+  }
 }
 let catTint = 0xFFFFFF;      // 지금 시간대의 빛깔. 새로 만든 고양이에게도 바로 입힌다
 
@@ -494,6 +593,17 @@ export function followOn(on){
   return FOLLOW.on;
 }
 export function following(){ return FOLLOW.on; }
+
+/* 추적 중의 거리. **camSet 으로는 못 바꾼다** — 추적이 도는 동안 매 프레임
+   `CAM.zoom = FOLLOW.zoom` 으로 덮어쓰기 때문이다(아래 followTick). 그래서 손잡이를
+   따로 낸다. 인자 없이 부르면 지금 값을 읽는다(시작화면이 원래대로 돌려놓을 때 쓴다).
+   숫자는 거리다 — 작을수록 가까이 붙는다. */
+export function followZoom(z){
+  if (z == null) return FOLLOW.zoom;
+  FOLLOW.zoom = Math.max(0.16, Math.min(1.9, z));
+  if (FOLLOW.on && ready){ CAM.zoom = FOLLOW.zoom; fit(); }
+  return FOLLOW.zoom;
+}
 
 /* ============================================================
    카메라 조작
@@ -541,7 +651,14 @@ function clampLook(){
   look.z = Math.max(-1, Math.min(D + 1, look.z));
 }
 
-/* 화면을 픽셀만큼 끈다. 세상이 손가락을 따라오는 방향 — 즉 시선은 반대로 간다. */
+/* 화면을 픽셀만큼 끈다. 세상이 손가락을 따라오는 방향 — 즉 시선은 반대로 간다.
+
+   ── 가로를 한 번 뒤집었다가 되돌렸다 (2026-09-01) ──
+   「두 손가락으로 밀면 좌우가 손과 반대」라는 신고를 받고 여기 부호를 뒤집었는데,
+   **여기는 두 손가락이 지나는 길이 아니었다.** 이 게임의 규약은 지도 앱과 같다:
+     한 손가락 = 팬(이 함수)  ·  두 손가락 = 회전 + 줌(orbitPixels · zoomBy)
+   그래서 뒤집힌 것은 한 손가락 팬이었고, 그쪽은 원래가 맞았다. 되돌렸다.
+   두 손가락의 방향을 손볼 일이 생기면 그건 orbitPixels 쪽이다. */
 function panPixels(dx, dy){
   const [kx, kz] = panPerPx();
   const r = camRightOf(CAM.az), f = camFwdOf(CAM.az);
@@ -588,8 +705,8 @@ export function camSet(o){
   if (o.el != null) CAM.el = Math.max(0.12, Math.min(1.45, o.el));
   if (o.zoom != null) CAM.zoom = Math.max(0.16, Math.min(1.9, o.zoom));
   if (o.center){ look.set(W / 2, 0.5, D / 2); wantLook.copy(look); }
-  /* 한 칸을 본다 — 가구 클로즈업(js/tutor.js 의 첫 출근 안내)이 쓴다.
-     벽에 걸린 것은 눈높이가 다르므로 up 을 받는다(달력은 1.5, 바닥 가구는 0.4). */
+  /* 한 칸을 본다. 첫 출근 안내의 가구 클로즈업이 쓰던 길인데 그 걸음들을 뺐다(tutor.js) —
+     남겨 둔다: 벽 물건은 눈높이가 달라 up 을 받는 이 규칙이 다시 필요할 때 다시 쓴다. */
   if (o.at){
     look.set(o.at.x + 0.5, o.at.up != null ? o.at.up : 0.5, o.at.y + 0.5);
     wantLook.copy(look);
@@ -717,6 +834,14 @@ function bindCamera(cv){
     if (!ready || !statics || typing() || e.ctrlKey || e.metaKey || e.altKey) return;
     if (!canvas || !canvas.offsetParent) return;      // 도트 렌더러로 돌고 있으면 남의 화면이다
     const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
+    /* ── 배치 중의 방향키는 **카메라 것이 아니다** ──
+       화살표는 고른 가구를 한 칸씩 민다(js/edit.js editNudge). 그런데 여기서도 같은 키로
+       시선을 1.2씩 팬하고 있어서, 한 번 누를 때마다 **가구도 가고 화면도 갔다** —
+       「상하좌우 누르면 화면이 같이 움직인다」의 정체가 이것이었다.
+       배치 모드에서는 방향키를 저쪽에 넘긴다. WASD 는 그대로 둔다 — 그건 카메라 전용이고
+       배치 중에도 방을 둘러볼 길이 있어야 한다. */
+    const editing = (typeof EDIT !== 'undefined') && EDIT && EDIT.on;
+    if (editing && (k === 'ArrowLeft' || k === 'ArrowRight' || k === 'ArrowUp' || k === 'ArrowDown')) return;
     const nudge = (nx, nz) => {
       FOLLOW.on = false;
       const r = camRightOf(CAM.az), f = camFwdOf(CAM.az), step = 1.2;
@@ -777,10 +902,359 @@ export function init(cv){
   ready = true;
 }
 
+/* ============================================================
+   불을 여기저기 놓는다 — 조명 배치 (2026-08-28)
+
+   기구는 lowpoly.js 가 만들고(「불 켜진 것들」 절), **어디에 놓을지**와 진짜 점광원을
+   몇 개 붙일지는 여기서 정한다. 나누는 이유는 배치가 방을 알아야 하기 때문이다 —
+   어느 벽이 비었는지, 어느 구석이 죽었는지는 격자를 봐야 안다.
+
+   ── 왜 늘리나 ──
+
+   지금까지 이 방의 광원은 두 종류였다: 천장등(방을 고르게 든다)과 책상등(웅덩이를
+   만든다). 그래서 「빛이 여기저기 고여 있다」가 나올 수가 없었다 — 고일 자리가 책상
+   여섯 곳뿐이니까. 넓은 사무실일수록 심했다: 등급이 오르면 방은 커지는데 광원은
+   책상 수만큼만 늘어서, 쉼터·복도·구석은 **불을 놓을 방법 자체가 없었다.**
+
+   스탠드·전구줄·벽등·랜턴·양초가 붙으면 웅덩이가 방 곳곳에 생긴다. 그게 아늑한 방과
+   조명이 잘 된 방의 차이다 — 아늑함은 밝기의 총합이 아니라 **분포**다.
+
+   ── 문 표시등과는 다른 물건이다 ──
+
+   문 넷(💿📅📌📕)에 달린 표시등은 「누를 수 있다」를 말하는 **신호**다(위 TODO 35 절).
+   그래서 손톱만 하고(세기 0.55 · 반경 0.85칸), UI 강조색(0xFF9F6B)이고, 시간대를
+   일부러 안 탄다. 여기 기구들은 **조명**이다: 반경이 두 배에서 다섯 배고, 세기가 한
+   자리 수 위고, 색은 전구색(팔레트의 glow)이라 시간대를 따라 데워진다.
+
+   둘을 섞으면 둘 다 죽는다. 표시등이 조명만큼 밝아지면 「누를 수 있는 것」이 방 안의
+   수많은 밝은 점 중 하나가 되어 신호가 사라지고, 조명이 표시등만큼 어두워지면 그건
+   조명이 아니다. **그래서 문 표시등은 한 줄도 안 건드렸다** — 색·세기·반경·자리·
+   시간대 무관 전부 그대로다. 아래 값들은 그 넷과 겹치지 않도록 고른 것이다.
+   기구를 놓는 자리도 문 넷을 피한다(doorTiles).
+
+   ── 개수는 세어 가며 쓴다 ──
+
+   발광면(matGlow)은 스무 개가 있어도 공짜지만 점광원은 아니다. Lambert 셰이더가
+   광원 수만큼 픽셀마다 루프를 돌고, three 는 그 수가 바뀔 때마다 셰이더를 다시
+   컴파일한다 — 등이 82개까지 쌓여 사무실이 버벅이던 일이 이 파일에 이미 적혀 있다
+   (아래 build 의 ceilLights 걷어내기 절).
+
+   그래서 종류마다 상한을 둔다. 전구줄이 그 판단의 좋은 예다: 알맹이가 열여섯 개인데
+   광원은 처진 골마다 하나(최대 넷)만 얹는다. 열여섯을 다 광원으로 만들면 값은 네 배인데
+   그림은 오히려 나빠진다 — 촘촘한 광원은 웅덩이를 안 만들고 벽을 고르게 데운다.
+   이 파일이 「반경 5.5칸짜리 책상등 여섯 개」에서 배운 것과 같은 이야기다.
+   ============================================================ */
+
+/* 종류마다 몇 개까지. 합이 이 방의 새 점광원 상한이다(최대 13).
+   기존 광원은 hemi·sun·fill 셋 + 천장등 1~4 + 책상등 ~6 + 문 표시등 4 이므로
+   다 합쳐 서른 언저리에서 멈춘다. 셰이더가 실제로 도는 화면은 1/3.4 로 줄인 렌더
+   타깃이라(eerie.pxFor) 이 정도는 프래그먼트에서 문제가 안 된다 — 82개일 때
+   문제였던 것은 픽셀 비용보다 **셰이더 재컴파일**이었고, 상한을 두면 개수가 고정된다. */
+const COZY_CAP = { lamp: 3, sconce: 4, string: 4, lantern: 2 };
+
+/* 세기와 반경. 문 표시등(0.55 · 0.85칸)과 나란히 놓고 보면 차이가 한눈에 보인다.
+   반경을 종류마다 다르게 주는 게 요점이다 — 다 같은 반경이면 웅덩이 크기가 같아서
+   광원이 늘어도 그림은 「같은 등을 여러 개 놓았다」가 된다.
+
+     스탠드   4.6칸  키가 크고 위로 쏘는 등이라 제일 넓게 퍼진다. 구석 하나를 통째로 맡는다
+     벽등     2.9칸  벽면만 씻는다. 바닥까지 닿으면 벽등이 아니라 천장등이다
+     전구줄   3.2칸  골마다 하나. 벽을 따라 일정 간격으로 고인다
+     랜턴     2.0칸  발치만. 제일 작은 웅덩이라 「거기 뭔가 놓여 있다」로 읽힌다 */
+/* **색을 데우면 세기를 그만큼 올려야 한다.** 전구색을 0xFFC07A 에서 0xFFB24E 로
+   옮기면서 파란 채널이 122 → 78 로 빠졌는데, 휘도는 0.299R+0.587G+0.114B 라
+   그 자체로 7% 어두워진다(203 → 190). 세기를 그대로 두면 「더 주황이고 더 어두운 방」이
+   되고, 실제로 그렇게 나왔다 — 밝은 화소가 다섯 칸 전부에서 1~3%p 씩 빠졌다.
+   아래 값은 그 7% 를 되돌리고 조금 더 준 것이다. 색만 바꾸는 손잡이는 없다. */
+const COZY_LIGHT = {
+  lamp:    { i: 7.6, r: 4.6 },
+  sconce:  { i: 4.4, r: 2.9 },
+  string:  { i: 3.35, r: 3.2 },
+  lantern: { i: 2.3, r: 2.0 },
+};
+
+/* ---------- 전구색 ----------
+   **시간대표의 lampColor 를 안 쓴다.** 처음엔 책상등처럼 표를 따라가게 했고, 찍어
+   보고 되돌렸다: 밤 칸의 lampColor 가 0xFFF0DC(따뜻한 흰빛)라 웅덩이가 하얗게 나왔다.
+   그 값은 옳다 — 책상등에 대해서는. 밤의 책상 웅덩이는 「모니터 앞에서 일하는 자리」라
+   흰 편이 맞고, 주황이면 노을과 구별이 안 된다는 이유까지 표에 적혀 있다.
+
+   그런데 이 한 벌이 하려는 일은 정반대다. 스탠드와 전구줄과 양초는 **일하는 빛이
+   아니라 사는 빛**이고, 그 빛은 백열 전구다. 백열 전구는 해가 지든 말든 필라멘트
+   색이 안 변한다. 시각에 따라 색이 도는 등은 전구가 아니라 무대 조명이다.
+
+   **채도를 세 번 올렸다.** 크림빛(0xFFD2A0 · r−b 95)으로 시작했는데 아침 칸에서
+   따뜻한 화소가 화면의 0.67% 밖에 안 나왔다 — 아침 그레이드가 채도를 빼기 때문이고
+   (eerie.TIME.morning), 크림빛은 그 곱셈을 못 견딘다. 0xFFC07A(r−b 133)로 한 번,
+   그리고 **주황–노랑 쪽으로 한 번 더**(0xFFB24E · r−b 177).
+
+   마지막 두 걸음은 지표가 아니라 방의 성격이었다. 색차가 133 이면 「따뜻한 흰빛」이고
+   177 이면 「전구빛」이고 197 이면 **「불」**이다. 앞엣것은 조명이 잘 된 사무실이고
+   뒤엣것은 불을 켜 둔 방인데, 이 게임이 하려는 건 뒤쪽이다.
+
+   ── 문 표시등과 어떻게 갈라지나 ──
+
+   진해질수록 문 표시등(0xFF9F6B)과 가까워지는 게 걱정이었는데, **색상각을 재 보니
+   오히려 벌어졌다.** 표시등은 21°(붉은 주황)이고 이쪽은 33.5°(호박빛 노랑)다 —
+   같은 「주황」이라도 표시등은 빨강 쪽, 조명은 노랑 쪽이다. 진하게 만들면서 붉은 쪽으로
+   갔으면 둘이 붙었겠지만 노란 쪽으로 갔으므로 그 반대다. 채도를 올릴 때 R 은 이미
+   255 라 못 올리고 **G 와 B 를 어떻게 내리느냐**가 색상각을 정하는데, B 를 G 보다
+   빠르게 내리면 노란 쪽으로 간다. 그 비율을 지키면 아무리 진해져도 표시등과 안 붙는다.
+   크기도 그대로 다르다: 표시등은 반경 0.85칸짜리 **점**, 이쪽은 2~4.6칸짜리 **면**. */
+const COZY_HUE = 0xFFA83A;
+
+/* **시간대를 거의 안 탄다.** 이번 수정의 요구사항이 이 한 줄이다 — 「시간대 상관없이
+   확실하게」. 낮이라고 꺼지는 등은 방에서 광원이 아니라 가구다.
+
+   그래도 완전히 고정하지는 않는다(1.00~1.18). 밤에 18% 더 밝은 것은 밝기 차라기보다
+   **눈이 어둠에 익는 것과 같은 방향**이고, 여기를 아예 상수로 못 박으면 이 방에서
+   시간이 흐르는 것을 말하는 물건이 창과 필름 그레이드밖에 안 남는다.
+
+   **바닥이 1.00 이다.** 0.88 로 뒀다가 낮 화면을 찍어 보고 올렸다: 오전 칸의 필름
+   그레이드가 채도를 0.48 까지 빼는데(eerie.TIME.day) 그 위에서 12% 를 더 깎으면
+   따뜻한 웅덩이가 「조금 밝은 회색」이 된다. 밤에 예쁜 값을 낮에 그대로 쓸 수 없다는
+   것이 이 표 전체의 교훈이고, 여기서는 **낮 쪽을 기준으로 잡았다.** */
+const COZY_BY_LAMP = [1.00, 1.18];
+
+/* 등불의 바닥값 — **책상등도 꺼지지 않는다.**
+
+   지금까지 책상등 세기는 시간대표의 lamp 를 그대로 썼는데, 그 표의 낮 칸이 0.34 라
+   (eerie.TIME.day) 낮 화면에서 책상 웅덩이가 사실상 없었다. 표가 틀린 건 아니다 —
+   그건 「해가 떠 있으니 등이 덜 필요하다」는 현실의 기술이다. 다만 이 게임의 화면은
+   현실의 기록이 아니라 곁에 두는 방이고, 그 방은 **아침에도 등이 켜져 있는 방**이다.
+
+   표를 고치지 않고 바닥만 깐 이유: lamp 값은 표에서 세기 말고도 발광면 세기(glow
+   폴백)와 천장등 보간에 같이 쓰인다. 표를 만지면 그 셋이 한꺼번에 움직이고,
+   무엇보다 표는 「그 시각의 바깥」을 적어 둔 문서라 그대로 읽히는 편이 낫다.
+   바닥은 소비하는 자리에서 깐다. */
+const LAMP_FLOOR = 0.92;
+const lampK = p => Math.max(LAMP_FLOOR, p.lamp || 0);
+
+/* 새 기구가 심은 것들. **사무실을 다시 세울 때 같이 걷어야 한다** —
+   안 걷으면 쌓인다(ceilLights 가 82개까지 갔던 그 사고다). */
+let cozyLights = [], cozyGlows = [], flames = [], cozyKinds = {};
+
+function cozyClear(){
+  cozyLights.forEach(l => scene.remove(l));
+  cozyLights = []; cozyGlows = []; flames = [];
+  cozyKinds = { lamp: 0, sconce: 0, string: 0, lantern: 0 };
+}
+
+/* 기구 하나를 등록한다. 발광면은 시간대가 다시 칠할 수 있게 모으고, 불꽃은 따로
+   모은다(매 프레임 떨기 때문에 시간대 쪽 목록에 있으면 일을 두 번 한다). */
+function cozyRegister(o){
+  o.traverse(m => {
+    if (!m.userData) return;
+    if (m.userData.flame) flames.push(m);
+    else if (m.userData.lit != null) cozyGlows.push(m);
+  });
+}
+
+/* 기구의 userData.bulb(로컬 좌표)에 점광원을 얹는다.
+
+   점광원은 **씬에 직접** 단다 — 기구의 자식으로 두면 정적 병합(collapse)과 회전에
+   같이 끌려간다. 문 표시등이 같은 이유로 같은 짓을 한다(markDoor).
+   상한을 넘으면 조용히 안 단다: 기구는 그대로 서 있고 발광면도 그대로 빛나므로
+   그림에서 사라지는 것은 웅덩이 하나뿐이다. */
+function cozyBulb(o, kind, local){
+  if (cozyKinds[kind] >= COZY_CAP[kind]) return null;
+  const c = COZY_LIGHT[kind];
+  o.updateMatrixWorld(true);
+  const wp = o.localToWorld((local || o.userData.bulb).clone());
+  const pl = new THREE.PointLight(COZY_HUE, c.i, c.r, 2);
+  pl.position.copy(wp);
+  pl.userData.cozy = c.i;
+  scene.add(pl);
+  cozyLights.push(pl);
+  cozyKinds[kind]++;
+  return pl;
+}
+
+/* ---------- 배치 ----------
+   격자를 읽어서 자리를 고른다. **난수를 안 쓴다** — 사무실을 다시 그릴 때마다
+   (가구 하나 옮길 때마다·러그 깔 때마다) 등이 이사하면 그건 조명이 아니라 유령이다.
+   deskProps 가 좌표 해시를 쓰는 것과 같은 규칙이다. */
+function buildCozy(g, world, TILE){
+  const grid = world.grid;
+  const at = (x, z) => (x < 0 || z < 0 || x >= W || z >= D) ? TILE.WALL : grid[z * W + x];
+  const walk = t => t === TILE.FLOOR || t === TILE.DOOR;
+
+  /* 벽에 이미 걸린 것 — 칸 번호로 편다. 벽등은 빈 칸에만 걸고, 전구줄은 캣워크가
+     지나는 칸을 건너뛴다(널판이 y 1.84~1.92 에 있어서 알맹이가 나무를 뚫는다). */
+  const deco = new Map();
+  (world.wallDecor || []).forEach(d => {
+    const n = d.span || 1, base = (d.face === 'w' ? d.y : d.x);
+    for (let i = 0; i < n; i++) deco.set(d.face + ':' + (base + i), d.tile);
+  });
+
+  /* ---------- 전구줄 ----------
+     벽 하나에 한 줄. 이어진 벽 칸 중 **제일 긴 구간**에 건다 — 짧은 구간에 걸면
+     처짐이 한 번밖에 안 나오고, 이 물건의 그림은 처짐이 반복되는 리듬이다.
+
+     높이 2.12 · 벽에서 0.20칸. 둘 다 재서 정한 값이다: 벽에 걸린 것 중 제일 높이
+     솟는 창틀 머리(y 1.91~2.01 · z 1.05~1.12)를 알맹이가 안 건드려야 한다.
+     알맹이는 z 1.155~1.245 에 오고 제일 낮은 것이 y 1.853 이라 창틀 앞을 지나간다.
+     캣워크(z 1.01~1.35)만은 그렇게 못 피해서 칸을 통째로 뺐다. */
+  const STR_Y = 2.12, STR_OUT = 0.20;
+  const runOf = (face, lo, hi, isWall) => {
+    let best = null, s = -1;
+    for (let i = lo; i <= hi + 1; i++){
+      const ok = i <= hi && isWall(i) && deco.get(face + ':' + i) !== TILE.CATWALK;
+      if (ok && s < 0) s = i;
+      if (!ok && s >= 0){
+        if (!best || i - s > best.b - best.a) best = { a: s, b: i };
+        s = -1;
+      }
+    }
+    return best && (best.b - best.a) >= 3 ? best : null;
+  };
+  [['n', runOf('n', 1, W - 2, i => at(i, 0) === TILE.WALL)],
+   ['w', runOf('w', 1, D - 2, i => at(0, i) === TILE.WALL)]].forEach(([face, r]) => {
+    if (!r) return;
+    const len = (r.b - r.a) - 0.35;                 // 벽 끝에 딱 붙이지 않는다
+    const mid = (r.a + r.b) / 2;
+    const s = LP.stringLights(len, { sag: 0.16, gap: 0.34 });
+    if (face === 'n') s.position.set(mid, STR_Y, 1.0 + STR_OUT);
+    else { s.position.set(1.0 + STR_OUT, STR_Y, mid); s.rotation.y = Math.PI / 2; }
+    g.add(s);
+    cozyRegister(s);
+    /* 골마다 하나씩, 양쪽 벽이 상한을 나눠 갖게 **번갈아** 얹는다. 앞에서부터
+       채우면 북쪽 벽이 넷을 다 먹고 서쪽 벽은 알맹이만 빛나는 줄이 된다. */
+    const hooks = s.userData.hooks || [];
+    hooks.forEach((h, i) => {
+      if (hooks.length > 2 && i % 2 !== (face === 'n' ? 0 : 1)) return;
+      cozyBulb(s, 'string', h);
+    });
+  });
+
+  /* ---------- 벽등 ----------
+     「벽에 간간히」가 이 물건의 전부다. 세 칸마다 하나씩 후보를 세우고 상한만큼 쓴다.
+     이미 뭔가 걸린 칸은 건너뛴다 — 액자 위에 등을 겹쳐 달면 그건 벽등이 아니라 사고다.
+     높이 1.56 은 전구줄(제일 낮은 알맹이 1.853)과 벽 선반(윗면 1.44) 사이의 빈 띠다. */
+  const SC_Y = 1.56;
+  const scCand = [];
+  for (let x = 2; x <= W - 3; x++)
+    if (at(x, 0) === TILE.WALL && !deco.has('n:' + x)) scCand.push(['n', x]);
+  for (let z = 2; z <= D - 3; z++)
+    if (at(0, z) === TILE.WALL && !deco.has('w:' + z)) scCand.push(['w', z]);
+  const scLast = { n: -9, w: -9 };
+  scCand.forEach(([face, i]) => {
+    if (i - scLast[face] < 3) return;
+    if (cozyKinds.sconce >= COZY_CAP.sconce) return;
+    scLast[face] = i;
+    /* 두 벌을 번갈아 쓴다 — 같은 등이 넷이면 벽이 아니라 카탈로그다. */
+    const o = LP.sconce(i % 2);
+    if (face === 'n') o.position.set(i + 0.5, SC_Y, 1.005);
+    else { o.position.set(1.005, SC_Y, i + 0.5); o.rotation.y = Math.PI / 2; }
+    g.add(o);
+    cozyRegister(o);
+    cozyBulb(o, 'sconce');
+  });
+
+  /* ---------- 스탠딩 스탠드 ----------
+     **죽은 구석에 세운다.** 이 방의 바닥은 전부 길이라(격자를 안 건드린다 — 렌더러는
+     읽기만 한다) 어디에 세워도 고양이가 지나갈 수는 있다. 그래서 **덜 지나가는 칸**을
+     고른다: 네 이웃 중 둘 이상이 길이 아닌 칸, 즉 구석과 벽 사이 오목한 자리다.
+     그런 칸은 목적지가 없으므로 길찾기가 거의 안 지난다.
+
+     이건 새 규칙이 아니다 — world.js 의 clutter 가 정확히 같은 조건으로 상자와
+     서류더미를 바닥에 놓는다(「통로 한가운데 굴러다니면 이상하다」). 다만 등은 키가
+     1.5칸이라 겹치면 더 눈에 띄므로, 칸 가운데가 아니라 **벽 쪽으로 물려서** 세운다.
+
+     문 앞은 뺀다. 거기는 출퇴근 길목이라 하루에 스무 번 지나간다. */
+  const lampCand = [];
+  for (let z = 1; z <= D - 3; z++){
+    for (let x = 1; x <= W - 2; x++){
+      if (at(x, z) !== TILE.FLOOR) continue;
+      if (seatCells.has(z * W + x)) continue;
+      if ((world.clutter || []).some(c => c.x === x && c.y === z)) continue;
+      if (world.door && Math.abs(x - world.door.x) < 2 && z >= D - 4) continue;
+      const e = at(x + 1, z), w = at(x - 1, z), s = at(x, z + 1), n = at(x, z - 1);
+      const dead = [e, w, s, n].filter(t => !walk(t)).length;
+      if (dead < 2) continue;
+      lampCand.push({
+        x, z, dead,
+        ox: !walk(w) ? 0.30 : !walk(e) ? 0.70 : 0.5,
+        oz: !walk(n) ? 0.32 : !walk(s) ? 0.68 : 0.5,
+      });
+    }
+  }
+  /* ── 자리를 **한 번만** 고르고, 그다음부터는 목록을 따른다 ──
+     예전에는 세울 때마다 여기서 자리를 다시 골랐다. 그래서 이 등들은 **아무도 못 만지는
+     물건**이었다: 격자에 없으니 배치 모드가 고를 수 없고, 옮기지도 치우지도 못한다.
+     방을 꾸미는 사람 눈에는 「지울 수 없는 가구」였다.
+
+     이제 처음 한 번만 골라서 `world.lights` 에 적고(저장에 남는다), 그다음부터는
+     그 목록대로 세운다. 목록이니 **하나씩 만질 수 있다** — 배치 모드가 고르고 옮기고
+     치운다(js/edit.js 의 kind 'light'). 격자는 여전히 한 칸도 안 먹으므로 길과 무관하다.
+     러그·얹은 소품과 같은 방식이다. */
+  lampCand.sort((a, b) => b.dead - a.dead || a.z - b.z || a.x - b.x);
+  if (!Array.isArray(world.lights)){
+    const chosen = [], spread = (c, d) => chosen.every(p =>
+      Math.abs(p.x - c.x) + Math.abs(p.y - c.z) >= d);
+    let lamps = 0, lanterns = 0;
+    lampCand.forEach(c => {
+      if (lamps >= COZY_CAP.lamp || !spread(c, 4)) return;
+      lamps++; chosen.push({ x:c.x, y:c.z, kind:'lamp', ox:c.ox, oz:c.oz });
+    });
+    lampCand.forEach(c => {
+      if (lanterns >= COZY_CAP.lantern || !spread(c, 3)) return;
+      lanterns++; chosen.push({ x:c.x, y:c.z, kind:'lantern', ox:c.ox, oz:c.oz });
+    });
+    world.lights = chosen;
+    if (typeof snapshotWorld === 'function') snapshotWorld();
+  }
+  (world.lights || []).forEach(c => {
+    const kind = c.kind === 'lantern' ? 'lantern' : 'lamp';
+    if (cozyKinds[kind] >= COZY_CAP[kind]) return;
+    const o = kind === 'lantern' ? LP.lantern() : LP.floorLamp((c.x + c.y) % 2);
+    o.position.set(c.x + (c.ox != null ? c.ox : 0.5), 0, c.y + (c.oz != null ? c.oz : 0.5));
+    g.add(o);
+    cozyRegister(o);
+    cozyBulb(o, kind);
+  });
+
+  /* ---------- 선반 위 ----------
+     책장(TILE.SHELF)의 맨 윗칸은 늘 비어 있다(lowpoly.shelf 는 책을 아래 두 칸에만
+     꽂는다). 거기에 양초를 올린다 — 눈높이보다 조금 위에서 떠는 점 하나가 방을
+     제일 싸게 데운다. 광원은 안 붙인다(lowpoly.candles 머리말 참고). */
+  for (let z = 0; z < D; z++)
+    for (let x = 0; x < W; x++){
+      if (grid[z * W + x] !== TILE.SHELF) continue;
+      const o = LP.candles(2 + ((x + z) % 2));
+      o.position.set(x + 0.5, 1.31, z + 0.5);
+      g.add(o);
+      cozyRegister(o);
+    }
+}
+
+/* 벽 선반의 비운 자리에 등을 하나 올린다(lowpoly.wallShelf 의 opt.free).
+   **선반의 자식으로 붙인다** — 북쪽 벽과 서쪽 벽에서 선반이 서로 다르게 돌아가 있고,
+   자식으로 두면 그 회전을 공짜로 따라간다(밖에서 좌표를 다시 세면 한쪽 벽에서만
+   등이 허공에 뜬다. 실제로 그렇게 만들어 보고 알았다). */
+function shelfLamp(o, d){
+  const f = o.userData.free;
+  if (!f) return;
+  o.updateMatrixWorld(true);        // 자식의 월드 좌표를 재려면 부모가 먼저 서 있어야 한다
+  /* 선반마다 다른 것을 올린다 — 벽에 선반이 둘인데 같은 등이 올라가 있으면
+     그건 선반이 아니라 복사본이다. v 는 world.js 가 저장에 실어 둔 변주 값이라
+     사무실을 다시 열어도 같은 것이 올라가 있다. */
+  const lit = ((d.v || 0) % 2) ? LP.candles(2) : LP.lantern();
+  lit.position.copy(f);
+  o.add(lit);
+  cozyRegister(lit);
+  if (lit.userData.bulb) cozyBulb(lit, 'lantern');
+}
+
 /* ---------- 정적 사무실 ----------
    world.js 의 격자를 그대로 읽는다. 배치 로직은 손대지 않는다. */
+/* 마지막으로 세운 월드. 컷신이 **자리(책상)** 를 물어보는 데 쓴다.
+   전역 W 를 짚을 수 없어서다 — 고전 스크립트가 `let W` 로 잡아 두면 그건 window 의
+   속성이 아니라서 모듈에서 안 보인다(실측: window.W 가 undefined 였다). */
+let WORLD = null;
+
 export function build(world, TILE){
   if (!ready || !world) return;
+  WORLD = world;
   /* 고른 벌을 팔레트에 한 겹 얹는다. 텍스처를 못 쓰는 자리(러그 기본색·액자 테두리·
      콘센트)가 이걸 읽는다 — 벽지를 갈았는데 그 자리들만 옛 색이면 방이 두 장으로 갈린다.
      그리고 벌이 바뀌었으면 옛 텍스처를 버린다. */
@@ -804,6 +1278,8 @@ export function build(world, TILE){
   ceilLights = []; ceilSwitch = null;
   lampLights.forEach(l => scene.remove(l));
   lampLights = [];
+  /* 새 조명 기구가 심은 점광원도 같이 걷는다 — 위 두 줄과 같은 이유다(buildCozy) */
+  cozyClear();
   /* 창이 늘거나 줄었을 수 있다 — 다음 night() 이 반드시 다시 칠하게 자물쇠를 푼다 */
   lastSky = '';
 
@@ -946,7 +1422,7 @@ export function build(world, TILE){
            구석이 통째로 빠졌고, 밤 통로의 53%가 어둠이었다(verify-lamp.js).
            세기를 올려 메우면 등 밑만 하얗게 타므로(거리 제곱) **반경으로 메운다.** */
         const reach = Math.max(7.0, Math.max(W / nx, D / nz) * 1.5);
-        const pl = new THREE.PointLight(0xFFE3B4, 0, reach, 2);
+        const pl = new THREE.PointLight(0xFFCE8A, 0, reach, 2);
         pl.position.set(cx + b.x, bulbY, cz + b.z);
         /* 천장등은 그림자를 안 만든다. 방 한가운데서 사방으로 쏘는 그림자는 큐브맵
            여섯 면이라 비싸고, 위에서 내려다보는 화면에서는 거의 안 보인다. */
@@ -1032,6 +1508,14 @@ export function build(world, TILE){
       /* 「누르면 열리는 것」 표시 — 실험이다(TODO 35, ?mark=). 기본은 아무것도 안 붙는다.
          바닥에 서는 문은 CD 플레이어 하나뿐이지만, 여기서 걸러야 그 하나가 빠지지 않는다. */
       markDoor(g, o, t, DOORS, true);
+      /* **사서 놓은 조명은 진짜로 켜진다.** 카탈로그의 스탠드·랜턴은 buildCozy 가
+         저절로 놓는 것과 같은 기구인데, 여기서 광원을 안 달면 「등 모양 가구」가 된다.
+         상한(COZY_CAP)을 같이 쓰므로 저절로 놓인 것과 합쳐 세어진다 — 방에 스탠드가
+         열 개 서 있어도 셰이더가 도는 광원은 그대로 셋이다. */
+      if (def.lit){
+        cozyRegister(o);
+        cozyBulb(o, def.lit);
+      }
       /* 모델이 스스로 「여기가 화면」이라고 찍어 두면 시간대가 그 발광을 맡는다.
          책상 모니터는 아래에서 타일 종류로 집어 넣는데(그건 책상이 모니터를 따로
          얹기 때문이다), 자기 화면을 몸에 갖고 있는 물건은 여기서 걷어 온다 —
@@ -1059,7 +1543,7 @@ export function build(world, TILE){
         const plate = lamp.children[3];
         plate.userData.dynamic = true;
         glows.push(plate);
-        const pl = new THREE.PointLight(0xFFD9A0, 0, LAMP_R, 2);
+        const pl = new THREE.PointLight(0xFFB65C, 0, LAMP_R, 2);
         pl.position.set(x + 1.81, 1.09, z + 0.4);
         scene.add(pl);
         lampLights.push(pl);
@@ -1078,11 +1562,22 @@ export function build(world, TILE){
       const d = F[t];
       if (d && d.perch) perchCells.set(z * W + x, d.perch);
     }
+  /* 의자는 **정적 병합에서 뺀다.** 택배 컷신이 고양이를 뒤로 물릴 때 의자도 같은 만큼
+     따라가야 하는데(안 그러면 고양이가 의자 뒤 허공에 앉아 있다), 통째로 합쳐 놓으면
+     그 하나만 움직일 수가 없다.
+
+     대신 **의자 하나를 먼저 한 메시로 합친 뒤** keep 을 건다(merge.js 의 규칙).
+     그래서 늘어나는 드로우콜은 「책상 수」뿐이다 — 의자 한 대가 박스 여섯 개였으므로
+     합치지 않고 빼면 그 여섯 배가 됐다. */
+  seatChairs.clear();
   (world.desks || []).forEach(d => {
     const ch = LP.chair(Math.PI);
     ch.position.set(d.seat.x + 0.5, 0, d.seat.y + 0.30);
+    collapse(ch, { flatShading: false });
+    ch.userData.keep = true;
     g.add(ch);
     seatCells.add(d.seat.y * W + d.seat.x);
+    seatChairs.set(d.seat.y * W + d.seat.x, ch);
   });
 
   /* 벽에 거는 것 — 액자·창문·시계·선반·캣워크.
@@ -1106,6 +1601,8 @@ export function build(world, TILE){
     g.add(o);
     /* 벽에 걸린 문 셋(달력·게시판·견본책)도 같은 표시를 받는다 — 실험(TODO 35) */
     markDoor(g, o, d.tile, DOORS, false);
+    /* 벽 선반은 오른쪽 끝을 비워 두고 나온다. 거기에 등을 하나 올린다. */
+    if (d.tile === TILE.WALLSHELF) shelfLamp(o, d);
     /* 창밖은 시간대를 따라간다. 창이 늘 대낮이면 밤 사무실이 밤으로 안 보인다. */
     if (def.pane && o.children[1]){
       o.children[1].userData.dynamic = true;
@@ -1118,6 +1615,35 @@ export function build(world, TILE){
     }
   });
 
+  /* ── 가구 **위에** 얹힌 소품 (world.tops) ──
+     높이는 표로 적지 않는다. 물건마다 상판 높이를 손으로 적어 두면 가구를 고칠 때마다
+     그 표가 조용히 틀리고, 틀린 표는 「초가 책상에 반쯤 박혀 있다」로 나타난다.
+     대신 **그 자리에 실제로 선 물건의 상자를 재서** 그 위에 얹는다 — 재료가 이미 있다.
+
+     책상은 예외다: 격자에서 두 칸(DESK+DESK_R)이고 상판이 0.65 로 정해져 있다
+     (deskProps 가 쓰는 그 값). 두 번 재느니 그 값을 그대로 쓴다. */
+  const topY = (o, tile) => {
+    if (tile === TILE.DESK || tile === TILE.DESK_R) return 0.65;
+    const b = new THREE.Box3().setFromObject(o);
+    const h = b.max.y;
+    return (isFinite(h) && h > 0.05) ? h : 0.5;
+  };
+  (world.tops || []).forEach(p => {
+    const host = world.grid[p.y * W + p.x];
+    const hd = F[host];
+    const pd = F[p.tile];
+    if (!hd || !pd || hd.wall || hd.skip) return;      // 받칠 것이 없어졌다 — 조용히 건너뛴다
+    /* 상판을 재려면 그 가구를 한 번 세워 봐야 한다. 세운 것은 버린다 —
+       방에 서 있는 그 물건은 위에서 이미 넣었다. */
+    let y = 0.5;
+    try { y = topY(hd.b(), host); } catch (e) {}
+    const o = pd.b();
+    o.position.set(p.x + (hd.w === 2 ? 1 : 0.5), y, p.y + 0.5);
+    o.rotation.y = ((world.rot && world.rot[p.y * W + p.x]) | 0) * (Math.PI / 2);
+    if (pd.lit){ cozyRegister(o); cozyBulb(o, pd.lit); }   // 위에 얹은 랜턴도 켜진다
+    g.add(o);
+  });
+
   /* 바닥 잡동사니 */
   (world.clutter || []).forEach(c => {
     const o = (c.i % 3 === 0) ? LP.docStack(4) : (c.i % 3 === 1) ? LP.cardboard(true) : LP.snackBowl();
@@ -1125,6 +1651,10 @@ export function build(world, TILE){
     o.rotation.y = (c.i % 5) * 0.4;
     g.add(o);
   });
+
+  /* 조명 기구 한 벌. **맨 끝에서 부른다** — 자리를 고르려면 격자·벽 장식·의자 칸이
+     전부 정해져 있어야 하고, 그 셋이 위에서 채워진다. */
+  buildCozy(g, world, TILE);
 
   scene.add(g);
   statics = g;
@@ -1211,6 +1741,16 @@ const SEAT_Z = { doodle: 0.62, sculpt: 0.20 };
 let catLook = 'sculpt';
 if (/[?&]cat=doodle/.test(location.search)) catLook = 'doodle';
 
+/* 그 고양이의 털색 한 값. 화면 쪽이 **같은 색으로 무언가를 더 그릴 때** 쓴다 —
+   택배 뜯는 장면의 앞발이 그렇다(js/gacha.js). 초상만 주면 앞발이 남의 색이 된다. */
+export function catFur(c){ return c ? furOf(c) : null; }
+
+/* 무늬(획 목록) — 저장에 있는 그대로 넘긴다. 없으면 빈 목록이고, 그건 「안 그린 고양이」다.
+   기본값을 여기서 지어내지 않는다: 안 그린 것과 흰 획 하나는 다른 고양이다. */
+const marksOf = c => (c && Array.isArray(c.marks)) ? c.marks : null;
+/* 고정 표정 { e, m }. 없으면 「눈은 상태를 따르고 입은 기본」이라 지금까지와 같다. */
+const faceOf = c => FP.normFaceObj(c && c.face);
+
 export function getCatLook(){ return catLook; }
 export function setCatLook(v){
   catLook = v === 'doodle' ? 'doodle' : 'sculpt';
@@ -1283,7 +1823,9 @@ function furOf(c){
 /* 경찰냥은 제복이 기본이다. 시뮬은 NPC 에게 장비를 주지 않으므로 렌더러가 입힌다 —
    잡으러 오는 쪽이 한눈에 갈려야 이 게임의 농담이 선다. */
 const POLICE_EQUIP = { head:'police', neck:'tie' };
-const equipOf = c => c.npc === 'police' ? POLICE_EQUIP : (c.equip || null);
+/* 착용은 **NPC 만** 한다. 직원의 장비 체계는 없앴다(js/cats.js 머리말) —
+   냥찰의 모자는 능력치가 아니라 「누구인지」를 말하는 그림이라 남는다. */
+const equipOf = c => c.npc === 'police' ? POLICE_EQUIP : (c.npc ? (c.equip || null) : null);
 
 const stateOf = c => {
   const s = c.act && c.act.s;
@@ -1295,7 +1837,12 @@ const stateOf = c => {
 
 export function sync(list, docList, dt){
   if (!ready || !statics) return;
+  /* 택배 컷신 동안에는 배우를 안 건드린다. 시뮬은 계속 돌고 있어서 그대로 두면
+     자리에 앉혀 둔 고양이를 다음 틱에 다시 복도로 걸어가게 만든다 — 카메라가
+     클로즈업인 그 2~3초 동안 주인공이 프레임 밖으로 나간다. */
+  if (PC) return;
   const seen = new Set();
+  let mate = null;                     // 짝을 향해 돌 때 쓰는 자리 (아래 방향 규칙)
   for (const c of list){
     seen.add(c.id);
     let a = actors.get(c.id);
@@ -1310,8 +1857,10 @@ export function sync(list, docList, dt){
     }
     if (!a){
       if (catLook === 'sculpt'){
-        a = CS.sculptActor({ fur: furOf(c) });
+        a = CS.sculptActor({ fur: furOf(c), marks: marksOf(c), face: faceOf(c) });
         a.fur = furOf(c);
+        a.marks = CS.markKey(marksOf(c));
+        a.face = FP.faceKey(c && c.face);
         a.setTint(catTint);
       } else {
         a = cutoutFrom(drawOf(c), { h: 0.72 });
@@ -1324,6 +1873,17 @@ export function sync(list, docList, dt){
     }
     /* 털색은 계약서·채용에서 바뀐다. 조형은 색이 uniform 이라 갈아 끼울 필요가 없다. */
     if (a.look === 'sculpt' && a.fur !== furOf(c)){ a.fur = furOf(c); a.setFur(a.fur); }
+    /* 무늬도 창에서 언제든 바뀐다(면접창·인사 파일). 털색과 같은 방식으로 걸러 낸다 —
+       열쇠가 같으면 uniform 을 다시 안 쓴다. */
+    if (a.look === 'sculpt' && a.setMarks){
+      const mk = CS.markKey(marksOf(c));
+      if (a.marks !== mk){ a.marks = mk; a.setMarks(marksOf(c)); }
+    }
+    /* 표정도 창에서 바뀐다. 상태 연동으로 되돌리는 것(0)까지 같은 길로 온다. */
+    if (a.look === 'sculpt' && a.setFace){
+      const fk = FP.faceKey(c && c.face);
+      if (a.face !== fk){ a.face = fk; a.setFace(faceOf(c)); }
+    }
     /* 장비 — 끼고 빼는 건 UI 에서 언제든 일어난다. setGear 가 열쇠로 걸러 낸다 */
     if (a.setGear) a.setGear(equipOf(c));
     /* 시뮬은 격자 좌표로 움직인다. 칸 중앙에 세우고, 진행 방향으로 돌린다.
@@ -1359,6 +1919,7 @@ export function sync(list, docList, dt){
 
          앉아 있으면   책상 쪽(-z)
          걷는 중이면   가는 쪽
+         **짝이 있으면 짝 쪽**
          **가구를 쓰는 중이면 그 가구 쪽**
 
        셋째가 없던 동안 고양이는 **도착할 때 걸어온 방향 그대로 굳었다.** 정수기를
@@ -1368,10 +1929,19 @@ export function sync(list, docList, dt){
        걷는 동안에는 목적지가 아니라 **가는 쪽**을 봐야 한다 — 목적지를 보면
        길이 꺾일 때마다 게걸음이 된다. 그래서 걷는 중은 셋째보다 앞에 둔다.
        가구 **위에** 올라간 경우(캣타워·해먹)는 뺀다: 밟고 선 물건을 내려다보는
-       고양이가 되고, 그건 방향이 아니라 고장으로 보인다. */
+       고양이가 되고, 그건 방향이 아니라 고장으로 보인다.
+
+       넷째(짝)가 가구보다 앞이다. 같은 소파에 둘이 앉으면 셋째 규칙으로는 둘 다
+       소파를 보는데, 그러면 나란히 서서 각자 앞을 보는 그림이다 — 말풍선이 오가도
+       둘이 같이 있는 걸로 안 읽힌다. 짝은 시뮬이 매 틱 다시 세므로(sim.js pairUp)
+       한쪽이 일어서는 순간 이 규칙은 저절로 꺼지고 가구 쪽으로 돌아간다. */
     if (a.setHeading){
       if (seated || st === 'sit') a.setHeading(SEAT_YAW);
       else if (st === 'walk' && dx * dx + dz * dz > 1e-6) a.setHeading(Math.atan2(dx, dz));
+      else if (c._with && !on && (mate = list.find(o => o.id === c._with))){
+        const fx = mate.x + 0.5 - nx, fz = mate.y + 0.5 - nz;
+        if (fx * fx + fz * fz > 1e-6) a.setHeading(Math.atan2(fx, fz));
+      }
       else if (use && !on){
         const fx = use.x + 0.5 - nx, fz = use.y + 0.5 - nz;
         if (fx * fx + fz * fz > 1e-6) a.setHeading(Math.atan2(fx, fz));
@@ -1599,13 +2169,17 @@ let lastSky = '';
    없었다. 천장등은 「통로가 안 보이는 것」을 막는 물건이지 방을 데우는 물건이 아니다 —
    최소는 그대로 두고 **최대만 눌렀다**(1.15 → 0.62). 통로 밝기는 verify-lamp.js 가 본다. */
 const CEIL_BY_LAMP = [0.35, 0.36];      // [최소, 최대] — p.lamp 로 그 사이를 오간다
+/* 세기 배율. 4.2 → 4.5 는 **밝기를 올린 게 아니라 색을 데운 값을 되돌린 것**이다
+   (lampColor 가 주황 쪽으로 가면서 휘도가 7% 빠졌다). 밤에 방을 데우면 안 된다는
+   위 문단의 판단은 그대로다 — 눈에 보이는 밝기는 앞판과 같다. */
+const CEIL_K = 4.7;
 
 function applyCeiling(p){
   if (!ceilLights.length) return;
   const t = Math.min(1, Math.max(0, p.lamp || 0));
   const k = CEIL_BY_LAMP[0] + (CEIL_BY_LAMP[1] - CEIL_BY_LAMP[0]) * t;
   ceilLights.forEach(l => {
-    l.intensity = ceilOn ? k * 4.2 : 0;
+    l.intensity = ceilOn ? k * CEIL_K : 0;
     if (p.lampColor) l.color.setHex(p.lampColor);
   });
   /* 갓의 밑판·천을 빛나게 하고 빛 원뿔의 세기를 맞추던 절이 여기 있었다.
@@ -1677,8 +2251,13 @@ export function night(a, b, t){
   sun.target.position.set(W / 2, 0, D / 2);
   sun.target.updateMatrixWorld();
   fill.color.setHex(p.fill[0]); fill.intensity = p.fill[1];
+  /* **바닥값을 깐다**(lampK · LAMP_FLOOR). 표의 낮 칸이 0.34 라 여태 낮 화면에는
+     책상 웅덩이가 사실상 없었다 — 그 이유와 판단은 LAMP_FLOOR 옆에 적어 뒀다. */
+  const lk = lampK(p);
   lampLights.forEach(l => {
-    l.intensity = (p.lamp || 0) * 5.5;
+    /* 5.5 → 6.0 — 위 COZY_LIGHT 와 같은 보정이다. 시간대표의 lampColor 도 같이
+       주황 쪽으로 옮겼으므로(eerie.TIME) 책상등도 그만큼 휘도를 잃었다. */
+    l.intensity = lk * 6.3;
     if (p.lampColor) l.color.setHex(p.lampColor);
     /* 등불의 **반경**. 세기만 올리면 웅덩이가 안 생긴다 — 반경 5.5칸짜리 등이 여섯 개면
        방을 통째로 덮어서 「따뜻한 등불」이 아니라 「따뜻한 형광등」이 된다.
@@ -1699,8 +2278,27 @@ export function night(a, b, t){
   const sc = p.screen ?? PAL.screen;
   const gk = p.glow ?? (p.lamp ? 0.85 : 0.10);
   screens.forEach(m => { m.material = LP.matGlow(sc, gk); });
-  glows.forEach(m => { m.material = p.lamp ? LP.matGlow(PAL.glow, 0.9 * Math.min(1, p.lamp)) : LP.mat(PAL.metal); });
+  /* 스탠드 유리판. 세기와 짝을 맞춘다 — 광원은 켜져 있는데 판이 회색이면
+     「불이 켜진 등」이 아니라 「빛이 새는 책상」이다. */
+  glows.forEach(m => { m.material = LP.matGlow(PAL.glow, 0.9 * Math.min(1, lk)); });
   applyCeiling(p);
+  /* ---------- 새 조명 기구 ----------
+     **시간대를 거의 안 탄다**(COZY_BY_LAMP). 천장등·책상등이 표를 따라 오르내리는
+     것과 다른 규칙이고, 그게 이 한 벌의 존재 이유다 — 아침에 방을 밝히는 것은
+     해가 아니라 이 등들이어야 한다.
+
+     색은 시간대를 따라간다(lampColor). 세기는 안 변하고 색만 변하면 「하루 종일
+     같은 등이 켜져 있는데 저녁엔 조금 더 붉다」가 되고, 그건 실제 방의 모습이다. */
+  {
+    const t = Math.min(1, Math.max(0, p.lamp || 0));
+    const ck = COZY_BY_LAMP[0] + (COZY_BY_LAMP[1] - COZY_BY_LAMP[0]) * t;
+    /* 색은 안 건드린다 — COZY_HUE 옆에 적어 둔 이유다(전구는 시각에 따라 안 변한다). */
+    cozyLights.forEach(l => { l.intensity = l.userData.cozy * ck; });
+    /* 발광면. 세기를 1.35 곱해 올린다 — 그냥 lit 을 쓰면 「밝은 조각」이고, 이 정도는
+       올라가야 「빛나는 알맹이」가 된다. 1.6 에서 자르는 건 그 위가 화면에서 흰 조각이
+       되기 때문이다: 흰 조각은 전구가 아니라 구멍으로 보인다. */
+    cozyGlows.forEach(m => { m.material = LP.matGlow(COZY_HUE, Math.min(1.6, m.userData.lit * ck * 1.35)); });
+  }
   const pane = p.pane || [PAL.sky, 0.55];
   panes.forEach(m => { m.material = LP.matGlow(pane[0], pane[1]); });
 
@@ -1739,6 +2337,22 @@ export function fit(){
 export function draw(){
   if (!ready || !statics) return;
   tickClocks();
+  tickFlames();
+  /* 아웃트로가 카메라를 잡고 있으면 궤도(CAM)를 안 쓴다 — 그 장면은 궤도가 아니라
+     정해진 길을 지나간다(js/three/outro.js). 방·조명·후처리는 그대로다. */
+  /* 택배 컷신도 같은 길을 쓴다 — 다만 이쪽은 방 **안**이라 조명도 천장도 그대로다. */
+  if (PC){
+    camera.position.set(PC.pos[0], PC.pos[1], PC.pos[2]);
+    camera.lookAt(PC.look[0], PC.look[1], PC.look[2]);
+    if (EERIE.ON) EERIE.render(); else renderer.render(scene, camera);
+    return;
+  }
+  if (OUT){
+    camera.position.set(OUT.pos[0], OUT.pos[1], OUT.pos[2]);
+    camera.lookAt(OUT.target[0], OUT.target[1], OUT.target[2]);
+    if (EERIE.ON) EERIE.render(); else renderer.render(scene, camera);
+    return;
+  }
   const d = camera.userData.dist || 20;
   camera.position.set(
     look.x + Math.cos(CAM.az) * Math.cos(CAM.el) * d,
@@ -1866,10 +2480,121 @@ export function portrait(cat, size = 84, opt){
      손그림이면 그 그림 파일 그대로다. 구울 것도 캐시할 것도 없다.
      opt 는 안 주면 초상의 기본(감은 눈 · 3/4 컷)이다 — 로고만 뜬 눈·정면으로 굽는다. */
   if (catLook === 'sculpt'){
-    const url = CS.sculptPortrait(furOf(cat), Math.max(64, Math.round(size)), equipOf(cat), opt);
+    /* 무늬는 **초상에도 나와야 한다** — 목록·사원증·로딩 화면의 얼굴이 사무실의
+       고양이와 다르면 그건 딴 고양이다. 재질이 같으니 값 하나 더 넘기는 일이다. */
+    const url = CS.sculptPortrait(furOf(cat), Math.max(64, Math.round(size)), equipOf(cat),
+                                  { ...(opt || {}), marks: (opt && opt.marks) || marksOf(cat),
+                                    face: (opt && opt.face != null) ? opt.face : faceOf(cat) });
     if (url) return url;
   }
   return drawOf(cat);
+}
+
+/* ---------- 무늬 작업대 (TODO 73) ----------
+   화면 쪽(js/ui.js)이 부른다. 여기서 여는 이유는 조형이 이 모듈의 것이기 때문이다 —
+   ui.js 는 모듈이 아니라 import 를 못 한다. 손그림 판에서는 열지 않는다:
+   그림 파일이 곧 그 고양이라 얹을 자리가 없다. */
+export function studio(opt){
+  if (catLook !== 'sculpt') return null;
+  return CS.sculptStudio(opt || {});
+}
+export function markPalette(){ return FP.MARK_INK.slice(); }
+export function faceSets(){ return { eyes: FP.EYE_SET.slice(), mouths: FP.MOUTH_SET.slice() }; }
+export function faceNorm(v){ return FP.normFaceObj(v); }
+/* 이 획 목록이 몸의 몇 텍셀을 덮는가. 콘솔과 검사가 읽는 자다 —
+   「지웠다」를 초상 그림으로 판정하면 무엇이 달라졌는지가 안 보인다. */
+export function paintCoverage(list){
+  const t = FP.paintFor(list);
+  if (!t || !t.image || !t.image.data) return 0;
+  const d = t.image.data;
+  let n = 0;
+  for (let i = 3; i < d.length; i += 4) if (d[i] > 128) n++;
+  return n;
+}
+
+/* ---------- 가구 초상 ----------
+   목록에 **실제 물건**을 보여 준다. 그리기 표(furnTable)가 이미 칸마다 무엇을 세우는지
+   들고 있으므로, 그 표의 물건 하나를 작은 장면에 세워 한 장 굽는다.
+
+   ── 왜 렌더 타깃인가 ──
+   화면에 쓰는 캔버스에 그리면 그 프레임이 망가진다(한 칸 동안 사무실 대신 의자가 뜬다).
+   그래서 **WebGLRenderTarget** 에 그리고 픽셀을 읽어 온다 — 화면은 한 픽셀도 안 건드린다.
+   컨텍스트도 하나 그대로다(예전에 지운 tonePortrait 는 렌더러를 따로 세워서 무거웠다).
+
+   ── 배경은 비운다 ──
+   clearAlpha 0 으로 구워서 물건만 남는다. 목록 칸의 색이 무엇이든 그 위에 얹힌다.
+   상태를 바꿨으니 원래대로 되돌리는 것까지가 이 함수의 일이다.
+
+   ── 아래에서 위로 읽는다 ──
+   readRenderTargetPixels 는 OpenGL 순서(아래가 0)로 주고 캔버스는 위가 0이다.
+   한 줄씩 뒤집어 넣는다 — 안 하면 가구가 거꾸로 선다.
+
+   같은 물건을 두 번 굽지 않는다(furnShots). 물건 수가 20 남짓이라 캐시가 곧 전부다. */
+const furnShots = new Map();
+export function furnPortrait(tile, size = 96){
+  if (!ready || !renderer || tile === undefined || tile === null) return null;
+  const key = tile + '@' + size;
+  if (furnShots.has(key)) return furnShots.get(key);
+  furnShots.set(key, null);                       // 실패해도 다시 안 굽는다
+
+  const F = furnTable(TILE)[tile];
+  if (!F || !F.b || F.skip) return null;
+  let obj = null;
+  try { obj = F.b(); } catch(e){ return null; }
+  if (!obj) return null;
+
+  const sc = new THREE.Scene();
+  /* 방의 빛을 그대로 쓰지 않는다 — 목록은 시간대와 무관하게 늘 같아야 한다.
+     낮의 사무실쯤으로 고정한다. */
+  sc.add(new THREE.HemisphereLight(0xFFF4E6, 0x8B7A66, 1.25));
+  const key1 = new THREE.DirectionalLight(0xFFF0DC, 1.15);
+  key1.position.set(2.2, 3.4, 2.6);
+  sc.add(key1);
+  const fill = new THREE.DirectionalLight(0xD8E2F2, 0.35);
+  fill.position.set(-2.4, 1.4, -1.6);
+  sc.add(fill);
+  sc.add(obj);
+
+  /* 물건이 프레임을 꽉 채우게 — 크기가 제각각(깃털 장난감과 로켓)이라 상자를 재서 맞춘다 */
+  const box = new THREE.Box3().setFromObject(obj);
+  const c = box.getCenter(new THREE.Vector3());
+  const sz = box.getSize(new THREE.Vector3());
+  const r = Math.max(sz.x, sz.y, sz.z, 0.4);
+  const cam = new THREE.PerspectiveCamera(30, 1, 0.05, 200);
+  cam.position.set(c.x + r * 1.35, c.y + r * 1.05, c.z + r * 1.75);
+  cam.lookAt(c.x, c.y + r * 0.02, c.z);
+
+  const rt = new THREE.WebGLRenderTarget(size, size, {
+    minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: true,
+  });
+  const prevRT = renderer.getRenderTarget();
+  const prevAlpha = renderer.getClearAlpha();
+  let url = null;
+  try {
+    renderer.setRenderTarget(rt);
+    renderer.setClearAlpha(0);
+    renderer.clear(true, true, true);
+    renderer.render(sc, cam);
+    const buf = new Uint8Array(size * size * 4);
+    renderer.readRenderTargetPixels(rt, 0, 0, size, size, buf);
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = size;
+    const g = cv.getContext('2d');
+    const img = g.createImageData(size, size);
+    for (let y = 0; y < size; y++)
+      img.data.set(buf.subarray((size - 1 - y) * size * 4, (size - y) * size * 4), y * size * 4);
+    g.putImageData(img, 0, 0);
+    url = cv.toDataURL('image/png');
+  } catch(e){ url = null; }
+  renderer.setClearAlpha(prevAlpha);
+  renderer.setRenderTarget(prevRT);
+  rt.dispose();
+  /* 장면에서 떼고 지운다 — 굽는 물건이 씬에 남으면 다음 물건과 겹친다 */
+  sc.remove(obj);
+  obj.traverse(o => { if (o.isMesh && o.geometry && o.geometry.dispose) o.geometry.dispose(); });
+
+  furnShots.set(key, url);
+  return url;
 }
 
 /* (여기에 가구 톤 카드를 3D 로 굽는 tonePortrait 가 있었다. 두 번 고쳐 봤지만
@@ -1917,7 +2642,8 @@ export function hideStatics(on){ if (statics) statics.visible = !on; }
 /* 지금 이 방이 어느 빛인가. 콘솔에서 바로 물어봐야 판정이 되는 값이다 — info()·debug() 와 같은 규칙.
    창에서 들어오는 빛 자락을 재던 칸 넷이 여기 있었다(2026-08-25 에 그 빛을 없앴다). */
 export function skyInfo(){
-  return { sky: lastSky, 창: panes.length, 천장등: ceilOn, 등수: ceilLights.length };
+  return { sky: lastSky, 창: panes.length, 천장등: ceilOn, 등수: ceilLights.length,
+           새등: { ...cozyKinds }, 새등수: cozyLights.length, 발광면: cozyGlows.length, 촛불: flames.length };
 }
 
 export function debug(){
@@ -2038,12 +2764,240 @@ export function geomAt(gx, gz){
 }
 
 /* ui.js 는 전역으로 부른다 (게임 나머지가 클래식 스크립트라서). */
-window.R3 = { init, build, sync, night, fit, draw, project, info, skyInfo,
-              pickTile, pickCat, pickSwitch, setCeiling, ceiling, switchAt,
-              marker, justDragged, followOn, following,
+/* ============================================================
+   아웃트로 — 마지막 장면 (STORY.md 의 줌아웃)
+   ------------------------------------------------------------
+   **이 방을 다시 만들지 않는다.** 첫 컷에 나오는 사무실은 지금 화면에 서 있는 그 방이고,
+   그래서 사람이 산 가구와 바른 벽지와 앉아 있는 고양이가 그대로 나온다.
+   outro.js 는 그 **주위에** 복제 판과 냥찰청을 깔고 카메라 길만 돌려준다.
+
+   빌려 가는 것 넷을 여기서 갈아 끼우고 끝나면 돌려준다:
+     천장   열어야 위에서 방이 보인다
+     안개   게임의 안개는 20~60 이라 격자가 통째로 먹힌다
+     far    200 이면 격자 뒤쪽이 잘린다
+     추적   FOLLOW 가 켜져 있으면 카메라를 서로 잡아당긴다
+   ============================================================ */
+let OUT = null, OUT_SAVE = null;
+
+/* ── 이 장면은 **언제 보든 밤이다** ──
+   컷신이 열리는 시각은 사람마다 다르다(분기 28 에 낮에 닿을 수도 있다). 그런데 이 장면은
+   「무수한 창이 켜져 있고 그 위에서 둘이 내려다본다」이고, 그건 낮에는 성립하지 않는다 —
+   대낮의 격자는 그냥 주차장이다.
+
+   그래서 시각을 고정하는 것으로는 부족하다(고정해도 그 시간대의 전역광이 밝다).
+   **전역광을 직접 눌러 둔다**: 방바닥의 등불과 창빛은 발광 재질이라 그대로 남고,
+   하늘·해·보조광만 내려간다. 그러면 어디가 켜져 있는지가 화면의 전부가 된다.
+   매 프레임 다시 세운다 — 컷신 도중 시간대가 바뀌어 renderNight 이 돌아도 안 흔들리게. */
+const OUT_LIGHT = { hemi: 0.30, sun: 0.16, fill: 0.10 };
+
+export function outroBuild(){
+  if (!ready || !statics) return null;
+  if (!OUT_SAVE){
+    OUT_SAVE = { fov: camera.fov, far: camera.far, fog: EERIE.fog(), follow: FOLLOW.on,
+                 ceil: ceiling(), expo: renderer.toneMappingExposure,
+                 hemi: hemi.intensity, sun: sun.intensity, fill: fill.intensity };
+  }
+  setCeiling(false);
+  EERIE.fog(false);
+  camera.far = 600; camera.updateProjectionMatrix();
+  FOLLOW.on = false;
+  clearTags();
+  const info = OUTRO.build({ scene, W, D });
+  OUT = OUTRO.seek(0);
+  return info;
+}
+/* 시각을 준다. 그 순간의 자막·암전을 돌려주므로 부르는 쪽이 화면에 얹는다. */
+export function outroSeek(t, dt){
+  if (!OUTRO.playing()) return null;
+  hemi.intensity = OUT_LIGHT.hemi; sun.intensity = OUT_LIGHT.sun; fill.intensity = OUT_LIGHT.fill;
+  OUT = OUTRO.seek(t);
+  OUTRO.tick(dt || 0.03, camera);
+  const want = OUT.fov || (OUT_SAVE ? OUT_SAVE.fov : camera.fov);
+  if (camera.fov !== want){ camera.fov = want; camera.updateProjectionMatrix(); }
+  renderer.toneMappingExposure = OUT.expo || (OUT_SAVE ? OUT_SAVE.expo : 1.04);
+  return OUT;
+}
+/* 아웃트로가 끝나도 **격자는 남겨 둘 수 있다** — 시작화면이 그 정경을 쓴다(js/title.js).
+   keep 을 주면 카메라만 놓고 판은 그대로 둔다. */
+export function outroStop(keep){
+  OUT = null;
+  if (!keep) OUTRO.clear();
+  if (OUT_SAVE){
+    camera.fov = OUT_SAVE.fov; camera.far = OUT_SAVE.far;
+    camera.updateProjectionMatrix();
+    renderer.toneMappingExposure = OUT_SAVE.expo;
+    hemi.intensity = OUT_SAVE.hemi; sun.intensity = OUT_SAVE.sun; fill.intensity = OUT_SAVE.fill;
+    /* 밝기를 돌려주는 것만으로는 부족하다 — 그 사이에 시간대가 바뀌었을 수 있다.
+       renderNight 이 있으면 그쪽에 다시 물어보는 편이 맞다. */
+    try { if (typeof window !== 'undefined' && window.renderNight) window.renderNight(); } catch(e){}
+    EERIE.fog(OUT_SAVE.fog);
+    setCeiling(OUT_SAVE.ceil);
+    FOLLOW.on = OUT_SAVE.follow;
+    OUT_SAVE = null;
+    fit();
+  }
+}
+/* 시작화면의 정경 — 엔딩을 본 사람의 첫 화면이다(js/title.js).
+   아웃트로의 마지막 장을 **정지 화면으로** 세운다: 격자가 다 올라온 상태에서
+   옥상의 둘 뒤에 카메라를 놓고 그대로 둔다. 자막도 암전도 없다. */
+export function outroVista(){
+  if (!ready || !statics) return false;
+  if (!OUTRO.playing()) outroBuild();
+  const v = OUTRO.vista();
+  if (!v) return false;
+  hemi.intensity = OUT_LIGHT.hemi; sun.intensity = OUT_LIGHT.sun; fill.intensity = OUT_LIGHT.fill;
+  OUT = v;
+  OUTRO.tick(0.03, camera);
+  if (OUT.fov){ camera.fov = OUT.fov; camera.updateProjectionMatrix(); }
+  renderer.toneMappingExposure = OUT.expo || 1.04;
+  return true;
+}
+export function outroInfo(){
+  return { on: !!OUT, built: OUTRO.playing(), dur: OUTRO.dur(), chapters: OUTRO.chapters() };
+}
+
+/* ============================================================
+   택배 컷신 — js/three/parcel.js
+
+   아웃트로와 같은 형태다: 이 파일은 **자리와 카메라만** 넘기고, 장면은 저쪽이 짠다.
+   다른 점 하나 — 아웃트로는 방 밖으로 나가지만 이건 **방 안으로 들어온다.**
+   그래서 조명도 천장도 안개도 그대로 둔다: 사람이 꾸민 사무실이 이 컷의 배경이다.
+
+   ── 왜 고양이를 옮기나 ──
+   뜯는 고양이는 **앉아 있어야** 한다(앞발 장면이 앉은 자세로만 깎여 있다 — catsculpt).
+   그런데 그 순간 그 냥이가 복도를 걷고 있을 수 있다. 그래서 컷신 동안만 자리에 앉힌다.
+   원래 자리와 상태는 적어 두고 끝나면 되돌린다 — 시뮬은 계속 돌고 있으므로 다음 틱에
+   저절로 제자리를 찾아간다.
+   ============================================================ */
+let PC = null;             // 지금 프레임의 카메라 (parcel.seek 의 결과)
+let PC_SAVE = null;        // { id, pos, yaw, state } — 되돌릴 것
+let PC_CHAIR = null;       // { chair, z } — 같이 물린 의자를 되돌릴 것
+let PC_INFO = null;        // 검사가 읽는 자리값
+
+/* 뜯을 고양이와 그 책상. 대표를 먼저 찾고, 없으면 아무나 — 자리가 있는 냥이여야 한다. */
+function parcelPick(list){
+  /* 책상 목록은 월드가 들고 있다(js/world.js). build 때 받아 둔 것을 본다. */
+  const desks = (WORLD && WORLD.desks) || [];
+  if (!desks.length) return null;
+  const cats = list || [];
+  const cat = cats.find(c => c.founder) || cats[0];
+  if (!cat) return null;
+  /* 그 냥이가 앉아 있던 자리를 먼저 쓴다. 아니면 첫 번째 책상. */
+  const mine = desks.find(d => d.seat.x === cat.x && d.seat.y === cat.y) || desks[0];
+  return { cat, desk: mine };
+}
+
+/* 왜 못 세웠는지 적어 둔다. 못 세우면 화면 쪽이 **조용히** 평면 장면으로 내려가는데
+   (js/gacha.js), 조용한 폴백은 「어느 날 갑자기 예전 것이 나온다」로 나타난다.
+   콘솔을 못 여는 기기에서도 R3.parcelWhy() 하나로 답이 나오게 둔다. */
+let PC_WHY = '';
+export function parcelWhy(){ return PC_WHY; }
+
+export function parcelBuild(list){
+  PC_WHY = '';
+  if (!ready || !statics){ PC_WHY = '렌더러가 안 섰다'; return null; }
+  const pick = parcelPick(list);
+  if (!pick){ PC_WHY = '자리(책상)나 고양이가 없다'; return null; }
+  const a = actors.get(pick.cat.id);
+  if (!a){ PC_WHY = '그 고양이의 배우가 아직 없다 (' + pick.cat.id + ')'; return null; }
+  if (!a.setTap){ PC_WHY = '손그림 배우라 앞발 장면이 없다'; return null; }
+
+  CS.warmTap();                                   // 세 장을 미리 깎는다(첫 프레임이 튀지 않게)
+
+  PC_SAVE = { id: pick.cat.id, pos: a.root.position.clone(), rot: a.root.rotation.y,
+              follow: FOLLOW.on };
+  FOLLOW.on = false;
+  clearTags();
+
+  /* 자리에 앉힌다. 의자는 책상 쪽으로 물려 있으므로(build 의 chair) 그 자리에 맞춘다. */
+  const s = pick.desk.seat;
+  a.setState('sit');
+  if (a.setHeading) a.setHeading(SEAT_YAW);
+  a.root.rotation.y = SEAT_YAW;
+
+  /* 앉은 자리는 sync 가 쓰는 값(SEAT_Z 0.20)에서 **조금 뒤로** 물린다.
+     그 값은 모니터를 보고 일하는 자리라 책상에 바싹 붙어 있는데, 상자를 올려놓으면
+     고양이 얼굴이 상자에 처박힌다 — 앉은 자세의 머리가 몸보다 0.285 앞으로 나와 있어서다.
+     0.42 면 코끝과 상자 사이가 한 뼘쯤 뜨고, 앞발은 여전히 상자 턱에 닿는다. */
+  const BACK = 0.42 - SEAT_Z[catLook];         // 물린 거리 (0.22)
+  a.root.position.set(s.x + 0.5, SEAT_Y, s.y + 0.42);
+  a.baseY = SEAT_Y;
+  /* **의자도 같은 만큼** 물린다. 고양이만 물리면 의자가 코앞에 남아서, 고양이가
+     의자 등받이 뒤 허공에 앉아 있는 그림이 된다. */
+  const chair = seatChairs.get(s.y * W + s.x);
+  if (chair){
+    PC_CHAIR = { chair, z: chair.position.z };
+    chair.position.z += BACK;
+  }
+
+  /* 상자는 **키보드 자리**에 얹는다(deskProps 의 dz 0.72 · 상판 0.65).
+     자리마다 키보드가 하나씩 놓여 있어서, 그 앞에 두면 상자가 책상 밖으로 반쯤 나가고
+     안쪽에 두면 키보드 너머로 손을 뻗는 그림이 된다. 그래서 **그 위에 놓아 덮는다** —
+     상자가 키보드보다 넓고(BW 0.52 > 0.46) 깊어서 통째로 가린다.
+     병합된 정적 묶음이라 키보드만 숨길 수는 없다(js/three/merge.js) — 덮는 것이 답이다. */
+  const d = pick.desk.desk;
+  const boxAt = { x: d.x + 0.5, y: 0.66, z: d.y + 0.70 };
+  const catAt = { x: a.root.position.x, y: SEAT_Y, z: a.root.position.z };
+  /* 검사가 읽을 수 있게 남긴다 — 의자가 고양이와 같이 물렸는지는 눈보다 숫자가 낫다. */
+  PC_INFO = { back: BACK, catZ: a.root.position.z,
+              chairZ: chair ? chair.position.z : null,
+              chairZ0: PC_CHAIR ? PC_CHAIR.z : null };
+  /* 가려짐을 재려면 **방을 넘겨야 한다** — 정적 묶음이 통째로 하나라 광선 한 방이면 된다. */
+  const info = PARCEL.build({ scene, box: boxAt, cat: catAt, yaw: SEAT_YAW,
+                              roomW: W, roomD: D, occluder: statics });
+  PC = PARCEL.seek(0);
+  parcelPose(PC);
+  return { dur: info.dur, cat: pick.cat.id, name: pick.cat.name };
+}
+
+/* 앞발 위상을 그 배우에게 넘긴다. 컷신의 시계로 돌린다 — 고양이의 시계로 돌리면
+   카메라가 멈춘 순간에도 발만 따로 움직인다. */
+function parcelPose(st){
+  if (!st || !PC_SAVE) return;
+  const a = actors.get(PC_SAVE.id);
+  if (a && a.setTap) a.setTap(st.tap);
+}
+
+export function parcelSeek(t, dt){
+  if (!PARCEL.playing()) return null;
+  PC = PARCEL.seek(t);
+  parcelPose(PC);
+  /* 이 컷은 방 안이라 배우도 계속 돌아야 한다(꼬리·표정). 시뮬은 멈춰 있으므로
+     여기서 한 번 밀어 준다 — 안 하면 고양이가 통째로 정지 화면이 된다. */
+  const a = actors.get(PC_SAVE && PC_SAVE.id);
+  if (a && a.update) a.update(dt || 0.03, camera);
+  return PC;
+}
+
+export function parcelStop(){
+  PC = null;
+  PARCEL.stop();
+  if (PC_CHAIR){ PC_CHAIR.chair.position.z = PC_CHAIR.z; PC_CHAIR = null; }
+  if (PC_SAVE){
+    const a = actors.get(PC_SAVE.id);
+    if (a){
+      if (a.setTap) a.setTap(null);
+      a.root.position.copy(PC_SAVE.pos);
+      a.root.rotation.y = PC_SAVE.rot;
+    }
+    FOLLOW.on = PC_SAVE.follow;
+    PC_SAVE = null;
+  }
+  fit();
+}
+export function parcelOn(){ return !!PC; }
+export function parcelInfo(){ return PC_INFO; }
+
+window.R3 = { init, build, sync, night, fit, draw, project, info, skyInfo, furnPortrait,
+              pickTile, pickCat, pickSwitch, setCeiling, ceiling, switchAt, doorsInWorld,
+              marker, justDragged, followOn, following, followZoom,
               camReset, camTurn, camSet,
               portrait, markInfo, perf, perfToggle, debug, geomAt, hideStatics, clearTags, flick, catShape,
-              getCatLook, setCatLook, catStats: CS.stats, ready:false };
+              outroBuild, outroSeek, outroStop, outroVista, outroInfo,
+              parcelBuild, parcelSeek, parcelStop, parcelOn, parcelInfo, parcelWhy,
+              getCatLook, setCatLook, catFur, catStats: CS.stats,
+              studio, markPalette, markKey: CS.markKey, faceSets, faceNorm, faceKey: CS.faceKey,
+              paintCoverage, ready:false };
 window.R3E = EERIE;      // 그림체 손잡이는 콘솔에서 바로 돌려야 판정이 된다
 
 /* 이 모듈은 클래식 스크립트가 전부 돈 뒤에 실행된다(모듈은 항상 지연된다).

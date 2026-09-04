@@ -205,7 +205,10 @@ body.r3wait #viewport::after{
 /* 초상을 아직 못 구웠을 때 자리만 지키는 칸 (js/ui.js portrait) */
 .catpix{background:rgba(139,116,102,.14);border:1px dashed var(--line)}
 
-.bubble{position:absolute;left:50%;bottom:34px;transform:translateX(-50%);background:#FFFDF8;
+/* --bub-bg: 이 풍선의 바탕색. 안쪽 그림에서 **바탕색으로 뚫는** 자리(물고기 눈)가
+   읽어 간다 — 바탕은 판마다 다르고(밝은 판 · eerie · 폰의 아늑 스킨), 그 값을
+   아이콘 쪽에 또 적어 두면 스킨을 하나 더 만들 때 반드시 어긋난다. */
+.bubble{position:absolute;left:50%;bottom:34px;transform:translateX(-50%);background:#FFFDF8;--bub-bg:#FFFDF8;
   border:2px solid var(--ink);padding:2px 7px;font-size:10.5px;white-space:nowrap;pointer-events:none;
   z-index:70;box-shadow:2px 2px 0 rgba(0,0,0,.2);animation:bub 2.6s steps(1) forwards}
 .bubble::after{content:'';position:absolute;left:50%;bottom:-7px;margin-left:-4px;width:0;height:0;
@@ -216,6 +219,441 @@ body.r3wait #viewport::after{
    카메라를 돌릴 때 풍선만 뒤늦게 따라오면 고양이에게서 떨어져 보인다. */
 .bubble.hold{animation:bubIn .18s ease-out both}
 @keyframes bubIn{from{opacity:0;transform:translate(-50%,-92%)}}
+
+
+/* ============================================================
+   본사 택배 (TODO 57 · js/gacha.js)
+   ------------------------------------------------------------
+   이 판은 2026-09-02 에 기능과 함께 지워졌다가 다시 왔다. 다시 쓰면서 줄인 것이 있다:
+   앞판에는 분류 탭(.gacats)이 있었는데 **택배는 고를 수 없으므로** 그 규칙이 통째로 빠졌다.
+
+   ── 색을 못 박지 않는다 ──
+   var(--ink) · var(--soft) · var(--line) 을 그대로 썼다가 **폰에서 글자가 사라졌다.**
+   폰의 아늑 스킨은 모달을 크림 카드로 갈아 끼우는데(아래 2400줄대), 그 안의 글자색은
+   --ui-ink 다. 여기서 --ink(어두운 판의 밝은 잉크)를 쓰면 크림 위에 크림색 글자가 된다.
+   머리 위 아이콘에서 이미 한 번 겪은 함정이다(.bubble.ico 의 주석).
+
+   그래서 **글자색은 물려받고**, 흐린 글자는 색 대신 opacity 로, 선은 양쪽 판에서 다 보이는
+   중간 회갈색 반투명으로 그린다. 강조색(--accent)만 변수를 쓴다 — 그건 두 판에서 같다.
+   ============================================================ */
+.gahead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.gatix{display:flex;align-items:center;gap:6px;font-size:13px}
+.gatix b{font-size:19px;font-variant-numeric:tabular-nums}
+.gatix span:not(.gaticon){opacity:.62}
+/* 아이콘은 폰 스킨이 그린다(js/cozy.js 의 CCIcon). 없으면 빈 칸으로 남는다 —
+   이모지로 내려가면 이 화면에서 혼자 다른 그림체가 된다. */
+/* 재화는 **이모지 한 글자**다(📦). 아이콘으로 그리면 폰 스킨이 있어야 보이는데,
+   그 스킨이 없는 판(데스크톱)에서는 빈 칸이 된다 — 재화 표시가 안 보이는 건 사고다. */
+.gaem{font-size:15px;line-height:1;display:inline-block}
+.gatix .gaem{font-size:18px}
+.gaticon{display:inline-block;width:15px;height:15px;flex:none}
+.gaticon svg{display:block;width:100%;height:100%;fill:currentColor}
+
+/* 배너 — 이번 상자에 무엇이 들었나. 목록이 아니라 **표본 다섯 장**이다:
+   서른아홉 종을 다 늘어놓으면 그건 상자가 아니라 카탈로그다. */
+.gabanner{border:2px solid rgba(128,110,92,.32);border-radius:14px;padding:12px;margin-bottom:12px}
+.gabtitle{font-size:13px;font-weight:800}
+.gabsub{font-size:11.5px;opacity:.66;margin-top:2px;line-height:1.6}
+.gabrow{display:flex;gap:6px;margin:10px 0 6px;flex-wrap:wrap}
+.gabnote{font-size:11px;opacity:.62}
+/* 배너(.gabanner)를 걷고 남은 한 줄. 「이번 주 택배」라는 제목과 표본 다섯 장이
+   거기 있었는데, 상자를 뜯기 전에 안을 늘어놓는 건 **상자가 아니라 진열대**다. */
+.gabnote--solo{margin:2px 0 12px;line-height:1.7;font-size:11.5px}
+/* 받은 벽돌 눈금. **단추가 아니다** — 벽돌은 바꿀 수 있는 게 아니라 꽝 그 자체다.
+   그래서 누를 수 있게 생기면 안 된다: 테두리도 배경도 없이 한 줄로 적는다. */
+.gabrick{margin:-4px 0 12px;text-align:center;font-size:11.5px;opacity:.55;letter-spacing:.02em}
+/* 그림은 **실제 그 가구**다(render3d furnPortrait). 못 구우면 이모지로 내려간다. */
+.gafurn{width:56px;height:56px;object-fit:contain;display:block;border-radius:10px;
+  background:rgba(128,110,92,.14)}
+.gafurn--em{display:flex;align-items:center;justify-content:center;font-size:26px}
+
+/* 뜯기 단추 둘. 열 상자 쪽이 크다 — 확정이 붙는 쪽이라 위계가 있다. */
+.gabtns{display:grid;grid-template-columns:1fr 1.25fr;gap:8px;margin-bottom:8px}
+.gabtn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:12px 8px;
+  border:2px solid rgba(128,110,92,.42);border-radius:14px;background:rgba(128,110,92,.10);
+  color:inherit;font:inherit;cursor:pointer}
+.gabtn b{font-size:14px}
+.gabtn span{display:flex;align-items:center;gap:4px;font-size:12px;opacity:.66}
+.gabtn i{font-style:normal;font-size:10.5px;font-weight:800;color:var(--accent)}
+.gabtn--hot{background:var(--accent);color:#fff;border-color:var(--accent)}
+.gabtn--hot span,.gabtn--hot i{color:rgba(255,255,255,.88);opacity:1}
+.gabtn[disabled]{opacity:.4;cursor:default}
+.gafree,.gabuy{width:100%;padding:11px;margin-bottom:8px;
+  border:2px dashed rgba(128,110,92,.42);border-radius:14px;background:transparent;
+  color:inherit;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:8px}
+.gafree[disabled],.gabuy[disabled]{opacity:.4;cursor:default}
+.gabuy span{opacity:.7;font-weight:600}
+
+/* 상자를 파는 칸(js/store.js 가 켜졌을 때만 그려진다).
+   **뜯기 단추보다 조용하다** — 이 창의 주인공은 뜯는 쪽이고, 파는 칸이 더 크면
+   게임이 아니라 상점이 된다. 그래서 채운 색 없이 실선 테두리만 두른다. */
+.gashop{border-top:1px dotted rgba(128,110,92,.4);padding-top:10px;margin:4px 0 10px}
+.gashophead{font-size:11.5px;font-weight:800;opacity:.6;letter-spacing:.02em;margin-bottom:7px}
+.gashoprow{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+.gashopbtn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 6px;
+  border:1.5px solid rgba(128,110,92,.42);border-radius:12px;background:transparent;
+  color:inherit;font:inherit;cursor:pointer}
+.gashopbtn b{display:flex;align-items:center;gap:3px;font-size:13px}
+/* 값은 **줄바꿈하지 않는다.** 통화 기호가 붙는 나라에서 문자열이 길어지는데,
+   두 줄로 접히면 세 칸의 높이가 서로 달라진다. */
+.gashopbtn i{font-style:normal;font-size:10.5px;opacity:.66;white-space:nowrap}
+.gashopbtn[disabled]{opacity:.4;cursor:default}
+/* 복원은 **거의 안 눌리는 단추**다(소모품이라 돌려줄 것이 대개 없다). 그래도 없으면
+   심사에서 걸린다 — 그래서 있되, 눈에 띄지 않는 자리에 작게 둔다. */
+.gashopfoot{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:8px}
+.gashopres{padding:2px 4px;border:0;background:transparent;
+  color:inherit;font:inherit;font-size:10.5px;opacity:.5;text-decoration:underline;cursor:pointer}
+.gashopres[disabled]{opacity:.25;cursor:default}
+
+/* 결제 안내 · 구매 내역. 읽히라고 두는 것이지 예뻐 보이라고 두는 것이 아니라
+   장식을 안 넣는다 — 한 줄씩, 점 하나씩. */
+.paylist{display:flex;flex-direction:column;gap:7px}
+.payrow{position:relative;padding-left:13px;font-size:12px;line-height:1.55;opacity:.85}
+.payrow::before{content:'';position:absolute;left:3px;top:8px;width:4px;height:4px;
+  border-radius:50%;background:currentColor;opacity:.45}
+.payrow b{font-weight:800;opacity:1}
+/* 내역은 길어질 수 있다 — 창을 밀어내지 않게 여기서만 스크롤한다. */
+.paylog{margin-top:7px;max-height:150px;overflow-y:auto;font-size:12px}
+.payitem{display:flex;align-items:center;gap:8px;padding:5px 0;
+  border-bottom:1px dotted rgba(128,110,92,.28)}
+.payitem:last-child{border-bottom:0}
+.payitem span{opacity:.6;min-width:74px}
+.payitem b{display:flex;align-items:center;gap:4px;font-size:12.5px}
+.payitem i{margin-left:auto;font-style:normal;font-size:10.5px;opacity:.45}
+
+/* 누적 보상 — 몇 상자를 뜯었나. 막대 하나와 정거장 넷. */
+.gamile{border-top:1px dotted rgba(128,110,92,.4);padding-top:10px;margin-top:4px}
+.gamhead{display:flex;justify-content:space-between;align-items:baseline;font-size:12px}
+.gamhead span{opacity:.66}
+.gambar{height:6px;border-radius:99px;background:rgba(128,110,92,.22);margin:7px 0;overflow:hidden}
+.gambar i{display:block;height:100%;background:var(--accent)}
+.gamrow{display:flex;justify-content:space-between;gap:6px}
+.gamstop{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10.5px;
+  opacity:.45}
+.gamstop b{font-size:12px}
+.gamstop.on{opacity:1}
+
+/* 결과 격자(.gagrid/.gaitem)는 지웠다 — 결과 화면을 레퍼런스대로 다시 그렸다
+   (아래 .gawin 절). 별 줄만 남는다: 확률표가 아직 쓴다. */
+.gastars{font-size:10px;color:#C8A165;letter-spacing:1px}
+
+
+/* ---------- 뜯는 장면 (js/gacha.js gaOpening) ----------
+   **고양이가 상자를 뜯는다.** 상자에서 고양이가 나오는 게 아니다 — 그건 다른 이야기다.
+   앉은 고양이가 상자 뒤에서 앞발로 테이프를 긁고, 테이프가 뜯기고, 뚜껑이 벌어지고,
+   그 안에서 빛이 한 번 샌다. 그다음에 결과 창이 뜬다.
+
+   ── 왜 그림 파일이 하나뿐인가 ──
+   고양이는 assets/loading-cat.png — 로딩 화면의 그 고양이이고, 로고의 고양이와 같은
+   고양이다(둘 다 게임의 렌더러가 구운 것: tools/bake-loading-cat.js · bake-logo.js).
+   머리만 잘린 로고 컷과 달리 **앉은 몸**이라 상자 뒤에 두면 어깨가 걸쳐진다.
+   상자·앞발·테이프·빛은 전부 div 와 CSS 다 — 이 저장소는 그림을 코드로 그린다.
+
+   ── 겹 순서 ──
+   고양이(1) < 상자(3) < 앞발(4). 앞발이 뚜껑 위에 얹혀야 「붙잡고 뜯는」 것이 된다.
+   고양이 가슴 아래는 상자가 가린다 — 그래서 앞발을 따로 그려도 제 몸처럼 붙는다. */
+.gaopen{position:fixed;inset:0;z-index:120;display:grid;place-items:center;cursor:pointer;
+  background:radial-gradient(78% 52% at 50% 46%,rgba(60,40,24,.42) 0%,rgba(24,15,9,.86) 100%);
+  backdrop-filter:blur(1.5px);-webkit-backdrop-filter:blur(1.5px);
+  animation:gaoIn .18s ease-out both}
+@keyframes gaoIn{from{opacity:0}}
+
+/* 두구두구 — 예전에는 화면 가득 빗살이 돌았다. 레퍼런스를 보고 걷었다: 거기는
+   **방이 그대로 보이고** 상자 뒤에서만 빛이 돈다. 사무실을 지우면 「내 사무실에 온
+   택배」가 아니라 그냥 뽑기 화면이 된다. 그래서 빛은 상자 뒤에만, 좁게. */
+.gaobg{position:absolute;left:50%;top:50%;width:min(150vw,560px);aspect-ratio:1/1;
+  transform:translate(-50%,-50%);pointer-events:none;
+  background:repeating-conic-gradient(from 0deg,rgba(255,205,140,.13) 0deg 5deg,transparent 5deg 13deg);
+  -webkit-mask-image:radial-gradient(circle,#000 3%,transparent 34%);
+          mask-image:radial-gradient(circle,#000 3%,transparent 34%);
+  animation:gaoSpin 2.4s linear infinite,gaoPulse .42s ease-in-out infinite alternate}
+@keyframes gaoSpin{to{transform:translate(-50%,-50%) rotate(360deg)}}
+@keyframes gaoPulse{from{opacity:.45}to{opacity:.85}}
+
+/* 말풍선 — 누가 뜯고 있는지 말한다. 레퍼런스의 그 자리(위쪽 가운데)이고,
+   이름은 **진짜 그 고양이**다. 「고양이가 열고 있어요」로는 내 사무실 이야기가 안 된다. */
+.gaosay{position:absolute;left:50%;top:9%;transform:translateX(-50%);
+  max-width:min(78vw,300px);padding:12px 16px;border-radius:16px;
+  background:#F1E3CB;color:#3A2A1C;font-size:13.5px;line-height:1.55;text-align:center;
+  box-shadow:0 6px 16px rgba(0,0,0,.35);animation:gaoSay .34s ease-out both}
+.gaosay b{font-weight:800}
+.gaosay::after{content:'';position:absolute;left:50%;bottom:-8px;margin-left:-7px;
+  border:7px solid transparent;border-top-color:#F1E3CB;border-bottom:0}
+@keyframes gaoSay{from{transform:translateX(-50%) translateY(-10px);opacity:0}}
+
+.gaostage{position:relative;width:min(64vw,230px);aspect-ratio:1/1}
+
+/* ── 뜯는 장면 동안에는 **방만 남는다** ──
+   컷신이 카메라를 들고 책상으로 내려앉는데 그 위에 상단 바·탭 바·결재함이 그대로
+   얹혀 있으면, 그건 컷신이 아니라 「게임 화면에서 카메라가 움직인 것」이다.
+   프롤로그·아웃트로가 화면을 통째로 쓰는 것과 같은 이유다.
+
+   지우는 게 아니라 **투명하게** 만든다(opacity) — display 를 건드리면 배치가 다시
+   계산되고, 컷신이 끝나고 돌아올 때 화면이 한 번 튄다. 그리고 무대 안에서는
+   캔버스(#gl)만 남긴다: 시계칩·말풍선·편집 층이 전부 그 안에 산다. */
+body.gacut #topbar,
+body.gacut #main > .panel,
+body.gacut #colTabs,
+body.gacut .stagewrap > *:not(#viewport),
+body.gacut #viewport > *:not(#gl),
+body.gacut .iconbtn, body.gacut .decobtn, body.gacut .parcelbtn,
+body.gacut .peekbtn, body.gacut .photobtn, body.gacut .doorrail,
+body.gacut .stagecard, body.gacut .edithud, body.gacut .editarr,
+body.gacut .deco, body.gacut .bubble, body.gacut .tag3d, body.gacut #tags3d{
+  /* **페이드를 안 건다.** 컷신은 딱 끊고 시작하는 게 맞고(프롤로그·아웃트로가 그렇다),
+     전환이 걸려 있으면 「지금 걷혔나」를 재는 쪽도 그 0.16초를 기다려야 한다 —
+     실제로 그것 때문에 검사가 두 번 흔들렸다. */
+  opacity:0 !important;pointer-events:none !important}
+
+/* 3D 로 찍을 때는 화면 위에 **말풍선과 점과 건너뛰기만** 얹는다. 장면은 렌더러가 그리고
+   있으므로 덮개를 씌우면 그걸 가린다 — 어둡게도 흐리게도 하지 않는다. */
+.gaopen--3d{background:none;backdrop-filter:none;-webkit-backdrop-filter:none}
+.gaopen--3d .gaodots{top:auto;bottom:calc(var(--navh,0px) + var(--safeb,0px) + 84px)}
+
+/* 고양이 — 상자 **뒤**에 앉아 있다. 가슴부터 아래는 상자에 가린다. */
+.gaocat{position:absolute;left:50%;top:10%;width:60%;z-index:1;
+  transform:translateX(-50%);transform-origin:50% 92%;
+  animation:gaoLean .18s ease-in-out 5 alternate both,gaoWow .5s cubic-bezier(.2,-.5,.3,1.5) .98s both;
+  filter:drop-shadow(0 8px 12px rgba(0,0,0,.5))}
+@keyframes gaoLean{from{transform:translateX(-50%) rotate(-1.8deg) translateY(0)}
+  to{transform:translateX(-50%) rotate(1.8deg) translateY(2px)}}
+@keyframes gaoWow{from{transform:translateX(-50%) rotate(0) translateY(0) scale(1)}
+  45%{transform:translateX(-50%) rotate(0) translateY(-7%) scale(1.05)}
+  to{transform:translateX(-50%) rotate(0) translateY(-2%) scale(1.02)}}
+
+/* 앞발 둘 — 뚜껑을 붙잡고 번갈아 당긴다. 색은 **그 고양이의 털색**이 인라인으로 온다
+   (--paw · js/gacha.js). 검정으로 박아 두면 치즈색 고양이가 검은 발로 뜯는다. */
+.gaopaw{position:absolute;top:50%;width:13%;height:11%;z-index:4;
+  background:var(--paw,#241d1f);border-radius:46% 46% 32% 32%;
+  box-shadow:inset 0 -3px 0 rgba(0,0,0,.28),0 2px 4px rgba(0,0,0,.35)}
+.gaopaw.l{left:26%;animation:gaoPaw .18s ease-in-out 5 alternate both}
+.gaopaw.r{right:26%;animation:gaoPaw .18s ease-in-out 5 alternate both;animation-delay:.09s}
+@keyframes gaoPaw{from{transform:translateY(0) rotate(-4deg)}to{transform:translateY(-26%) rotate(4deg)}}
+
+/* 상자 — 뜯기는 쪽이 흔들린다. 고양이가 아니라 상자가 흔들려야 힘이 고양이한테 있다. */
+.gaobox{position:absolute;inset:0;z-index:3;transform-origin:50% 92%;
+  animation:gaoShake .09s ease-in-out 10 alternate,gaoSettle .5s ease-out .95s both}
+@keyframes gaoShake{from{transform:rotate(-2.2deg) translateY(0)}to{transform:rotate(2.2deg) translateY(-3px)}}
+@keyframes gaoSettle{from{transform:rotate(0) scale(1)}55%{transform:rotate(0) scale(1.05)}to{transform:rotate(0) scale(1)}}
+
+/* 안쪽(어둠) · 앞판. 둘 사이 8%가 열린 아가리다 — 빛은 거기서 샌다. */
+.gaobk{position:absolute;left:10%;width:80%;top:52%;height:34%;border-radius:6px;background:#5E4022}
+.gaofr{position:absolute;left:10%;width:80%;top:60%;height:26%;border-radius:0 0 6px 6px;
+  background:#B98A5A;box-shadow:inset 0 6px 0 rgba(0,0,0,.12);z-index:3;
+  display:grid;place-items:end start;padding:0 0 8% 9%}
+/* 발바닥 도장. 레퍼런스의 상자에 찍혀 있던 그것 — 이게 있어야 **이 회사가 보낸** 상자다. */
+.gaofr svg{width:26%;opacity:.3;color:#5B3B1E;fill:currentColor;transform:rotate(-9deg)}
+.gaoflap{position:absolute;top:52%;height:12%;background:#A2764B;border-radius:4px;z-index:2}
+.gaoflap.l{left:10%;width:40%;transform-origin:0% 100%;
+  animation:gaoFlapL .34s cubic-bezier(.3,-.4,.4,1.5) .95s both}
+.gaoflap.r{left:50%;width:40%;transform-origin:100% 100%;
+  animation:gaoFlapR .34s cubic-bezier(.3,-.4,.4,1.5) .95s both}
+@keyframes gaoFlapL{from{transform:rotate(0)}to{transform:rotate(-104deg)}}
+@keyframes gaoFlapR{from{transform:rotate(0)}to{transform:rotate(104deg)}}
+
+/* 테이프 — 이게 있어야 「택배」고, 이게 뜯겨야 「뜯었다」가 된다. */
+.gaotp{position:absolute;top:52%;height:32%;width:5%;background:rgba(238,224,198,.78);z-index:5;
+  transform-origin:50% 100%}
+.gaotp.l{left:45%;animation:gaoRipL .3s cubic-bezier(.3,-.3,.4,1.4) .88s both}
+.gaotp.r{left:50%;animation:gaoRipR .3s cubic-bezier(.3,-.3,.4,1.4) .88s both}
+@keyframes gaoRipL{from{transform:rotate(0)}to{transform:rotate(-16deg) translate(-14%,-4%)}}
+@keyframes gaoRipR{from{transform:rotate(0)}to{transform:rotate(16deg) translate(14%,-4%)}}
+
+.gaoburst{position:absolute;left:50%;top:56%;width:10px;height:10px;border-radius:50%;z-index:1;
+  transform:translate(-50%,-50%);background:radial-gradient(circle,rgba(255,236,196,.95),rgba(255,236,196,0) 70%);
+  opacity:0;animation:gaoBurst .5s ease-out .95s both}
+@keyframes gaoBurst{from{opacity:0;transform:translate(-50%,-50%) scale(1)}
+  35%{opacity:1}to{opacity:0;transform:translate(-50%,-50%) scale(34)}}
+
+/* 반짝임 — 레퍼런스의 그 ✦ 들. 자리와 박자는 인라인으로 흩는다. */
+.gaosp{position:absolute;z-index:6;pointer-events:none;color:#FFE3AC;
+  font-size:13px;line-height:1;text-shadow:0 0 8px rgba(255,206,130,.8);
+  animation:gaoTwk 1.5s ease-in-out infinite}
+@keyframes gaoTwk{0%,100%{opacity:0;transform:scale(.5)}45%{opacity:1;transform:scale(1)}}
+
+/* 몇 상자를 뜯는 중인지. 한 상자면 안 그린다 — 점 하나는 아무 말도 안 한다. */
+.gaodots{position:absolute;left:50%;top:calc(50% + min(32vw,115px) + 18px);
+  transform:translateX(-50%);display:flex;gap:6px;z-index:7}
+.gaodots i{width:6px;height:6px;border-radius:50%;background:rgba(240,228,208,.26)}
+.gaodots i.on{background:#F0B95A}
+
+.gaoskip{position:absolute;right:16px;bottom:18px;font-size:11.5px;letter-spacing:.06em;
+  color:rgba(240,228,208,.6)}
+/* 평면으로 내려온 이유. **임시다** — 원인이 잡히면 이 줄과 js/gacha.js 의 그 자리를 같이 지운다. */
+.gaowhy{position:absolute;left:14px;right:14px;bottom:40px;text-align:center;
+  font-size:10.5px;line-height:1.5;color:rgba(240,228,208,.55)}
+
+/* 움직임을 싫어하는 사람에게는 흔들지 않는다 — 열리는 것만 남긴다. */
+@media (prefers-reduced-motion:reduce){
+  .gaobg,.gaobox,.gaopaw,.gaocat,.gaosp{animation:none}
+  .gaosp{opacity:.9}
+  .gaoflap.l{animation:gaoFlapL .3s ease-out .2s both}
+  .gaoflap.r{animation:gaoFlapR .3s ease-out .2s both}
+  .gaotp.l{animation:gaoRipL .26s ease-out .16s both}
+  .gaotp.r{animation:gaoRipR .26s ease-out .16s both}
+  .gaoburst{animation:none;opacity:0}
+}
+
+
+/* ---------- 개봉 결과 (js/gacha.js gaReveal*) ----------
+   레퍼런스에서 가져온 것 넷: **띠 제목**(끝이 파인 리본) · **단(壇) 위의 물건**
+   (타원 빛 + 뻗는 빛살) · **색종이** · **크림색 카드에 별 줄**.
+
+   ── 왜 이 화면만 제 색을 들고 있나 ──
+   나머지 창은 스킨을 따른다(어두운 사무실 / 폰의 크림 카드). 이 화면은 안 따른다.
+   **잔치는 그 자리에서 한 번 일어나는 일**이라 배경이 무엇이든 같아야 하고,
+   무엇보다 크림 스킨에서 크림 카드를 크림 바탕에 얹으면 물건이 안 보인다.
+   그래서 색을 여기서 못 박는다 — 밖으로 새지 않게 .gawin 안에서만.
+   (조심: 예전에 var(--ink) 를 썼다가 폰 스킨에서 글자가 안 보였다. 두 번 그랬다.) */
+.gawin>:not(.rvconf){position:relative;z-index:1}
+.gawin{position:fixed;inset:0;z-index:124;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:12px;padding:20px 18px;overflow:hidden;
+  background:radial-gradient(120% 80% at 50% 30%,#4A3423 0%,#2A1C12 62%,#180F09 100%);
+  animation:gaoIn .2s ease-out both;
+  --rv-ink:#F3E4CE; --rv-dim:rgba(243,228,206,.58); --rv-gold:#F0B95A;
+  --rv-card:#EFE0C6; --rv-cink:#3B2A1C; --rv-deep:rgba(0,0,0,.26);
+  --rv-line:rgba(255,225,190,.14);
+  color:var(--rv-ink);font-size:13px}
+
+/* 띠 제목. 끝이 안쪽으로 파인 리본이다 — 가운데 몸통 하나에 양쪽 꼬리 둘. */
+.rvribbon{position:relative;padding:9px 26px;border-radius:6px;background:#8A5F33;
+  border:2px solid #5E3E20;box-shadow:0 3px 0 rgba(0,0,0,.25);
+  font-weight:800;font-size:15px;letter-spacing:.02em;color:#FFF4E0;
+  animation:rvDrop .42s cubic-bezier(.2,-.4,.3,1.5) both}
+.rvribbon::before,.rvribbon::after{content:'';position:absolute;top:6px;width:20px;height:calc(100% - 12px);
+  background:#6E4A26;border:2px solid #5E3E20;z-index:-1}
+.rvribbon::before{left:-16px;clip-path:polygon(0 0,100% 0,100% 100%,0 100%,26% 50%)}
+.rvribbon::after{right:-16px;clip-path:polygon(0 0,100% 0,74% 50%,100% 100%,0 100%)}
+@keyframes rvDrop{from{transform:translateY(-40px) scale(.8);opacity:0}}
+
+.rvsub{margin:0;font-size:12.5px;color:var(--rv-dim)}
+
+/* 단 위의 물건. 빛살은 돌지 않는다 — 도는 배경은 뜯을 때 쓰고, 여기는 **멈춘 순간**이다. */
+.rvstage{position:relative;width:min(64vw,224px);aspect-ratio:1/1;display:grid;place-items:center;
+  margin:2px 0 -6px}
+.rvrays{position:absolute;inset:-24%;opacity:.5;
+  background:repeating-conic-gradient(from 0deg,rgba(255,214,150,.20) 0deg 4deg,transparent 4deg 13deg);
+  -webkit-mask-image:radial-gradient(circle,#000 12%,transparent 66%);
+          mask-image:radial-gradient(circle,#000 12%,transparent 66%);
+  animation:rvRays 9s linear infinite}
+@keyframes rvRays{to{transform:rotate(24deg)}}
+.rvdisc{position:absolute;left:50%;top:84%;width:86%;height:30%;transform:translate(-50%,-50%);
+  border-radius:50%;background:radial-gradient(ellipse,rgba(255,208,132,.95),rgba(255,190,110,0) 68%);
+  animation:rvGlow 2.4s ease-in-out infinite alternate}
+@keyframes rvGlow{from{opacity:.62}to{opacity:1}}
+.rvitem{position:relative;width:72%;max-height:78%;object-fit:contain;margin-bottom:6%;
+  filter:drop-shadow(0 10px 14px rgba(0,0,0,.5));
+  animation:rvPop .5s cubic-bezier(.2,-.5,.3,1.6) .1s both}
+.rvitem--em{display:grid;place-items:center;font-size:76px;line-height:1}
+@keyframes rvPop{from{transform:translateY(14px) scale(.6);opacity:0}}
+
+.rvname{font-size:17px;font-weight:800;letter-spacing:.01em;text-align:center}
+.rvstars{font-size:15px;letter-spacing:.16em;color:var(--rv-gold)}
+.rvstars i{font-style:normal;color:rgba(243,228,206,.2)}
+
+/* 무엇이 달라지는지. 레퍼런스의 그 칸이다 — 이름만 있으면 「그래서?」가 남는다. */
+.rvfacts{width:min(100%,300px);border-radius:14px;background:var(--rv-deep);
+  border:1px solid var(--rv-line);padding:4px 14px}
+.rvrow{display:flex;justify-content:space-between;align-items:center;gap:10px;
+  padding:9px 0;font-size:12.5px}
+.rvrow+.rvrow{border-top:1px solid var(--rv-line)}
+.rvrow span{color:var(--rv-dim)}
+.rvrow b{color:var(--rv-gold);font-variant-numeric:tabular-nums}
+
+/* 여러 개일 때. 크림 카드 격자 — 다섯 줄이면 폰에서 딱 한 화면이다. */
+.rvgrid{display:grid;gap:7px;width:100%;max-width:340px;
+  max-height:46vh;overflow-y:auto;padding:2px}
+.rvcard{background:var(--rv-card);border-radius:12px;padding:7px 4px 5px;
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  box-shadow:0 2px 0 rgba(0,0,0,.22);
+  animation:rvCard .3s ease-out both}
+@keyframes rvCard{from{transform:scale(.7);opacity:0}}
+.rvcard img{width:100%;aspect-ratio:1/1;object-fit:contain;display:block}
+.rvcard .em{font-size:26px;line-height:1.5}
+/* 가구가 아닌 것은 굽을 그림이 없다(멸치·벽돌). 이모지 밑에 **무엇인지 한 줄** —
+   그림체가 다른 칸이 아무 말도 안 하고 서 있으면 그게 제일 어색하다. */
+.rvcard .cap{font-size:9px;color:rgba(59,42,28,.62);font-variant-numeric:tabular-nums}
+.rvcard .rvst{font-size:9px;letter-spacing:.06em;color:#C98A2E}
+.rvcard .rvst i{font-style:normal;color:rgba(59,42,28,.22)}
+
+.rvbtns{display:flex;gap:8px;width:100%;max-width:340px;margin-top:4px}
+.rvbtn{flex:1;padding:13px 10px;border:0;border-radius:14px;cursor:pointer;
+  font-size:14px;font-weight:800;font-family:inherit;
+  background:var(--rv-card);color:var(--rv-cink);box-shadow:0 3px 0 rgba(0,0,0,.28)}
+.rvbtn.alt{background:#6B4A2C;color:#F6E7CE}
+.rvbtn:active{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.28)}
+
+/* 색종이. 열네 조각이면 충분하다 — 더 뿌리면 물건보다 색종이가 먼저 읽힌다. */
+.rvconf{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.rvconf i{position:absolute;top:-8%;width:7px;height:11px;border-radius:1px;opacity:.9;
+  animation:rvFall linear both}
+@keyframes rvFall{from{transform:translateY(0) rotate(0)}
+  to{transform:translateY(112vh) rotate(620deg)}}
+
+@media (prefers-reduced-motion:reduce){
+  .rvribbon,.rvitem,.rvcard{animation:none}
+  .rvrays,.rvdisc{animation:none}
+  .rvconf{display:none}
+}
+
+.gaoskip{position:absolute;right:16px;bottom:18px;font-size:11.5px;letter-spacing:.06em;
+  color:rgba(240,228,208,.6)}
+/* 평면으로 내려온 이유. **임시다** — 원인이 잡히면 이 줄과 js/gacha.js 의 그 자리를 같이 지운다. */
+.gaowhy{position:absolute;left:14px;right:14px;bottom:40px;text-align:center;
+  font-size:10.5px;line-height:1.5;color:rgba(240,228,208,.55)}
+
+/* 움직임을 싫어하는 사람에게는 흔들지 않는다 — 열리는 것만 남긴다. */
+@media (prefers-reduced-motion:reduce){
+  .gaobg,.gaobox,.gaopaw,.gaocat{animation:none}
+  .gaoflap.l{animation:gaoFlapL .3s ease-out .2s both}
+  .gaoflap.r{animation:gaoFlapR .3s ease-out .2s both}
+  .gaotp.l{animation:gaoRipL .26s ease-out .16s both}
+  .gaotp.r{animation:gaoRipR .26s ease-out .16s both}
+  .gaoburst{animation:none;opacity:0}
+}
+
+/* 확률 정보 — 등급마다 한 줄, 그 아래 그 등급에 든 것들. */
+.garow{display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;font-size:13px}
+.galeft{display:flex;align-items:center;gap:6px}
+.garate{font-variant-numeric:tabular-nums;font-weight:800}
+.gapool{font-size:11px;opacity:.66;line-height:1.7;margin-top:3px}
+.gapool em{font-style:normal;opacity:.7}
+
+/* ---------- 말풍선 안의 아이콘 (TODO 61 · js/icons.js) ----------
+   **판을 새로 만들지 않는다.** 이건 그냥 .bubble 이다 — 같은 바탕, 같은 테두리,
+   같은 꼬리, 같은 여백(2px 7px). 글자가 들어가던 자리에 그림이 들어갔을 뿐이라
+   짧은 문장이 뜬 풍선과 실루엣이 같다. 폰의 아늑 스킨이 풍선을 크림 카드로
+   덮어쓰면 이쪽도 같이 크림 카드가 된다 — 그게 이 방식의 요점이다.
+
+   한 번 판을 걷고 그림만 띄워 봤다. 이름표(.tag)와 같은 층으로 읽히긴 하는데
+   **말풍선이 아닌 다른 물건**이 돼서, 같은 자리에서 문장과 그림이 번갈아 뜰 때
+   머리 위가 두 가지 물건으로 보였다. 되돌렸다.
+
+   고치는 건 두 줄뿐이다: 글자용 줄높이를 지우고(안 지우면 그림 아래에 글자
+   내려긋기만큼 빈칸이 남아 풍선이 세로로 길어진다), 그림 크기를 정한다. */
+.bubble.ico{line-height:0}
+/* **색을 못 박지 않는다.** SVG 가 currentColor 로 그려지므로 풍선의 color 를 그대로
+   물려받는다 — 밝은 판은 잉크색, eerie 는 크림색, 폰의 아늑 스킨은 그쪽 잉크색이다.
+   여기서 색을 적으면 그 셋 중 둘에서 안 보인다(폰에서 실제로 그랬다:
+   크림 카드 위에 크림색 Z 가 떴다). */
+.bubble.ico .ic24{width:12px;height:12px;display:block}
+/* 물고기의 눈처럼 바탕색으로 뚫는 자리 — 위의 --bub-bg 를 읽는다 */
+.bubble.ico .icobg{fill:var(--bub-bg,#FFFDF8);stroke:none}
+
+/* 움직임은 셋뿐이다. 갈래마다 다르게 움직이면 스무 마리가 각자 딴짓하는 화면이 된다.
+   **풍선이 아니라 안쪽 그림만** 움직인다 — 풍선을 움직이면 매 프레임 다시 잡는
+   자리(left/top·translate)와 싸우게 되고, 머리에서 떨어져 보인다. */
+@keyframes icoRise{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.5px)}}
+@keyframes icoBeat{0%,100%{transform:scale(1)}28%{transform:scale(1.18)}56%{transform:scale(.96)}}
+@keyframes icoSway{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+.bubble.ic-rise .ic24{animation:icoRise 2.6s ease-in-out infinite}
+.bubble.ic-beat .ic24{animation:icoBeat 1.7s ease-in-out infinite}
+.bubble.ic-sway .ic24{animation:icoSway 3.2s ease-in-out infinite}
+/* 움직임을 싫어하는 사람에게는 안 움직인다 — 하루 종일 켜 두는 게임이다. */
+@media (prefers-reduced-motion:reduce){
+  .bubble.ic-rise .ic24,.bubble.ic-beat .ic24,.bubble.ic-sway .ic24{animation:none}
+}
 
 .float{position:absolute;font-size:13px;font-weight:800;color:#FFD9A8;
   text-shadow:1px 1px 0 #3A2E28,-1px 1px 0 #3A2E28,1px -1px 0 #3A2E28,-1px -1px 0 #3A2E28;
@@ -247,7 +685,10 @@ body.r3wait #viewport::after{
 .card{border:2px solid var(--line);background:#fff;padding:9px;margin-bottom:8px}
 /* 잠긴 비품은 이제 목록에 없다(ui.js shopHTML). 남은 건 개수를 알리는 줄 하나뿐이라
    물건처럼 보이면 안 된다 — 테두리를 점선으로 끊어서 "아직 없는 칸"으로 읽히게 한다. */
-.card.lockedrow{background:#FBF6EE;border-style:dashed;border-color:#D8C7B0;opacity:.8}
+/* 잠긴 줄은 **격자 다음에 오는 안내**다. 붙여 두면 마지막 칸 줄에 딸린 것처럼 보여서
+   「이것도 물건인가」가 된다 — 격자와 사이를 띄운다. */
+.card.lockedrow{background:#FBF6EE;border-style:dashed;border-color:#D8C7B0;opacity:.8;
+  margin-top:16px}
 .card.lockedrow .em{filter:grayscale(1);opacity:.7}
 .card.owned{background:#F1FAF6;border-color:#AEDDCE}
 .legalcard{background:#FFF6F7;border-color:#F0BCC4}
@@ -274,6 +715,37 @@ body.r3wait #viewport::after{
 .hint{font-size:10.5px;color:var(--soft);margin:-2px 2px 8px}
 .hintbad{font-size:11px;color:var(--red);margin-top:7px}
 .okmark{font-size:12px;color:#2F7A64;font-weight:800}
+
+/* ---------- 가구 카탈로그 (TODO 55) ----------
+   비품은 한 줄에 하나, 가구는 한 칸에 하나 (ui.js furnHTML — .furnhead/.furncat/.furngrid).
+   ※ 이 블록은 이미 **두 번** 통째로 사라졌다(55번 「밟은 것」, 그리고 2026-09-02 에 또).
+   또 없어지면 style.css 를 만지는 도구부터 의심할 것 — tools/collect.js 가 이 파일을 안다. */
+.furnhead{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;margin:18px 2px 6px}
+.furnhead b{font-size:13px}
+.furnhead span{font-size:10.5px;color:var(--soft);line-height:1.5}
+.furncat{margin:12px 2px 7px;font-size:10.5px;font-weight:800;letter-spacing:.6px;color:var(--soft)}
+.furngrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+/* 비품은 설명이 붙어야 읽히므로 두 칸 폭이다 — 칸의 생김새는 가구와 같다 */
+.furngrid.g2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.fcell{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;
+  border:2px solid var(--line);background:#fff;padding:8px 4px 7px;
+  font:inherit;text-align:center;cursor:pointer}
+.fcell:hover{border-color:var(--accent)}
+.fcell[disabled]{opacity:.55;cursor:not-allowed}
+.fcell .fpic{display:block;width:56px;height:56px;object-fit:contain}
+.fcell .fem{font-size:30px;line-height:56px}
+.fcell b{font-size:10.5px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fcell .fcost{font-size:10px;color:var(--soft)}
+/* 비품 칸 — 그림을 조금 키우고 설명 두 줄까지. 넘치면 잘라 낸다(값이 밀리면 안 된다) */
+.fcell.wide{padding:10px 8px 9px}
+.fcell.wide .fpic{width:60px;height:60px}
+.fcell.wide b{white-space:normal;line-height:1.3}
+.fcell .fdesc{font-size:9.5px;line-height:1.45;color:var(--soft);
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.fcell.has{background:#F1FAF6;border-color:#AEDDCE}
+.fcell .fn{position:absolute;right:4px;top:4px;min-width:18px;height:18px;padding:0 4px;
+  border-radius:9px;background:var(--mint);color:#12503F;font-size:10.5px;font-weight:800;
+  font-style:normal;display:flex;align-items:center;justify-content:center}
 .maxrank{font-size:11px;color:#2F7A64;font-weight:700}
 .catcard{cursor:pointer}
 .catcard:hover{border-color:var(--accent)}
@@ -305,7 +777,10 @@ body.r3wait #viewport::after{
 /* ---------- 모달 ---------- */
 .veil{position:fixed;inset:0;background:rgba(40,30,24,.55);display:grid;place-items:center;
   z-index:100;padding:12px}
-.modal{width:min(520px,100%);max-height:92vh;overflow-y:auto;background:var(--card);
+/* 92vh 가 아니라 **92dvh** 다. 폰의 100vh 는 주소창을 포함한 높이라, 긴 창(택배·달력)이
+   92vh 를 채우면 실제로는 화면보다 커져서 **위아래가 잘리고 위쪽에 손이 안 닿는다.**
+   vh 를 먼저 두는 건 dvh 를 모르는 브라우저의 폴백이다 — #app 이 쓰는 그 규칙과 같다. */
+.modal{width:min(520px,100%);max-height:92vh;max-height:92dvh;overflow-y:auto;background:var(--card);
   border:4px solid var(--ink);box-shadow:8px 8px 0 rgba(0,0,0,.25)}
 .mhead{padding:15px 20px;background:#FFEFD8;border-bottom:3px solid var(--line);text-align:center}
 .mhead.police{background:#2B3A55;color:#FFF6E9;border-bottom-color:#16203a}
@@ -315,6 +790,29 @@ body.r3wait #viewport::after{
 .mhead h3{margin:4px 0 2px;font-size:19px}
 .mhead p{margin:0;font-size:12px;color:var(--soft)}
 .mbody{padding:15px 20px}
+/* ---------- 지점 등록: 간판 고르기 (TODO 59 · js/ui.js showBranch) ----------
+   그림이 마흔넷이라 목록이 아니라 **격자**다. 한 줄에 몇 개인지 못 박지 않는다 —
+   폰(390px)에서 넷, 데스크톱에서 여섯이 되게 두면 두 화면에 각각의 규칙을 안 적는다.
+
+   칸마다 **크림 바탕**을 깐다. 간판 그림은 검은 잉크에 투명 배경이라(tools/split-logos.js)
+   어두운 판 위에서는 통째로 사라진다 — 여기가 견본을 보는 자리이므로 견본책의
+   가구 톤 카드와 같은 방식으로, 밝은 종이 위에 얹어 보여 준다.
+
+   높이를 잘라 스크롤한다. 안 자르면 창이 화면보다 길어져서, 폰에서 「등록한다」 단추가
+   격자 아래 어딘가로 밀려난다 — 그러면 고르고 나서 나갈 길이 안 보인다. */
+.logogrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(72px,1fr));
+  gap:6px;max-height:42vh;overflow:auto;margin-top:6px;padding:2px}
+.logocell{background:#FFFDF8;border:2px solid var(--line);padding:0;cursor:pointer;
+  aspect-ratio:1/1;display:flex;align-items:center;justify-content:center}
+.logocell span{display:block;width:82%;height:82%;
+  background-size:contain;background-position:center;background-repeat:no-repeat}
+.logocell.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent) inset}
+.logocell:hover{border-color:var(--accent)}
+/* 「점」은 입력칸이 아니라 **입력칸에 붙은 글자**다 — 지울 수 있는 것으로 보이면
+   지우려고 한다(설정과 기본값 규칙과 같은 이야기다: 못 바꾸는 건 안 보여 준다). */
+.brsuf{display:flex;align-items:center;padding:0 9px;font-size:13px;font-weight:700;
+  color:var(--soft);white-space:nowrap}
+
 .rrow{display:flex;justify-content:space-between;font-size:13px;padding:7px 2px;border-bottom:1px dotted var(--line)}
 .rrow b{font-variant-numeric:tabular-nums}
 .evt{margin-top:13px;background:#FFF6E9;border:2px solid var(--line);padding:11px 13px;font-size:12.5px;line-height:1.6}
@@ -351,12 +849,6 @@ body.r3wait #viewport::after{
 .st.hi b{color:#2F7A64} .st.lo b{color:var(--red)}
 .st .plus{color:#2F7A64}
 .resume{display:flex;gap:12px;align-items:center}
-.slotrow{display:flex;gap:6px;margin-top:10px}
-.eslot{flex:1;border:2px dashed var(--line);padding:6px 4px;text-align:center;font-size:10.5px;
-  color:var(--soft);background:#FFFBF3;cursor:pointer}
-.eslot.filled{border-style:solid;background:#FFF3E2;border-color:var(--accent);color:var(--ink)}
-.eslot .em{display:block;font-size:17px}
-.bagitem{width:100%;text-align:left;cursor:pointer}
 .mfoot{padding:14px 20px 18px;position:sticky;bottom:0;background:var(--card);
   box-shadow:0 -10px 14px -8px rgba(58,46,40,.18)}
 .okbtn{width:100%;padding:12px;background:var(--accent);color:#fff;font-weight:800;font-size:15px;
@@ -402,6 +894,73 @@ body.r3wait #viewport::after{
 .okbtn[disabled]:active{transform:none;box-shadow:0 4px 0 #D6C8B2}
 .iconbtn.off{opacity:.4}
 .iconbtn.on{background:#FFF0E0;border-color:var(--accent)}
+
+/* ---------- 무늬 작업대 (TODO 73 · js/ui.js showMarks) ----------
+   판을 새로 만들지 않는다 — 이미 있는 모달 안이고, 프리셋 줄은 털색과 같은 `.swatch` 다.
+   여기서만 쓰는 것은 무대 하나와 칩 두 줄뿐이다.
+
+   `touch-action:none` 이 요점이다. 폰에서 무대를 끌면 브라우저가 그걸 **스크롤**로 먹어서
+   고양이가 안 돌아간다 — 손가락으로 돌리는 화면에서는 이 한 줄이 기능의 절반이다. */
+.mkstage{position:relative;aspect-ratio:5/4;margin:2px 0 10px;background:#FFF6E9;
+  border:2px solid var(--line);overflow:hidden;touch-action:none;cursor:grab;user-select:none}
+.mkstage:active{cursor:grabbing}
+.mkstage.drawing{cursor:crosshair}
+/* 발밑 그림자. 3D 로 판을 하나 더 깔지 않고 여기서 그린다 — 어차피 카메라가 안 움직인다 */
+.mkstage::after{content:'';position:absolute;left:50%;bottom:14%;width:44%;height:6%;
+  transform:translateX(-50%);border-radius:50%;pointer-events:none;
+  background:radial-gradient(ellipse at center,rgba(74,66,60,.26),rgba(74,66,60,0) 70%)}
+.mkstage canvas{position:relative;z-index:1;display:block;width:100%;height:100%}
+.mkspin{position:absolute;right:8px;top:8px;z-index:2;width:30px;height:30px;padding:0;
+  background:#FFFDF8;border:2px solid var(--line);color:var(--soft);font-size:15px;line-height:1}
+.mkspin:hover{border-color:var(--accent);color:var(--accent-d)}
+/* 무늬 / 표정 — 칸 둘. 둘을 한 화면에 다 세우면 폰에서 연필이 화면 밖으로 밀린다.
+   무대는 탭 위에 그대로 남는다: 어느 칸을 만져도 같은 고양이가 바뀌는 것이 보여야 한다. */
+.mktabs{display:flex;gap:6px;margin:0 0 9px}
+.mktab{flex:1;padding:8px 0;background:#fff;border:2px solid var(--line);
+  font:inherit;font-size:12.5px;font-weight:800;color:var(--soft);cursor:pointer}
+.mktab.on{background:#FFF0E0;border-color:var(--accent);color:var(--accent-d)}
+.mkpane .hint{margin:0 2px 5px}
+
+/* 표정 줄은 **한 줄로 둔다.** 열 칸이 두 줄로 접히면 창이 그만큼 길어져서
+   폰에서 「입」 줄이 화면 밖으로 밀린다. 낱말 길이는 언어마다 다르므로
+   (「ばたんきゅう」) 넘치면 옆으로 밀어 본다 — 옆 칸이 반쯤 보이는 것이 그 안내다. */
+.mkface{margin-bottom:10px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}
+.mkface::-webkit-scrollbar{display:none}
+.mkface .swatch{min-width:0;flex:0 0 auto;padding:5px 6px 4px}
+/* 「그때그때」 — 고정 표정을 **안 고른** 칸. 얼굴 하나가 아니라 규칙이라, 그림은 흐리고
+   테두리는 점선이다. 골라 두면(.on) 다시 또렷해진다: 그게 지금 걸린 값이니까. */
+.mkface .swatch.auto{border-style:dashed}
+.mkface .swatch.auto .pix{opacity:.5}
+.mkface .swatch.auto.on .pix{opacity:1}
+.mkbar{display:flex;gap:8px 12px;align-items:center;justify-content:center;flex-wrap:wrap}
+.mkinks,.mksizes{display:flex;gap:5px}
+/* 연필과 이동 — 이 화면에서 **손가락이 무엇을 하는가**를 정하는 단추 둘.
+   색·굵기와 같은 줄에 세워 뒀더니 「무엇을 고르는가」와 「무엇을 하는가」가 섞였다.
+   제 줄로 올리고 아래에 선을 그어 갈라 둔다 — 성질이 다른 단추다. */
+.mkhand{display:flex;gap:6px;margin:0 0 11px;padding-bottom:11px;
+  border-bottom:2px dashed var(--line)}
+.mkmode{width:56px;height:40px;padding:0;background:#fff;border:2px solid var(--line);
+  display:flex;align-items:center;justify-content:center;color:var(--soft);cursor:pointer}
+.mkmode svg{width:21px;height:21px;display:block}
+.mkmode.on{background:#FFF0E0;border-color:var(--accent);color:var(--accent-d)}
+.mkink,.mksize{width:38px;height:34px;padding:0;background:#fff;border:2px solid var(--line);
+  display:flex;align-items:center;justify-content:center;cursor:pointer}
+.mkink i{display:block;width:18px;height:18px;border-radius:50%;
+  box-shadow:inset 0 0 0 1px rgba(58,46,40,.22)}
+.mksize i{display:block;border-radius:50%;background:var(--ink)}
+/* 지우개는 **색이 없는 칸**이다. 잉크 칸과 같은 동그라미에 사선 하나 —
+   글리프(⌫)를 쓰면 글꼴에 따라 네모난 상자로 떨어진다(실제로 그랬다). */
+.mkink.erase i{background:
+  linear-gradient(45deg,transparent calc(50% - 1px),var(--soft) calc(50% - 1px),
+                  var(--soft) calc(50% + 1px),transparent calc(50% + 1px)),#FFFDF8}
+.mkink.on,.mksize.on{background:#FFF0E0;border-color:var(--accent)}
+/* 무늬 창을 여는 줄 — 면접창·계약서·인사 파일이 같은 모양을 쓴다 */
+.markwrap{margin-bottom:2px}
+.markopen{display:flex;align-items:center;gap:9px;width:100%;margin:4px 0 9px;padding:6px 10px;
+  background:#fff;border:2px solid var(--line);cursor:pointer;text-align:left}
+.markopen b{flex:1;font-size:12.5px;color:var(--ink)}
+.markopen i{font-style:normal;font-size:17px;color:var(--soft)}
+.markopen:hover{border-color:var(--accent)}
 
 /* ---------- 배치 모드 ---------- */
 #viewport.editmode{cursor:crosshair;outline:3px dashed var(--accent);outline-offset:-3px}
@@ -633,7 +1192,8 @@ body.r3wait #viewport::after{
   border:2px solid rgba(189,182,168,.35);padding:6px 11px;border-radius:3px;
   background:rgba(0,0,0,.35);transition:all .15s}
 .oskip:hover{color:#0B0D14;background:#E9E1D2;border-color:#E9E1D2}
-.ohint{position:absolute;bottom:calc(7.5vh + 8px);right:20px;z-index:4;font-size:10.5px;
+/* 장면 아래 모서리에 딱 붙는다 — 레터박스 띠의 바로 위. 띄우면 자막 자리를 먹는다 */
+.ohint{position:absolute;bottom:calc(7.5vh + 3px);right:20px;z-index:4;font-size:10.5px;
   color:rgba(230,222,206,.4);pointer-events:none;letter-spacing:.3px}
 
 .ogate{position:absolute;inset:0;z-index:8;display:grid;place-items:center;align-content:center;
@@ -675,6 +1235,9 @@ body.r3wait #viewport::after{
 
 @media (max-width:560px),(max-height:600px){
   .obar{height:5vh}
+  /* 띠가 낮아지면 힌트도 같이 내려간다 — 안 내리면 폰에서 혼자 장면 위에 떠 있다 */
+  .ohint{bottom:calc(5vh + 3px)}
+  .osub{bottom:calc(5vh + 20px)}
   .oletterbox{padding:14px 15px 16px}
   .olist{font-size:12px;line-height:1.7}
 }
@@ -1117,7 +1680,7 @@ body.eerie .iconbtn:hover{background:#2E2720}
 body.eerie .ico, body.eerie .em, body.eerie .iconbtn, body.eerie .dockbtn{filter:saturate(.82) brightness(.96)}
 /* 말풍선·머리 위 이름표는 3D 위에 얹히는 DOM 이라 이쪽에서만 어두워진다 */
 body.eerie .tag{color:#EADFD2;text-shadow:0 1px 2px rgba(0,0,0,.7);background:transparent}
-body.eerie .bubble{background:#241E18;border-color:#57493B;color:#EDE2D4;box-shadow:2px 2px 0 rgba(0,0,0,.45)}
+body.eerie .bubble{background:#241E18;--bub-bg:#241E18;border-color:#57493B;color:#EDE2D4;box-shadow:2px 2px 0 rgba(0,0,0,.45)}
 body.eerie .bubble::after{border-top-color:#57493B}
 
 /* 값이 규칙 안에 박혀 있는 밝은 판들 — 변수로는 안 따라오는 것만 골라 덮는다.
@@ -1135,6 +1698,12 @@ body.eerie .tag.m{background:#33291A;color:#D9B370}
 body.eerie .tag.l{background:#2E1D22;color:#CF95A6}
 body.eerie .card.lockedrow{background:#1D1814;border-color:#3D342A}
 body.eerie .card.owned{background:#1A2620;border-color:#446B58}
+/* 가구 카탈로그 — 비품 카드와 같은 어둠 */
+body.eerie .fcell{background:#241E18;border-color:#3D342A}
+body.eerie .fcell:hover{border-color:var(--accent)}
+body.eerie .fcell.has{background:#1A2620;border-color:#446B58}
+body.eerie .furnhead span,body.eerie .furncat,
+body.eerie .fcell .fcost,body.eerie .fcell .fdesc{color:#9A8468}
 body.eerie .hirecard{background:#2A2116;border-color:#4C3D26}
 body.eerie .chkhint{background:#18261F;color:#8FC6AC;border-color:#3B6553}
 body.eerie .chkhint b{color:#AEDCC4}
@@ -1180,6 +1749,15 @@ body.eerie .needs .nbt{background:#2A231C}
 body.eerie .tag{background:transparent}
 body.eerie .tag.s{background:#1A2620;color:#8FC6AC}
 body.eerie .swatch{background:#231D18;border-color:#3D342A}
+body.eerie .mkstage{background:#241E19;border-color:#3D342A}
+body.eerie .mkink,body.eerie .mksize,body.eerie .mkspin,body.eerie .mkmode,
+body.eerie .mktab,
+body.eerie .markopen{background:#231D18;border-color:#3D342A;color:#D9CDBD}
+body.eerie .markopen b{color:#E7DCCB}
+body.eerie .mksize i{background:#E4D8C6}
+body.eerie .mkink.on,body.eerie .mksize.on,
+body.eerie .mkmode.on,body.eerie .mktab.on{background:#33281A;border-color:var(--accent);color:var(--accent)}
+body.eerie .mkhand{border-bottom-color:#3D342A}
 body.eerie .swatch.on{background:#33281A;border-color:var(--accent)}
 body.eerie .namerow input:focus{background:#1B1611}
 body.eerie .reclog .rrow{border-bottom-color:#332B23}
@@ -1187,8 +1765,6 @@ body.eerie .pb::-webkit-scrollbar-thumb{background:#3A3128}
 /* 머리 위 이름표는 3D 위에 얹히는 DOM 이다 — 흰 알약이 사무실에 떠 있었다 */
 /* 배치 모드 */
 body.eerie .edithint{background:rgba(28,23,18,.95)}
-body.eerie .eslot{background:#1F1A15}
-body.eerie .eslot.filled{background:#2E2517}
 body.eerie .rotbtn{background:#241E18;color:var(--ink)}
 /* 위젯 모드 */
 body.eerie #app.slim .qbar{background:#2A231C}
@@ -1291,9 +1867,18 @@ body.eerie #app.tabbar .panel{background:#1C1712}
 .pola.lit .lit-l{color:var(--accent-d);font-weight:700}
 .pola .sent{font-size:10px;color:#3E9E82}
 .codebox{display:flex;align-items:center;gap:8px}
+/* 코드가 둘이다 — **내 것**과 **받은 것**. 붙여 두면 한 칸의 두 줄로 읽힌다.
+   글로 가르지 않고(설명은 다 걷었다) 사이를 벌려서 가른다. */
+.codebox + .codebox{margin-top:14px}
+.codebox input{flex:1;min-width:0;font-family:inherit;font-size:15px;letter-spacing:2px;
+  font-weight:800;text-transform:uppercase}
 .codebox code{flex:1;font-family:inherit;font-size:15px;letter-spacing:2px;font-weight:800;
   color:var(--paper-ink);background:var(--paper);border:2px solid var(--line);
   padding:8px 10px;text-align:center}
+/* 메일 주소는 코드가 아니다. 위의 대문자 변환과 자간은 **여덟 글자 지점 코드**를
+   읽어 주려고 건 것이라, 주소에 걸리면 `A@B.CO` 처럼 보인다 — 자기가 친 것과 다르게
+   보이면 오타인지 아닌지를 알 수가 없다. */
+.codebox input.mail{letter-spacing:0;font-weight:600;text-transform:none;text-align:left}
 .codebox .buy{flex:0 0 auto;padding:8px 12px}
 /* 한 지점 */
 .brlit{font-size:11.5px;color:#A9927A;margin-bottom:9px}
@@ -1364,3 +1949,1325 @@ body.eerie .todo.group{background:#2A231C}
 .calrow.kid .tx{font-size:11.5px;color:var(--soft)}
 /* 첫 출근 안내가 3D 가구를 가리킬 때 쓰는 보이지 않는 손잡이 (js/tutor.js) */
 .tutspot{position:fixed;width:96px;height:96px;pointer-events:none;display:none;z-index:97}
+
+/* 온보딩의 「끝내기」 — 빠져나가는 쪽은 회색이다. 두 단추가 같은 무게면
+   어느 것이 앞으로 가는 길인지 보이지 않는다(js/tutor.js). */
+.coach .cacts .buy.quit{background:#E4DCCE;color:#8B7A68;box-shadow:2px 2px 0 #CFC4B2}
+body.eerie .coach .cacts .buy.quit{background:#2A241D;color:#8B7A68;box-shadow:2px 2px 0 #14100C}
+
+/* ==== 아늑 스킨 (폰) — 원본: spike/ui/cozy/skin.css ==== */
+/* 이 절은 손으로 고치지 않는다 — spike/ui/cozy/skin.css 를 고치고 다시 굽는다. */
+/* ============================================================
+   아늑 스킨 — 2026-08-31 · 시안 (크림 판)
+
+   ── 여기까지 온 길 ──
+   1차: 크림빛 UI + 3D 를 파스텔로 → 3D 는 되돌렸다(eerie 필름이 이 게임의 그림이다).
+   2차: UI 도 어둡게 + 시간대(아침·오전·오후·노을·밤)에 따라 색이 흐르게
+        → **시간대 변화는 접었다.** 색이 계속 움직이는 것이 산만했다.
+   3차(지금): **방은 eerie 그대로, UI 는 크림 한 벌로 고정.**
+        레퍼런스가 보여준 대비가 이것이다 — 어두운 방 위에 밝은 종이 카드가 떠 있다.
+
+   그래서 색은 **한 벌**이고 아래 토큰 블록이 전부다. 시간대별 팔레트를 다시 원하면
+   구조는 그대로 두고 그 값만 갈아 끼우면 된다.
+
+   구조에서 지킨 것: **하단은 영역이 아니다.** 사무실이 화면 바닥까지 내려가고
+   버튼 다섯이 그 위에 얹힌다. 탭 바가 차지하던 띠가 없다.
+
+   `body.eerie` 를 앞에 다는 이유는 취향이 아니라 특정도다 — style.css 1107~1211 의
+   eerie 규칙이 클래스를 하나 더 갖고 있어서, 안 달면 이쪽이 진다(실제로 졌다).
+
+   폰(#app.tabbar)에서만 걸린다. 데스크톱·위젯은 이 선택자를 못 만난다.
+   ============================================================ */
+.stagecard{display:none}
+
+body.eerie #app.tabbar{
+  --tabbar:0px;                       /* 무대가 바닥까지 간다 — 버튼은 그 위에 뜬다 */
+  --navh:84px;                        /* 버튼이 실제로 먹는 높이(자리를 비켜 줄 때 쓴다) */
+
+  --ui-paper:#FFFCF6;                 /* 카드 — 방 위에 떠 있는 종이 */
+  --ui-ground:#F4EDE2;                /* 패널 바닥 · 상단 띠 — 레퍼런스가 반 단 밝다 */
+  --ui-ink:#4A3B2E;                   /* 종이 위 글자 */
+  --ui-soft:#8B7A68;                  /* 종이 위 흐린 글자 */
+  --ui-sunk:#EFE7DA;                  /* 종이 안에 파인 칸(입력·체크·작은 칸) */
+
+  --ui-nav:#F6F0E7;                   /* 아래 단추 */
+  --ui-navink:#6B5B4B;
+  --ui-on:#8A6A4A;                    /* 고른 단추 — 레퍼런스의 갈색 */
+  --ui-onink:#F7F1E6;
+
+  --ui-accent:#E2A25C;                /* 등불색 — 상신·켜진 카메라·시계 막대 */
+  --ui-accentink:#3A2A18;
+  --ui-bar:#7FA8C8;                   /* 사건 카드의 진행 막대(레퍼런스의 파랑) */
+
+  /* ── 유리 한 벌 ──
+     메인 화면의 크롬은 **전부 이 값**을 쓴다. 자리마다 알파를 손으로 적으면 반드시
+     갈린다(시계만 .42, 카드만 .40 같은 식으로 어긋났던 판이 있었다). 값이 한 곳에
+     있으면 「유리를 더 진하게」가 한 줄 고치는 일이 된다. */
+  --ui-glass:rgba(22,17,12,.54);                /* 유리판 바탕 */
+  --ui-glassline:rgba(255,250,240,.17);         /* 그 위의 실테두리 — 유리의 각을 만든다 */
+  --ui-glassink:#F7F0E4;                        /* 유리 위 글자 */
+  --ui-glasssoft:rgba(247,240,228,.72);         /* 유리 위 흐린 글자 */
+  --ui-glasssunk:rgba(255,250,240,.11);         /* 유리 안에 파인 칸 */
+  --ui-glasslift:0 6px 18px rgba(14,9,4,.34);
+  --ui-blur:blur(11px) saturate(1.18);
+
+  --ui-lift:0 6px 18px rgba(74,55,40,.22);      /* 방 위에 뜬 것 */
+  --ui-cardlift:0 3px 10px rgba(74,55,40,.10);  /* 패널 안에 놓인 것 */
+  --ui-scrim:44,34,26;                          /* 무대 아래 그늘(rgb) */
+
+  background:var(--ui-ground);
+}
+
+/* ── 상단 — **띠가 없다.** 아래와 같은 규칙이다: 사무실이 화면 전부이고, 그 위에
+   카드가 얹힌다. 크림 띠를 한 번 둘렀다가 걷었다 — 위에만 판이 있으면 아래에서
+   판을 없앤 이유가 무색해지고, 화면이 「머리 있는 화면」으로 돌아간다.
+
+   대신 이름표를 **카드에 담는다.** 방 위에 글자만 얹으면 밝은 시간대에 안 읽힌다 —
+   띠를 없애면서 잃는 것이 그 가독성 하나뿐이라, 그것만 카드로 되산다. ── */
+body.eerie #app.tabbar #topbar{background:transparent;border-bottom:0;padding:10px 12px;gap:8px;
+  position:relative;z-index:8;box-shadow:none}
+/* 로고는 **아무 판 위에도 안 얹는다.** 동그라미로 자르지도, 카드에 담지도 않는다 —
+   우리 아이콘은 귀가 있는 고양이 머리이고, 배경을 두는 순간 그 실루엣이 죽는다.
+   밝은 시간대에 묻히지 않게 그림자 하나만 준다(판이 아니라 그림자다). */
+body.eerie #app.tabbar .brand{background:transparent;box-shadow:none;padding:0;gap:8px}
+body.eerie #app.tabbar .brand .logo{width:42px;height:42px;border-radius:0;
+  background-color:transparent;box-shadow:none;
+  filter:drop-shadow(0 2px 5px rgba(30,20,12,.45))}
+body.eerie #app.tabbar:not([data-col="stage"]) .brand .logo{filter:drop-shadow(0 2px 4px rgba(74,55,40,.20))}
+body.eerie #app.tabbar .brand h1{font-size:16.5px;color:var(--ui-ink)}
+body.eerie #app.tabbar .brand .tier{color:var(--ui-soft)}
+body.eerie #app.tabbar .stat{border:0;border-radius:15px;padding:6px 11px;background:var(--ui-paper);
+  box-shadow:var(--ui-lift);color:var(--ui-ink)}
+body.eerie #app.tabbar .stat small{color:var(--ui-soft)}
+/* 분기 막대는 뺀다 — 폰 상단에서 줄을 하나 더 만들고, 같은 숫자가 사보에 있다 */
+body.eerie #app.tabbar .qwrap{display:none}
+body.eerie #app.tabbar .iconbtn,body.eerie #app.tabbar #btnMore{border:0;border-radius:12px;
+  background:var(--ui-paper);box-shadow:var(--ui-lift);color:var(--ui-ink)}
+
+/* ── 무대는 화면 전부. 상단 띠가 그 위에 덮이고, 버튼 뒤로도 계속된다 ── */
+body.eerie #app.tabbar #main{position:relative}
+body.eerie #app.tabbar .stagewrap{position:fixed;left:0;right:0;top:0;bottom:0;z-index:0}
+/* 밝은 시간대에 크림 단추가 밝은 바닥에 묻히지 않게. 띠가 아니라 그늘이다. */
+body.eerie #app.tabbar .stagewrap::after{content:'';position:absolute;left:0;right:0;bottom:0;height:34%;
+  background:linear-gradient(to bottom,rgba(var(--ui-scrim),0),rgba(var(--ui-scrim),.50));
+  pointer-events:none;z-index:1}
+/* 위쪽에도 얕게 — 시계·숫자가 판 없이 앉는 자리다 */
+body.eerie #app.tabbar .stagewrap::before{content:'';position:absolute;left:0;right:0;top:0;height:26%;
+  background:linear-gradient(to top,rgba(var(--ui-scrim),0),rgba(var(--ui-scrim),.42));
+  pointer-events:none;z-index:1}
+
+/* ── 시계 · 숫자 = **유리판** ──
+   판을 두 번 갈았다. 처음엔 크림 카드였고(방 위에 종이가 겹쳐 화면이 「방 + 서류」가
+   됐다), 다음엔 판을 아예 걷어 맨 글자로 뒀다(밝은 아침 방에서 흰 글자가 흔들렸다).
+   레퍼런스를 확대해 보니 답은 셋째였다 — **흐린 유리.** 방이 그대로 비쳐서 종이처럼
+   화면을 가리지 않고, 그러면서 글자 뒤가 늘 어두워 어느 시간대에도 읽힌다.
+
+   `backdrop-filter` 가 안 먹는 환경이 있어서(구형 WebView) 바탕색 자체에 알파를 준다 —
+   블러가 빠져도 반투명 판은 남는다. */
+body.eerie #app.tabbar .clockchip{left:12px;top:60px;max-width:266px;border:0;border-radius:15px;
+  background:var(--ui-glass);backdrop-filter:var(--ui-blur);-webkit-backdrop-filter:var(--ui-blur);
+  box-shadow:var(--ui-glasslift),inset 0 0 0 1px var(--ui-glassline);
+  padding:9px 14px 12px;color:var(--ui-glassink);overflow:hidden}
+body.eerie #app.tabbar .clockchip b{display:block;font-size:18px;letter-spacing:-.3px;line-height:1.2}
+body.eerie #app.tabbar .clockchip em{display:block;font-style:normal;font-weight:600;font-size:11.5px;
+  opacity:.86;margin-top:2px}
+/* 하루 진행 막대. left:0 으로 두면 둥근 모서리에 걸려 주황 혓바닥처럼 삐져나온다 —
+   모서리 안쪽에서 시작한다(너비는 게임이 인라인으로 넣는다). */
+body.eerie #app.tabbar .clockchip i{left:14px;bottom:6px;height:3px;background:var(--ui-accent);border-radius:2px}
+
+/* ── 근무·사기·대기·누적 — 시계와 같은 유리 ── */
+body.eerie #app.tabbar .stagefoot{left:12px;right:auto;top:122px;bottom:auto;height:auto;border:0;
+  border-radius:12px;background:var(--ui-glass);
+  backdrop-filter:var(--ui-blur);-webkit-backdrop-filter:var(--ui-blur);
+  box-shadow:var(--ui-glasslift),inset 0 0 0 1px var(--ui-glassline);
+  padding:7px 13px;gap:14px;z-index:6;flex-direction:row;align-items:center}
+body.eerie #app.tabbar .stagefoot .kv{background:none;border:0;padding:0;font-size:11.5px;color:var(--ui-glassink)}
+
+/* ── 사건 카드 — 버튼 바로 위 (채움은 skin.js) ── */
+body.eerie #app.tabbar .stagecard.show{display:block;position:fixed;left:12px;right:12px;
+  bottom:calc(var(--navh) + var(--safeb) + 10px);z-index:6;border-radius:18px;
+  background:var(--ui-paper);box-shadow:var(--ui-lift);padding:12px 14px}
+body.eerie #app.tabbar .stagecard .crow{display:flex;gap:11px;align-items:flex-start}
+body.eerie #app.tabbar .stagecard .em{flex:0 0 auto;width:40px;height:40px;border-radius:12px;
+  background:var(--ui-sunk);display:flex;align-items:center;justify-content:center;font-size:20px}
+body.eerie #app.tabbar .stagecard .info{flex:1;min-width:0}
+body.eerie #app.tabbar .stagecard .info b{display:block;font-size:13.5px;color:var(--ui-ink)}
+body.eerie #app.tabbar .stagecard .info span{display:block;font-size:11px;color:var(--ui-soft);line-height:1.5;margin-top:2px}
+body.eerie #app.tabbar .stagecard .bar{position:relative;height:6px;border-radius:3px;background:var(--ui-sunk);margin-top:9px;overflow:hidden}
+body.eerie #app.tabbar .stagecard .bar i{position:absolute;left:0;top:0;bottom:0;border-radius:3px;background:var(--ui-bar);transition:width .6s}
+
+/* ── 카메라 ── */
+body.eerie #app.tabbar .cambtn{left:auto;right:12px;bottom:calc(var(--navh) + var(--safeb) + 122px);
+  width:42px;height:42px;border:0;border-radius:50%;background:var(--ui-paper);
+  box-shadow:var(--ui-lift);opacity:1;z-index:6;
+  display:flex;align-items:center;justify-content:center;color:var(--ui-ink)}
+body.eerie #app.tabbar .cambtn.on{background:var(--ui-accent);color:var(--ui-accentink)}
+
+/* ── 카메라 모드 (js/cozy.js) ──
+   따라다니기 단추 바로 위, 같은 크기. 진한 유리판 위에 사진기 — 문 레일과 같은 재질이다.
+   켜면 UI 가 전부 걷히고 방만 남는다. 이 단추만 반투명하게 남아 나가는 문이 된다. */
+.photobtn{display:none}
+body.eerie #app.tabbar[data-col="stage"] .photobtn{position:fixed;right:14px;z-index:6;
+  bottom:calc(var(--navh) + var(--safeb) + 170px);width:36px;height:36px;border:0;border-radius:50%;
+  background:var(--ui-glass);color:var(--ui-glassink);
+  backdrop-filter:var(--ui-blur);-webkit-backdrop-filter:var(--ui-blur);
+  box-shadow:var(--ui-glasslift),inset 0 0 0 1px var(--ui-glassline);
+  display:flex;align-items:center;justify-content:center}
+body.eerie #app.tabbar .photobtn svg{display:block;width:18px;height:18px;fill:currentColor}
+body.eerie #app.tabbar .photobtn.on{background:var(--ui-accent);color:var(--ui-accentink);
+  backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:var(--ui-lift)}
+/* 배치·미리보기 중에는 없는 단추다 — 오른쪽에 두 무리가 겹치면 안 된다 */
+body.eerie #app.tabbar.decoon .photobtn,
+body.eerie #app.tabbar.peek .photobtn{opacity:0;pointer-events:none}
+/* 카메라 모드 — 방만 남는다. 이름표·말풍선은 세계의 것이라 남긴다. */
+body.eerie #app.tabbar.photo #topbar,
+body.eerie #app.tabbar.photo .clockchip,
+body.eerie #app.tabbar.photo #colTabs,
+body.eerie #app.tabbar.photo .stagecard,
+body.eerie #app.tabbar.photo .doorrail,
+body.eerie #app.tabbar.photo .stagefoot,
+body.eerie #app.tabbar.photo .cambtn{opacity:0 !important;pointer-events:none !important;
+  transition:opacity .18s}
+body.eerie #app.tabbar.photo .photobtn{opacity:.85}
+
+/* ============================================================
+   버튼 다섯 — **불투명한 판 위에** 선다
+
+   한동안 무대 위에 그냥 띄워 뒀다. 그러면 밝은 시간대에 크림 단추가 밝은 바닥에
+   묻히고, 방과 조작이 한 겹으로 섞인다. 판을 깔면 손이 가는 자리가 분명해지고
+   방은 그 위에서 끝난다. 위(시계·숫자)는 반대로 판을 걷었다 — **읽는 것은 방 위에,
+   누르는 것은 판 위에.** 그 둘이 갈리는 게 이 화면의 규칙이다.
+   아이콘은 이모지가 아니라 직접 그린 SVG 다(skin.js 의 P).
+   ============================================================ */
+body.eerie #app.tabbar #colTabs{position:fixed;left:0;right:0;bottom:0;height:auto;
+  background:var(--ui-ground);border:0;z-index:7;
+  box-shadow:0 -4px 18px rgba(74,55,40,.20);
+  padding:10px 10px calc(var(--safeb) + 10px);gap:8px;align-items:stretch}
+/* **사무실 화면에서는 그 판을 걷는다.** 방이 화면 전부인 화면에서 아래에 띠를 두면
+   방이 그 띠 위에서 끊기고, 「방을 보는 화면」이 「방과 메뉴가 있는 화면」이 된다.
+   패널(결재함·직원·비품·사보)에서는 판이 남는다 — 거기서는 바닥이 이미 크림이라
+   띠가 따로 보이지 않고, 목록의 마지막 줄이 단추 밑으로 숨는 것만 막아 준다. */
+body.eerie #app.tabbar[data-col="stage"] #colTabs{background:transparent;box-shadow:none;
+  padding:0 10px calc(var(--safeb) + 12px)}
+body.eerie #app.tabbar[data-col="stage"] #colTabs button{box-shadow:var(--ui-lift)}
+body.eerie #app.tabbar #colTabs button{flex:1;border:0;margin:0;border-radius:14px;
+  background:var(--ui-paper);color:var(--ui-navink);box-shadow:var(--ui-cardlift);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:4px;padding:11px 2px 9px;transition:transform .12s,background-color .18s,color .18s}
+body.eerie #app.tabbar #colTabs button > span{display:flex;align-items:center;justify-content:center;
+  width:24px;height:24px;font-size:21px;line-height:1;color:var(--ui-navink)}
+body.eerie #app.tabbar #colTabs button > span svg{display:block;width:24px;height:24px;fill:currentColor}
+body.eerie #app.tabbar #colTabs button > b{font-size:10.5px;font-weight:700;letter-spacing:-.2px}
+body.eerie #app.tabbar #colTabs button:active{transform:translateY(2px)}
+body.eerie #app.tabbar #colTabs button.on{background:var(--ui-on);color:var(--ui-onink);
+  box-shadow:0 8px 20px rgba(90,66,42,.34)}
+body.eerie #app.tabbar #colTabs button.on > span,
+body.eerie #app.tabbar #colTabs button.on > b{color:var(--ui-onink)}
+body.eerie #app.tabbar #colTabs button > i{top:9px;right:calc(50% - 23px);background:#C4243C;
+  box-shadow:0 0 0 2px var(--ui-nav)}
+
+/* ============================================================
+   패널 넷 — 바닥까지 내려가고, 마지막 카드가 버튼 밑으로 안 숨게 자리를 비운다
+   ============================================================ */
+body.eerie #app.tabbar .panel{background:var(--ui-ground);border:0;box-shadow:none;bottom:0;z-index:4}
+body.eerie #app.tabbar .pb{padding:11px 12px calc(var(--navh) + var(--safeb) + 14px)}
+body.eerie #app.tabbar #panelInbox .ph{background:transparent;border:0;padding:10px 14px 0;color:var(--ui-ink)}
+body.eerie #app.tabbar #panelInbox .ph h2{color:var(--ui-ink)}
+body.eerie #app.tabbar #panelInbox .ph .sub{color:var(--ui-soft)}
+
+body.eerie #app.tabbar .addbox{background:var(--ui-paper);border:0;border-radius:18px;margin:10px 12px 0;
+  box-shadow:var(--ui-cardlift)}
+body.eerie #app.tabbar #todoInput{background:var(--ui-sunk);border:0;border-radius:12px;color:var(--ui-ink)}
+body.eerie #app.tabbar .size{border:0;border-radius:12px;background:var(--ui-sunk);color:var(--ui-soft)}
+body.eerie #app.tabbar .size b{color:var(--ui-ink)}
+body.eerie #app.tabbar .size.on{background:#FBEBD6;color:#8A5A22;box-shadow:inset 0 0 0 2px var(--ui-accent)}
+body.eerie #app.tabbar .size.on b{color:#8A5A22}
+body.eerie #app.tabbar .addbtn{border-radius:12px;box-shadow:none;background:var(--ui-accent);color:var(--ui-accentink)}
+
+body.eerie #app.tabbar .todo,body.eerie #app.tabbar .card{border:0;border-radius:16px;
+  background:var(--ui-paper);box-shadow:var(--ui-cardlift);color:var(--ui-ink)}
+body.eerie #app.tabbar .todo .txt,body.eerie #app.tabbar .card b{color:var(--ui-ink)}
+body.eerie #app.tabbar .todo .meta,body.eerie #app.tabbar .card span,
+body.eerie #app.tabbar .hint,body.eerie #app.tabbar .empty{color:var(--ui-soft)}
+body.eerie #app.tabbar .todo .chk{border:0;border-radius:10px;background:var(--ui-sunk);box-shadow:none;color:#BFAE99}
+/* 잠긴 줄 — **종이가 아니다.** 크림 카드로 두면 격자의 칸들과 같은 재질이라
+   목록의 마지막 물건처럼 보였다(실제로 마지막 칸 줄에 딱 붙어 있었다).
+   파인 판 + 점선으로 「아직 없는 자리」라고 말하고, 격자와 사이를 띄운다. */
+body.eerie #app.tabbar .card.lockedrow{background:var(--ui-sunk);box-shadow:none;
+  border:1.5px dashed rgba(74,59,46,.24);border-radius:16px;opacity:1;margin-top:18px}
+body.eerie #app.tabbar .card.lockedrow .em{background:var(--ui-paper);color:var(--ui-soft)}
+body.eerie #app.tabbar .card.lockedrow b{color:var(--ui-soft)}
+/* 가구 카탈로그 — 폰에서는 칸도 크림 종이다 */
+body.eerie #app.tabbar .fcell{border:0;border-radius:14px;background:var(--ui-paper);
+  box-shadow:var(--ui-cardlift);padding:10px 5px 9px}
+body.eerie #app.tabbar .fcell b{color:var(--ui-ink)}
+body.eerie #app.tabbar .fcell .fcost,
+body.eerie #app.tabbar .fcell .fdesc{color:var(--ui-soft)}
+body.eerie #app.tabbar .fcell.has{background:var(--ui-paper);
+  box-shadow:var(--ui-cardlift),inset 0 0 0 1.5px #A8CFBC}
+body.eerie #app.tabbar .fcell .fn{background:var(--ui-accent);color:var(--ui-accentink)}
+body.eerie #app.tabbar .furnhead b{color:var(--ui-ink)}
+body.eerie #app.tabbar .furnhead span,body.eerie #app.tabbar .furncat{color:var(--ui-soft)}
+body.eerie #app.tabbar .todo.done{background:#F6F1E7}
+body.eerie #app.tabbar .todo.done .chk{background:var(--ui-on);color:var(--ui-onink)}
+body.eerie #app.tabbar .todo.overdue{background:#FDF3F2;box-shadow:var(--ui-cardlift),inset 0 0 0 1px rgba(196,36,60,.35)}
+body.eerie #app.tabbar .chkhint{border-radius:14px;border-style:solid;border-color:#CFE7DC;
+  background:#EAF6F0;color:#2F7A64}
+body.eerie #app.tabbar .chkhint b{color:#1F6B57}
+
+/* 손가락이 닿는 것들 — 하드 섀도(0 3px 0)는 도트판 시절의 입체감이라 여기선 걷는다 */
+body.eerie #app.tabbar .buy{border-radius:13px;padding:9px 14px;box-shadow:none;background:#E9B84A;color:#4A3418}
+body.eerie #app.tabbar .buy.alt{background:#8FD0BC;color:#12503F;box-shadow:none}
+body.eerie #app.tabbar .buy[disabled]{background:#E4DBCC;color:#A2917E;box-shadow:none}
+body.eerie #app.tabbar .buy:active{transform:scale(.97);box-shadow:none}
+
+/* 사보 — 왼쪽 색 막대만 있는 글줄이었다. 다른 넷과 같은 문법(카드)으로 맞춘다 */
+body.eerie #app.tabbar .chatline{background:var(--ui-paper);border-radius:14px;border-left-width:4px;
+  padding:10px 13px;margin-bottom:8px;font-size:12px;color:var(--ui-soft);box-shadow:var(--ui-cardlift)}
+body.eerie #app.tabbar .chatline b{color:var(--ui-ink)}
+body.eerie #app.tabbar .chatline.bad{background:#FDF3F2}
+body.eerie #app.tabbar .chatline.big{background:#FCF5E6}
+body.eerie #app.tabbar .empty{padding:24px 12px}
+
+/* SVG 아이콘 자리 — 이모지가 있던 칸이라 크기를 다시 준다(skin.js 가 채운다) */
+body.eerie #app.tabbar .stat .ico{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;color:var(--ui-ink)}
+body.eerie #app.tabbar .stat .ico svg{display:block;width:17px;height:17px;fill:currentColor}
+body.eerie #app.tabbar .stat.pen .ico{color:#C4243C}
+body.eerie #app.tabbar .stagefoot .kv{display:inline-flex;align-items:center;gap:5px}
+body.eerie #app.tabbar .stagefoot .kv svg{display:block;width:14px;height:14px;fill:currentColor;color:var(--ui-glasssoft);flex:none}
+body.eerie #app.tabbar .cambtn svg{width:19px;height:19px;fill:currentColor}
+body.eerie #app.tabbar .stagecard .em svg{display:block;width:22px;height:22px;fill:currentColor;color:var(--ui-ink)}
+
+/* ── 밝은 판으로 뒤집으면서 어두운 판 값이 남은 자리들 ──
+   eerie 는 이 글자·칩들을 **어두운 종이 위**를 가정하고 칠해 뒀다. 종이가 밝아졌으니
+   같은 값이 이제 「흰 종이에 흰 글자」가 된다. 눈에 띄는 것만 되돌린다. */
+body.eerie #app.tabbar .stagefoot .kv b{color:var(--ui-glassink)}
+body.eerie #app.tabbar .stagefoot .kv span{color:var(--ui-glasssoft)}
+body.eerie #app.tabbar .stagecard .em{color:var(--ui-ink)}
+/* 크기 칩(작음·보통·큼) — 어두운 판에서는 짙은 칩에 밝은 글자였다 */
+body.eerie #app.tabbar .todo .tag{background:var(--ui-sunk);color:var(--ui-soft);border-radius:6px}
+body.eerie #app.tabbar .todo .tag.m{background:#F3E7D3;color:#8A6A2E}
+body.eerie #app.tabbar .todo .tag.l{background:#F6E0D2;color:#9A5A32}
+/* 직원 카드의 욕구 이름 · 사규 안내문 */
+body.eerie #app.tabbar .card .nlbl,
+body.eerie #app.tabbar .card small,
+body.eerie #app.tabbar .card .sub{color:var(--ui-soft)}
+
+/* 패널(결재함·직원·비품·사보)에서는 뒤가 무대가 아니라 크림 바닥이다.
+   같은 그림자를 쓰면 종이 위에 종이가 붕 떠 보인다 — 그 화면에서만 낮춘다. */
+body.eerie #app.tabbar:not([data-col="stage"]) .stat,
+body.eerie #app.tabbar:not([data-col="stage"]) .iconbtn,
+body.eerie #app.tabbar:not([data-col="stage"]) #btnMore{box-shadow:var(--ui-cardlift)}
+
+/* ============================================================
+   직원 탭 — 도감 (구조는 skin.js 의 renderStaff)
+
+   목록이 아니라 **선택된 하나 + 격자**다. 원본 카드는 감춰 두고(.dexsrc) 그 위에 짓는다.
+   ============================================================ */
+body.eerie #app.tabbar #rightBody > .dexsrc{display:none}
+
+/* ── 선택된 하나 — **판이 없다.** 카드에 담으면 도감의 표본이 아니라 목록의 첫 줄이 된다.
+   초상은 배경 없이 크림 바닥 위에 그대로 서고, 옆에 이름·성향·능력치만 붙는다. ── */
+body.eerie #app.tabbar .dexhero{display:flex;gap:14px;align-items:center;
+  background:transparent;box-shadow:none;padding:6px 4px 2px}
+body.eerie #app.tabbar .dexstage{position:relative;flex:0 0 auto;width:112px;height:112px;
+  display:flex;align-items:flex-end;justify-content:center}
+body.eerie #app.tabbar .dexstage .pix{position:relative;image-rendering:pixelated;
+  filter:drop-shadow(0 6px 8px rgba(74,55,40,.22))}
+
+body.eerie #app.tabbar .dexinfo{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+body.eerie #app.tabbar .dextop{display:flex;align-items:center;gap:6px}
+body.eerie #app.tabbar .dextrait{background:var(--ui-accent);color:var(--ui-accentink);
+  font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:7px}
+body.eerie #app.tabbar .dexrank{font-size:11px;color:var(--ui-soft)}
+/* 이름은 현판처럼 — 도감의 주인공이 누구인지 한 줄로 말한다 */
+body.eerie #app.tabbar .dexname{align-self:flex-start;background:var(--ui-on);color:var(--ui-onink);
+  font-size:15px;font-weight:700;padding:4px 14px;border-radius:8px;letter-spacing:.3px}
+body.eerie #app.tabbar .dexdesc{font-size:11px;color:var(--ui-soft)}
+/* 능력치는 **옆에** 선다 — 이름 밑의 한 줄 글이 아니라 칸 셋이다 */
+body.eerie #app.tabbar .dexchips{display:flex;gap:6px;flex-wrap:wrap}
+body.eerie #app.tabbar .dexchip{display:inline-flex;align-items:baseline;gap:4px;
+  background:var(--ui-paper);box-shadow:var(--ui-cardlift);border-radius:9px;padding:4px 9px;
+  font-size:12.5px;font-weight:700;color:var(--ui-ink)}
+body.eerie #app.tabbar .dexchip b{font-size:10px;font-weight:700;color:var(--ui-soft)}
+/* 꾸미기 입구 — 능력치 칩과 같은 줄에 서지만 **누르는 것**이라 갈색으로 채운다.
+   폰에는 인사 파일 모달이 없어서, 이 단추가 그 화면으로 가는 유일한 길이다. */
+body.eerie #app.tabbar .dexdeco{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;
+  background:var(--ui-on);color:var(--ui-onink);border:0;border-radius:9px;
+  padding:6px 12px;font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+body.eerie #app.tabbar .dexdeco i{width:14px;height:14px;display:inline-block}
+body.eerie #app.tabbar .dexdeco svg{width:14px;height:14px;fill:currentColor}
+
+/* ============================================================
+   인사 게시판 — 코르크판
+
+   카드만 크림 바닥에 놓았더니 「카드가 두 줄로 있다」 였지 게시판이 아니었다.
+   게시판이 되려면 셋이 필요하다:
+     1) **판이 있어야 한다** — 종이와 다른 재질. 코르크색에 잔점 두 겹으로 결을 만든다
+     2) **삐뚤어야 한다** — 손으로 꽂은 것은 수평이 안 맞는다. 홀짝으로 1도씩 어긋낸다
+     3) **압정이 진짜여야 한다** — 납작한 점이 아니라 빛 받는 돔 + 아래로 지는 그림자
+   고른 카드만 반듯하게 서고 살짝 떠오른다 — 집어 든 것처럼.
+   ============================================================ */
+/* **코르크를 걷었다.** 게시판 재질로 한 판 갔었는데(나무 테 + 잔점 + 압정 + 기울기),
+   레퍼런스는 같은 자리에 종이 판 하나다. 재질로 말하는 대신 **테두리와 여백으로**
+   말한다 — 갈래가 하나 늘 때마다 화면에 재질이 하나 늘면 방보다 UI 가 시끄러워진다. */
+body.eerie #app.tabbar .dexboard{position:relative;margin-top:14px;padding:38px 12px 14px;
+  border-radius:18px;border:0;background:var(--ui-paper);box-shadow:var(--ui-cardlift)}
+body.eerie #app.tabbar .dexlabel{position:absolute;left:15px;top:13px;z-index:2;
+  background:none;color:var(--ui-soft);font-size:11.5px;font-weight:700;letter-spacing:2px;
+  padding:0;border-radius:0;transform:none;box-shadow:none}
+body.eerie #app.tabbar .dexplaque{position:absolute;right:15px;top:11px;z-index:2;
+  display:inline-flex;align-items:baseline;gap:7px;margin:0;
+  background:none;border-radius:0;padding:0;transform:none;box-shadow:none}
+body.eerie #app.tabbar .dexplaque b{font-size:11px;color:var(--ui-soft);font-weight:700;letter-spacing:2px}
+body.eerie #app.tabbar .dexplaque span{font-size:13px;font-weight:700;color:var(--ui-ink)}
+
+/* ── 판에 꽂힌 카드들 ── */
+body.eerie #app.tabbar .dexlist{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;
+  padding-top:0}
+body.eerie #app.tabbar .dexcard{position:relative;display:flex;flex-direction:column;gap:7px;
+  background:var(--ui-paper);border-radius:14px;padding:11px 10px;
+  border:1.5px solid rgba(74,59,46,.15);box-shadow:none;cursor:pointer;
+  transition:transform .14s,border-color .14s}
+/* 압정과 기울기는 코르크와 같이 나갔다 — 재질이 없으면 「꽂혀 있다」가 말이 안 된다 */
+body.eerie #app.tabbar .dexcard .pin{display:none}
+body.eerie #app.tabbar .dexcard:active{transform:translateY(2px)}
+body.eerie #app.tabbar .dexcard.on{box-shadow:none;border-color:var(--ui-on)}
+body.eerie #app.tabbar .dexcpic{height:76px;border-radius:2px;background:var(--ui-sunk);
+  display:flex;align-items:flex-end;justify-content:center;padding-bottom:2px}
+body.eerie #app.tabbar .dexcpic .pix{image-rendering:pixelated}
+body.eerie #app.tabbar .dexcname{display:flex;align-items:baseline;justify-content:space-between;gap:6px}
+body.eerie #app.tabbar .dexcname b{font-size:13.5px;color:var(--ui-ink)}
+body.eerie #app.tabbar .dexcname span{font-size:10.5px;color:var(--ui-soft)}
+body.eerie #app.tabbar .dexcneeds .needs{margin:0}
+/* 값이 크면(「내 몫 인상 🐟1,150」) 단추가 카드를 뚫고 나갔다 — 줄바꿈을 허락해서
+   긴 단추는 제 줄을 통째로 쓰게 하고, 단추 안에서도 글이 접히게 한다. */
+body.eerie #app.tabbar .dexcfoot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px}
+body.eerie #app.tabbar .dexcrate{font-size:11px;color:var(--ui-ink);white-space:nowrap}
+body.eerie #app.tabbar .dexcact{min-width:0;max-width:100%;margin-left:auto}
+body.eerie #app.tabbar .dexcact .buy{padding:6px 9px;font-size:10.5px;border-radius:9px;
+  white-space:normal;line-height:1.3;max-width:100%;text-align:center}
+body.eerie #app.tabbar .dexcact .maxrank{font-size:10px;color:var(--ui-soft)}
+
+/* 빈 자리 · 채용 칸은 **판이 그대로 보인다** — 종이가 안 꽂힌 자리라는 뜻이다.
+   크림 바닥일 때는 점선 안이 바닥과 같은 색이라 「??」 만 떠 있었는데,
+   코르크 위에서는 비어 있음이 그 자체로 읽힌다. */
+body.eerie #app.tabbar .dexcard.empty,
+body.eerie #app.tabbar .dexcard.hire{align-items:center;justify-content:center;min-height:150px;
+  /* 판이 밝아졌으니 선도 어두운 쪽으로 되돌린다(코르크 시절에는 밝은 점선이었다) */
+  gap:4px;box-shadow:none;background:transparent;
+  border:1.5px dashed rgba(74,59,46,.26)}
+body.eerie #app.tabbar .dexcard.empty .q{font-size:19px;font-weight:700;color:#C4B49E}
+/* 채용 칸은 **누를 수 있는 자리**다 — 빈 자리와 달리 갈색 점선에 갈색 글자 */
+body.eerie #app.tabbar .dexcard.hire{background:transparent;
+  border:1.5px dashed rgba(138,106,74,.42);border-radius:14px;
+  color:var(--ui-on);font-size:12px;font-weight:700;box-shadow:none}
+body.eerie #app.tabbar .dexcard.hire .plus{font-size:30px;line-height:1;font-weight:400}
+/* 살 돈이 모자란 상태. **투명도로 죽이지 않는다** — .55 로 두니 코르크가 비쳐서
+   종이가 아니라 얼룩으로 보였다. 종이는 그대로 두고 글자만 흐리게 한다. */
+body.eerie #app.tabbar .dexcard.hire.dim{border-color:rgba(74,59,46,.22);color:#A8937A}
+
+/* SVG 아이콘 자리 — 이모지가 있던 칸이라 크기를 다시 준다(skin.js 가 채운다) */
+body.eerie #app.tabbar .stat .ico{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;color:var(--ui-ink)}
+body.eerie #app.tabbar .stat .ico svg{display:block;width:17px;height:17px;fill:currentColor}
+body.eerie #app.tabbar .stat.pen .ico{color:#C4243C}
+body.eerie #app.tabbar .stagefoot .kv{display:inline-flex;align-items:center;gap:5px}
+body.eerie #app.tabbar .stagefoot .kv svg{display:block;width:14px;height:14px;fill:currentColor;color:var(--ui-glasssoft);flex:none}
+body.eerie #app.tabbar .cambtn svg{width:19px;height:19px;fill:currentColor}
+body.eerie #app.tabbar .stagecard .em svg{display:block;width:22px;height:22px;fill:currentColor;color:var(--ui-ink)}
+
+/* ── 밝은 판으로 뒤집으면서 어두운 판 값이 남은 자리들 ──
+   eerie 는 이 글자·칩들을 **어두운 종이 위**를 가정하고 칠해 뒀다. 종이가 밝아졌으니
+   같은 값이 이제 「흰 종이에 흰 글자」가 된다. 눈에 띄는 것만 되돌린다. */
+body.eerie #app.tabbar .stagefoot .kv b{color:var(--ui-glassink)}
+body.eerie #app.tabbar .stagefoot .kv span{color:var(--ui-glasssoft)}
+body.eerie #app.tabbar .stagecard .em{color:var(--ui-ink)}
+/* 크기 칩(작음·보통·큼) — 어두운 판에서는 짙은 칩에 밝은 글자였다 */
+body.eerie #app.tabbar .todo .tag{background:var(--ui-sunk);color:var(--ui-soft);border-radius:6px}
+body.eerie #app.tabbar .todo .tag.m{background:#F3E7D3;color:#8A6A2E}
+body.eerie #app.tabbar .todo .tag.l{background:#F6E0D2;color:#9A5A32}
+/* 직원 카드의 욕구 이름 · 사규 안내문 */
+body.eerie #app.tabbar .card .nlbl,
+body.eerie #app.tabbar .card small,
+body.eerie #app.tabbar .card .sub{color:var(--ui-soft)}
+
+/* 패널(결재함·직원·비품·사보)에서는 뒤가 무대가 아니라 크림 바닥이다.
+   같은 그림자를 쓰면 종이 위에 종이가 붕 떠 보인다 — 그 화면에서만 낮춘다. */
+body.eerie #app.tabbar:not([data-col="stage"]) .stat,
+body.eerie #app.tabbar:not([data-col="stage"]) .iconbtn,
+body.eerie #app.tabbar:not([data-col="stage"]) #btnMore{box-shadow:var(--ui-cardlift)}
+
+/* ============================================================
+   직원 탭 — 도감 (구조는 skin.js 의 renderStaff)
+
+   목록이 아니라 **선택된 하나 + 격자**다. 원본 카드는 감춰 두고(.dexsrc) 그 위에 짓는다.
+   ============================================================ */
+body.eerie #app.tabbar #rightBody > .dexsrc{display:none}
+
+/* ── 선택된 하나 — **판이 없다.** 카드에 담으면 도감의 표본이 아니라 목록의 첫 줄이 된다.
+   초상은 배경 없이 크림 바닥 위에 그대로 서고, 옆에 이름·성향·능력치만 붙는다. ── */
+body.eerie #app.tabbar .dexhero{display:flex;gap:14px;align-items:center;
+  background:transparent;box-shadow:none;padding:6px 4px 2px}
+body.eerie #app.tabbar .dexstage{position:relative;flex:0 0 auto;width:112px;height:112px;
+  display:flex;align-items:flex-end;justify-content:center}
+body.eerie #app.tabbar .dexstage .pix{position:relative;image-rendering:pixelated;
+  filter:drop-shadow(0 6px 8px rgba(74,55,40,.22))}
+
+body.eerie #app.tabbar .dexinfo{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+body.eerie #app.tabbar .dextop{display:flex;align-items:center;gap:6px}
+body.eerie #app.tabbar .dextrait{background:var(--ui-accent);color:var(--ui-accentink);
+  font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:7px}
+body.eerie #app.tabbar .dexrank{font-size:11px;color:var(--ui-soft)}
+/* 이름은 현판처럼 — 도감의 주인공이 누구인지 한 줄로 말한다 */
+body.eerie #app.tabbar .dexname{align-self:flex-start;background:var(--ui-on);color:var(--ui-onink);
+  font-size:15px;font-weight:700;padding:4px 14px;border-radius:8px;letter-spacing:.3px}
+body.eerie #app.tabbar .dexdesc{font-size:11px;color:var(--ui-soft)}
+/* 능력치는 **옆에** 선다 — 이름 밑의 한 줄 글이 아니라 칸 셋이다 */
+body.eerie #app.tabbar .dexchips{display:flex;gap:6px;flex-wrap:wrap}
+body.eerie #app.tabbar .dexchip{display:inline-flex;align-items:baseline;gap:4px;
+  background:var(--ui-paper);box-shadow:var(--ui-cardlift);border-radius:9px;padding:4px 9px;
+  font-size:12.5px;font-weight:700;color:var(--ui-ink)}
+body.eerie #app.tabbar .dexchip b{font-size:10px;font-weight:700;color:var(--ui-soft)}
+
+
+/* ============================================================
+   배치 · 인테리어 시트 (구조는 skin.js 의 5번 절)
+
+   레퍼런스의 판을 폰으로 옮기면 **왼쪽 목록 + 오른쪽 방**이 아니라
+   **아래 시트 + 위 방**이 된다. 방향만 바뀌고 규칙은 같다 —
+   고르는 동안 방이 보여야 한다. 그래서 시트는 화면의 절반을 안 넘는다.
+   ============================================================ */
+body.eerie #app.tabbar .deco{position:fixed;left:0;right:0;bottom:0;z-index:9;
+  display:flex;flex-direction:column;
+  /* **내용만큼만 높다.** 고정 높이(56vh)로 뒀더니 벽지·바닥·러그에서 아래에 빈 칸이
+     남았다 — 한 줄 목록 + 고른 줄이면 그 높이가 안 필요하다. 상한만 남긴다. */
+  height:auto;max-height:min(62vh,470px);padding-bottom:var(--safeb);
+  background:var(--ui-ground);border-radius:22px 22px 0 0;
+  box-shadow:0 -10px 30px rgba(74,55,40,.28);
+  transform:translateY(105%);transition:transform .26s cubic-bezier(.22,.8,.3,1);
+  pointer-events:none}
+body.eerie #app.tabbar.decoon .deco{transform:none;pointer-events:auto}
+/* 시트가 올라오면 아래 단추 다섯은 내려간다 — 둘이 겹치면 어느 쪽을 누르는지 모른다 */
+body.eerie #app.tabbar.decoon #colTabs{transform:translateY(120%);pointer-events:none;
+  transition:transform .26s cubic-bezier(.22,.8,.3,1)}
+body.eerie #app.tabbar.decoon .stagecard{opacity:0;pointer-events:none;transition:opacity .2s}
+
+/* 갈래 넷 — 레퍼런스의 왼쪽 레일을 눕힌 것 */
+body.eerie #app.tabbar .decohead{display:flex;align-items:center;gap:8px;padding:12px 12px 8px}
+body.eerie #app.tabbar .decorail{display:flex;gap:7px;flex:1;min-width:0}
+body.eerie #app.tabbar .decorail button{flex:1;display:flex;flex-direction:column;align-items:center;
+  gap:3px;border:0;border-radius:13px;padding:8px 2px 7px;background:var(--ui-paper);
+  color:var(--ui-navink);box-shadow:var(--ui-cardlift);font:inherit;font-size:10.5px;font-weight:700}
+body.eerie #app.tabbar .decorail button svg{display:block;width:20px;height:20px;fill:currentColor}
+body.eerie #app.tabbar .decorail button.on{background:var(--ui-on);color:var(--ui-onink)}
+body.eerie #app.tabbar .decox{flex:0 0 auto;width:34px;height:34px;border:0;border-radius:50%;
+  background:var(--ui-paper);box-shadow:var(--ui-cardlift);color:var(--ui-soft);font-size:14px}
+
+body.eerie #app.tabbar .decobody{flex:1;min-height:0;overflow-y:auto;padding:2px 12px 10px;
+  -webkit-overflow-scrolling:touch}
+body.eerie #app.tabbar .decogrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+body.eerie #app.tabbar .decotile{display:flex;flex-direction:column;align-items:stretch;gap:3px;
+  border:0;border-radius:12px;padding:5px 5px 7px;background:var(--ui-paper);
+  box-shadow:var(--ui-cardlift);font:inherit;text-align:center;cursor:pointer}
+body.eerie #app.tabbar .decotile canvas{display:block;width:100%;height:auto;border-radius:8px}
+body.eerie #app.tabbar .decotile b{font-size:10.5px;color:var(--ui-ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.eerie #app.tabbar .decotile span{font-size:9.5px;color:var(--ui-soft)}
+/* 고른 것과 **지금 발라져 있는 것**은 다른 표시다 — 테두리와 점 */
+body.eerie #app.tabbar .decotile.sel{box-shadow:var(--ui-cardlift),inset 0 0 0 2.5px var(--ui-on)}
+body.eerie #app.tabbar .decotile.on{position:relative}
+body.eerie #app.tabbar .decotile.on::after{content:'';position:absolute;right:7px;top:7px;
+  width:9px;height:9px;border-radius:50%;background:var(--ui-accent);
+  box-shadow:0 0 0 2px var(--ui-paper)}
+
+/* 고른 것 한 장 — 레퍼런스의 「PLACE ITEM」 말풍선 */
+body.eerie #app.tabbar .decopick{display:none}
+body.eerie #app.tabbar .decopick.show{display:flex;align-items:center;gap:11px;margin:0 12px 12px;
+  padding:9px;border-radius:16px;background:var(--ui-paper);box-shadow:var(--ui-lift)}
+body.eerie #app.tabbar .decopick canvas{flex:0 0 auto;width:74px;height:auto;border-radius:9px}
+body.eerie #app.tabbar .decoinfo{flex:1;min-width:0}
+body.eerie #app.tabbar .decoinfo b{display:block;font-size:13px;color:var(--ui-ink)}
+body.eerie #app.tabbar .decoinfo span{display:block;font-size:10.5px;color:var(--ui-soft);line-height:1.45;margin-top:2px}
+body.eerie #app.tabbar .decoapply{flex:0 0 auto;border:0;border-radius:12px;padding:11px 16px;
+  background:var(--ui-on);color:var(--ui-onink);font:inherit;font-size:12.5px;font-weight:700}
+
+/* 가구 갈래는 목록이 아니라 **문 하나**다 — 고를 것이 방 안에 있다 */
+body.eerie #app.tabbar .decomove{background:var(--ui-paper);border-radius:16px;padding:14px;
+  box-shadow:var(--ui-cardlift)}
+body.eerie #app.tabbar .decomove p{margin:0 0 12px;font-size:12px;line-height:1.65;color:var(--ui-soft)}
+body.eerie #app.tabbar .decomove p b{color:var(--ui-ink)}
+body.eerie #app.tabbar .decogo{width:100%;border:0;border-radius:12px;padding:13px;
+  background:var(--ui-accent);color:var(--ui-accentink);font:inherit;font-size:13px;font-weight:700}
+body.eerie #app.tabbar .decogo.on{background:var(--ui-on);color:var(--ui-onink)}
+
+/* ── 사보 줄의 아이콘 칸 ── */
+body.eerie #app.tabbar .chatline{display:flex;align-items:flex-start;gap:10px;border-left-width:0;
+  padding:11px 13px}
+body.eerie #app.tabbar .logicon{flex:0 0 auto;width:30px;height:30px;border-radius:9px;
+  background:var(--ui-sunk);display:flex;align-items:center;justify-content:center;color:var(--ui-soft)}
+body.eerie #app.tabbar .logicon svg{display:block;width:17px;height:17px;fill:currentColor}
+body.eerie #app.tabbar .logtx{flex:1;min-width:0;line-height:1.55}
+body.eerie #app.tabbar .chatline.bad .logicon{background:#F6E2E0;color:#B4544C}
+body.eerie #app.tabbar .chatline.big .logicon{background:#F7EBD4;color:#9A7328}
+
+/* ── 자리 확장 — 아직 못 여는 칸. 빈 자리(점선 ??)와 **다른 말**이다:
+   저건 「비었다」, 이건 「없다」. 그래서 자물쇠를 달고 이유를 적는다. ── */
+body.eerie #app.tabbar .dexcard.grow{align-items:center;justify-content:center;text-align:center;
+  min-height:150px;gap:6px;padding:12px 10px;box-shadow:none;transform:none;cursor:default;
+  background:var(--ui-sunk);border:1.5px solid rgba(74,59,46,.10)}
+body.eerie #app.tabbar .dexcard.grow .lock{display:flex;color:#B6A48E}
+body.eerie #app.tabbar .dexcard.grow .lock svg{display:block;width:22px;height:22px;fill:currentColor}
+body.eerie #app.tabbar .dexcard.grow b{font-size:12.5px;color:var(--ui-soft)}
+
+/* ── 사원증 (js/cozy.js renderStaff) ──
+   도감의 큰 초상이 「서 있는 전신」이었는데, 골라 놓고 보는 그림은 증명사진이
+   맞다 — 정면 얼굴을 사진 칸에 담고, 목걸이 구멍과 사번으로 사원증을 만든다.
+   (등불색 띠 + 하늘색 배경지 판을 한 번 대 봤다가 되돌렸다 — 크림 한 벌이 낫다.) */
+body.eerie #app.tabbar .dexid{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;
+  gap:5px;background:var(--ui-paper);border-radius:12px;box-shadow:var(--ui-cardlift);
+  padding:7px 8px 6px}
+body.eerie #app.tabbar .dexid .idslot{width:26px;height:7px;border-radius:4px;background:var(--ui-sunk)}
+body.eerie #app.tabbar .dexid .idphoto{width:88px;height:88px;border-radius:8px;overflow:hidden;
+  background:var(--ui-sunk)}
+body.eerie #app.tabbar .dexid .idface{display:block;width:100%;height:100%;
+  background-size:150% 150%;background-position:50% 10%;background-repeat:no-repeat;
+  image-rendering:pixelated}
+body.eerie #app.tabbar .dexid .idno{font-size:8px;font-weight:800;letter-spacing:.7px;
+  color:var(--ui-soft)}
+body.eerie #app.tabbar .dexcard.grow .growhint{font-size:10px;line-height:1.45;color:#A9977F}
+
+
+/* ============================================================
+   사무실 화면 = **전부 유리**
+
+   여기까지 크롬을 네 번 갈았다: 크림 카드 → 맨 글자 → 시계만 유리 → 전부 유리.
+   레퍼런스를 확대해 보니 상단 칩도 사건 카드도 아래 단추도 카메라도 같은 유리였다.
+   섞여 있으면 「크림 카드 두 장과 유리 두 장이 있는 화면」이 되고, 그건 재질이
+   둘이라는 뜻이다 — 방 위에 얹는 층은 하나여야 한다.
+
+   **패널 넷(결재함·직원·비품·사보)은 크림 그대로다.** 저기는 뒤가 방이 아니라
+   크림 바닥이라 유리로 할 대상이 없다 — 유리는 「뒤에 방이 있을 때」만 뜻이 있다.
+
+   그래서 선택자가 전부 `[data-col="stage"]` 다.
+   ============================================================ */
+body.eerie #app.tabbar[data-col="stage"] .stat,
+body.eerie #app.tabbar[data-col="stage"] .iconbtn,
+body.eerie #app.tabbar[data-col="stage"] #btnMore,
+body.eerie #app.tabbar[data-col="stage"] .cambtn,
+body.eerie #app.tabbar[data-col="stage"] .stagecard.show,
+body.eerie #app.tabbar[data-col="stage"] #colTabs button{
+  background:var(--ui-glass);color:var(--ui-glassink);
+  backdrop-filter:var(--ui-blur);-webkit-backdrop-filter:var(--ui-blur);
+  box-shadow:var(--ui-glasslift),inset 0 0 0 1px var(--ui-glassline)}
+
+/* 상단 칩 */
+body.eerie #app.tabbar[data-col="stage"] .stat small{color:var(--ui-glasssoft)}
+body.eerie #app.tabbar[data-col="stage"] .stat .ico{color:var(--ui-glassink)}
+/* 혐의만 붉은데, 어두운 유리 위에서는 원래 붉은색이 검게 가라앉는다 — 한 단 올린다 */
+body.eerie #app.tabbar[data-col="stage"] .stat.pen .ico{color:#F09088}
+body.eerie #app.tabbar[data-col="stage"] .stat.pen b{color:#F09088}
+
+/* 사건 카드 */
+body.eerie #app.tabbar[data-col="stage"] .stagecard .info b{color:var(--ui-glassink)}
+body.eerie #app.tabbar[data-col="stage"] .stagecard .info span{color:var(--ui-glasssoft)}
+body.eerie #app.tabbar[data-col="stage"] .stagecard .em{background:var(--ui-glasssunk);color:var(--ui-glassink)}
+body.eerie #app.tabbar[data-col="stage"] .stagecard .em svg{color:var(--ui-glassink)}
+body.eerie #app.tabbar[data-col="stage"] .stagecard .bar{background:var(--ui-glasssunk)}
+
+/* 아래 단추 다섯 — 유리이고, **고른 것 하나만** 채워진다(색은 그대로 갈색) */
+body.eerie #app.tabbar[data-col="stage"] #colTabs button{color:var(--ui-glasssoft)}
+body.eerie #app.tabbar[data-col="stage"] #colTabs button > span{color:var(--ui-glassink)}
+body.eerie #app.tabbar[data-col="stage"] #colTabs button.on{background:var(--ui-on);color:var(--ui-onink);
+  box-shadow:0 8px 20px rgba(50,32,14,.42),inset 0 0 0 1px rgba(255,250,240,.20)}
+body.eerie #app.tabbar[data-col="stage"] #colTabs button.on > span,
+body.eerie #app.tabbar[data-col="stage"] #colTabs button.on > b{color:var(--ui-onink)}
+body.eerie #app.tabbar[data-col="stage"] #colTabs button > i{box-shadow:0 0 0 2px rgba(22,17,12,.85)}
+
+/* 카메라 — 켜지면 등불색으로 채워진다(유리에서 빠져나온다) */
+body.eerie #app.tabbar[data-col="stage"] .cambtn.on{background:var(--ui-accent);color:var(--ui-accentink);
+  box-shadow:var(--ui-glasslift)}
+
+/* 로고는 유리에 안 담는다 — 그 실루엣이 이 게임의 얼굴이라 판을 두면 죽는다 */
+
+
+/* ============================================================
+   레퍼런스 대조 (1-c/d/e · 2 · 3 · 4 · 5 · 6 · 7)
+
+   한 장씩 나란히 놓고 다른 곳만 고친 판. 유리(1-a)와 스크림(1-b)은 그대로 둔다 —
+   그 둘은 고르지 않으셨다.
+   ============================================================ */
+
+/* 1-c. 카메라 — 큰 등불색 원이었다. 레퍼런스는 **작은 흰 원**이고, 유리에서 빠진다:
+   이건 방을 보는 손잡이라 방 위에 얹힌 종이 쪽이 맞다. */
+body.eerie #app.tabbar[data-col="stage"] .cambtn{width:36px;height:36px;right:14px;
+  background:var(--ui-paper);color:var(--ui-ink);
+  backdrop-filter:none;-webkit-backdrop-filter:none;
+  box-shadow:var(--ui-lift)}
+body.eerie #app.tabbar[data-col="stage"] .cambtn svg{width:17px;height:17px}
+body.eerie #app.tabbar[data-col="stage"] .cambtn.on{background:var(--ui-accent);color:var(--ui-accentink)}
+
+/* 1-e. 하루 진행 막대 — 더 얇고 짧게 */
+body.eerie #app.tabbar .clockchip i{left:14px;bottom:7px;height:2px;border-radius:1px}
+
+/* ── 3. 결재함 ── */
+/* 크기 셋은 **떨어진 카드 세 장**이다. 붙은 한 덩어리는 「무엇을 고르는 칸」으로 읽히고,
+   떨어져 있으면 「세 장 중 하나」로 읽힌다 — 뒤쪽이 이 화면에서 하는 일에 맞다. */
+body.eerie #app.tabbar .sizes{gap:8px}
+body.eerie #app.tabbar .size{background:var(--ui-paper);box-shadow:var(--ui-cardlift);
+  border-radius:14px;padding:11px 4px 10px;color:var(--ui-soft)}
+body.eerie #app.tabbar .size.on{background:var(--ui-paper);color:var(--ui-on);
+  box-shadow:var(--ui-cardlift),inset 0 0 0 2px var(--ui-on)}
+body.eerie #app.tabbar .size.on b{color:var(--ui-on)}
+/* 상신은 **갈색**이다(등불색이 아니다) — 등불색은 「지금 켜져 있다」에 쓰고 있어서
+   가장 큰 버튼까지 그 색이면 무엇이 상태이고 무엇이 행동인지 흐려진다. */
+body.eerie #app.tabbar .addbtn{background:var(--ui-on);color:var(--ui-onink)}
+/* 힌트는 카드가 아니다 — 바닥에 얹힌 한 줄 */
+body.eerie #app.tabbar .chkhint{background:transparent;border:0;border-radius:0;
+  padding:4px 6px 2px;color:var(--ui-soft)}
+body.eerie #app.tabbar .chkhint b{color:var(--ui-ink)}
+/* 체크칸은 **동그라미**. 채워지기 전에는 테두리만 있고 표시가 없다 */
+body.eerie #app.tabbar .todo{padding:14px 13px}
+body.eerie #app.tabbar .todo .chk{border-radius:50%;background:transparent;color:transparent;
+  box-shadow:inset 0 0 0 2px rgba(74,59,46,.26)}
+/* 끝난 결재는 이 UI 에서 「고른 것」과 같은 상태다 — 고른 칸과 같은 갈색으로 말한다.
+   민트는 이 화면에서 유일한 초록이라, 혼자 다른 언어를 쓰고 있었다. */
+body.eerie #app.tabbar .todo.done .chk{background:var(--ui-on);color:var(--ui-onink);box-shadow:none}
+/* 누르는 중에도 초록으로 번지지 않게 — 기본 규칙의 hover 가 민트를 깐다 */
+body.eerie #app.tabbar .todo .chk:hover{background:var(--ui-sunk);color:transparent;
+  box-shadow:inset 0 0 0 2px rgba(74,59,46,.26)}
+body.eerie #app.tabbar .todo.done .chk:hover{background:var(--ui-on);color:var(--ui-onink);box-shadow:none}
+
+/* ── 4. 직원 ── */
+/* 큰 칸이 **카드 안**으로 돌아왔다. 배경 없이 뒀던 판이 있었는데, 그때는 아래가
+   코르크라 대비로 살았다. 아래가 흰 판이 된 뒤로는 위아래가 같은 색이라 큰 칸이
+   허공에 뜬다 — 카드가 있어야 「이 하나」가 된다. */
+body.eerie #app.tabbar .dexhero{background:var(--ui-paper);border-radius:20px;padding:14px;
+  box-shadow:var(--ui-cardlift);gap:12px}
+/* 이름은 현판이 아니라 **큰 글자**다 */
+body.eerie #app.tabbar .dexname{background:none;color:var(--ui-ink);padding:0;border-radius:0;
+  font-size:23px;letter-spacing:-.5px;line-height:1.1;margin:1px 0 1px}
+body.eerie #app.tabbar .dextrait{display:inline-flex;align-items:center;gap:4px}
+body.eerie #app.tabbar .dextrait svg{display:block;width:12px;height:12px;fill:currentColor}
+body.eerie #app.tabbar .dexdesc{font-size:12px}
+/* 이름표와 자리 현황은 **판 밖**, 크림 바닥에 아이콘과 함께 */
+body.eerie #app.tabbar .dexbhead{display:flex;align-items:center;justify-content:space-between;
+  padding:0 6px;margin:16px 0 8px}
+body.eerie #app.tabbar .dexlabel,
+body.eerie #app.tabbar .dexplaque{position:static;display:inline-flex;align-items:center;gap:6px;
+  background:none;box-shadow:none;padding:0;transform:none;border-radius:0}
+body.eerie #app.tabbar .dexlabel{color:var(--ui-ink);font-size:12.5px;font-weight:700;letter-spacing:1px}
+body.eerie #app.tabbar .dexlabel svg,
+body.eerie #app.tabbar .dexplaque svg{display:block;width:14px;height:14px;fill:currentColor;color:var(--ui-soft)}
+body.eerie #app.tabbar .dexplaque b{font-size:11.5px;color:var(--ui-soft);letter-spacing:0}
+body.eerie #app.tabbar .dexplaque span{font-size:12.5px;color:var(--ui-ink)}
+body.eerie #app.tabbar .dexboard{margin-top:0;padding:12px;border-radius:18px}
+/* 욕구 막대는 **2열**. 한 줄에 넷이면 폰 폭에서 이름이 잘린다(「화장실」이 「화장…」) */
+body.eerie #app.tabbar .dexcneeds .needs{display:grid;grid-template-columns:1fr 1fr;gap:7px 10px}
+/* 면접·자리 확장도 **흰 카드**다 — 점선은 「없는 자리」였고, 이 둘은 눌리는 자리다 */
+body.eerie #app.tabbar .dexcard.hire{background:var(--ui-paper);border:0;
+  box-shadow:0 2px 8px rgba(74,55,40,.10);color:var(--ui-on)}
+body.eerie #app.tabbar .dexcard.hire.dim{color:#B5A08A}
+body.eerie #app.tabbar .dexcard.grow{background:var(--ui-paper);border:0;
+  box-shadow:0 2px 8px rgba(74,55,40,.10)}
+body.eerie #app.tabbar .dexcard.grow b{color:var(--ui-ink)}
+body.eerie #app.tabbar .dexcard.grow .lock{color:var(--ui-soft)}
+/* 값이 붙던 자리 — 이 게임에는 자리를 사는 길이 없어서 **분기 조건**이 온다 */
+body.eerie #app.tabbar .dexcard.grow .growchip{display:inline-flex;align-items:center;
+  background:var(--ui-sunk);border-radius:10px;padding:4px 10px;
+  font-size:11px;font-weight:700;color:var(--ui-soft)}
+
+/* ── 5. 비품 · 7. 테두리 없애기 ── */
+/* 아이콘은 **원 안**에 든다. 이모지가 글자 크기로 줄에 섞여 있으면 목록이 문장처럼
+   보이는데, 원이 있으면 「물건 목록」이 된다. */
+body.eerie #app.tabbar .card .crow > .em{flex:0 0 auto;width:38px;height:38px;border-radius:50%;
+  background:var(--ui-sunk);display:flex;align-items:center;justify-content:center;font-size:19px}
+/* 값은 채운 버튼이 아니라 **연한 알약**이다 */
+body.eerie #app.tabbar .buy{background:var(--ui-sunk);color:var(--ui-on);box-shadow:none;
+  border-radius:11px;font-weight:700}
+body.eerie #app.tabbar .buy.alt{background:#E4F0EA;color:#2F7A64}
+body.eerie #app.tabbar .buy[disabled]{background:var(--ui-sunk);color:#BFAE99}
+/* 카드에서 테두리를 걷는다 — 레퍼런스는 그림자만 있다 */
+body.eerie #app.tabbar .dexcard{border:0;box-shadow:0 2px 8px rgba(74,55,40,.10)}
+body.eerie #app.tabbar .dexcard.on{box-shadow:0 2px 8px rgba(74,55,40,.10),inset 0 0 0 2px var(--ui-on)}
+
+/* ── 6. 사보 — 원 아이콘 + 제목/설명 두 줄 ── */
+body.eerie #app.tabbar .logicon{border-radius:50%;width:34px;height:34px}
+body.eerie #app.tabbar .logh{display:block;font-weight:700;font-size:12.5px;color:var(--ui-ink);
+  line-height:1.45}
+body.eerie #app.tabbar .logd{display:block;font-size:11.5px;color:var(--ui-soft);
+  line-height:1.5;margin-top:2px}
+body.eerie #app.tabbar .logh b{font-weight:800}
+
+/* ── 망치 = 배치 모드 ──
+   열려 있는 동안 등불색으로 채워진다. 이 게임에서 등불색은 「지금 켜져 있다」에만
+   쓰는 색이고, 배치 모드는 정확히 그 종류의 상태다. */
+body.eerie #app.tabbar .decobtn.on,
+body.eerie #app.tabbar[data-col="stage"] .decobtn.on{background:var(--ui-accent);
+  color:var(--ui-accentink);backdrop-filter:none;-webkit-backdrop-filter:none;
+  box-shadow:var(--ui-lift)}
+/* 가구 갈래는 글 한 단락과 단추 하나뿐이다 — 시트가 화면의 절반을 먹을 이유가 없다.
+   **방을 봐야 가구를 옮긴다.** 그래서 이 갈래에서만 높이를 내용에 맞춘다. */
+/* (갈래마다 높이를 따로 주던 줄은 위의 height:auto 로 흡수됐다) */
+
+/* ============================================================
+   하단 탭 재편 · 배치 HUD · 가구(비품) 목록
+   ============================================================ */
+
+/* ── 배치 HUD — 고른 가구 위에 뜬다 ── */
+/* ── 손잡이(✓ ↻ ✕) ──
+   고른 가구 **위에** 말풍선처럼 띄워 뒀었다. 한 칸씩 미는 조작이 생기고 나니 물건이
+   갈 때마다 손잡이가 같이 행진해서, 누르는 사람 눈에는 화면이 통째로 움직이는 것으로
+   보였다. 조작은 한자리에 있고 **움직이는 것은 물건뿐**이어야 한다.
+   그래서 D패드 **바로 위**에 세워 둔다(같은 --decoh 기준). 꼬리도 뗐다 —
+   가리킬 대상이 없는 자리에서 꼬리는 아무 데도 안 가리킨다. */
+body.eerie #app.tabbar .edithud{position:fixed;z-index:8;display:none;gap:2px;
+  transform:translate(-50%,-100%);padding:4px;border-radius:14px;
+  background:var(--ui-paper);box-shadow:var(--ui-lift)}
+/* 말풍선 꼬리 — 어느 가구를 잡고 있는지가 이 삼각형 하나로 말해진다 */
+body.eerie #app.tabbar .edithud::after{content:'';position:absolute;left:50%;bottom:-6px;
+  margin-left:-6px;width:12px;height:12px;background:var(--ui-paper);
+  transform:rotate(45deg);border-radius:2px}
+body.eerie #app.tabbar .edithud.show{display:flex}
+body.eerie #app.tabbar .edithud button{position:relative;z-index:1;width:38px;height:38px;border:0;
+  border-radius:11px;background:transparent;color:var(--ui-ink);font:inherit;font-size:15px;
+  display:flex;align-items:center;justify-content:center}
+body.eerie #app.tabbar .edithud button svg{display:block;width:19px;height:19px;fill:currentColor}
+body.eerie #app.tabbar .edithud button:active{background:var(--ui-sunk)}
+body.eerie #app.tabbar .edithud [data-k="esc"]{color:var(--ui-soft)}
+
+/* ── 미리보기 — UI 를 잠깐 걷는다 ── */
+/* ── 택배 단추 ── (TODO 57)
+   문 줄(달력·게시판·음악)에 끼워 뒀다가 **따로 뺐다.** 그 셋은 「방을 만지는 문」이고
+   택배는 **도착하는 것**이라 위계가 다르다. 왼쪽 아래, 분기 안내 카드 바로 위에 선다.
+
+   94px 는 그 카드의 높이(73)와 사이 여백을 더한 값이다. 카드는 두 줄짜리 고정 판이라
+   이 값이 흔들리지 않는다 — 카드가 세 줄이 되는 날이 오면 여기도 같이 봐야 한다. */
+body.eerie #app.tabbar .parcelbtn{position:fixed;left:12px;z-index:8;display:none;
+  bottom:calc(var(--navh) + var(--safeb) + 94px);
+  width:52px;padding:8px 4px 7px;border:0;border-radius:14px;
+  flex-direction:column;align-items:center;gap:3px;
+  background:var(--ui-glass);color:var(--ui-glassink);
+  backdrop-filter:var(--ui-blur);-webkit-backdrop-filter:var(--ui-blur);
+  box-shadow:var(--ui-glasslift),inset 0 0 0 1px var(--ui-glassline);
+  font:inherit;font-size:9.5px;font-weight:700;cursor:pointer}
+body.eerie #app.tabbar[data-col="stage"] .parcelbtn{display:flex}
+body.eerie #app.tabbar.peek .parcelbtn,
+body.eerie #app.tabbar.photo .parcelbtn{display:none}
+body.eerie #app.tabbar.decoon .parcelbtn{opacity:.42;pointer-events:none}
+.parcelbtn .em{font-size:19px;line-height:1}
+/* 상자가 있을 때만 점. 없는데 붙으면 그건 알림이 아니라 광고다. */
+body.eerie #app.tabbar .parcelbtn.has::after{content:'';position:absolute;top:6px;right:8px;
+  width:7px;height:7px;border-radius:50%;background:#E2A25C;box-shadow:0 0 0 2px var(--ui-glass)}
+
+/* 자리는 **왼쪽**이다. 오른쪽에는 카메라·녹화 단추가 세로로 서 있어서(.iconbtn 줄)
+   미리보기가 그 줄의 넷째처럼 보였다 — 배치 UI 의 일원이어야 하는 단추다. */
+body.eerie #app.tabbar .peekbtn{position:fixed;left:14px;z-index:8;display:none;
+  bottom:calc(var(--decoh, 56vh) + 10px);flex-direction:column;align-items:center;gap:2px;
+  width:56px;padding:8px 4px 7px;border:0;border-radius:14px;
+  background:var(--ui-glass);color:var(--ui-glassink);
+  backdrop-filter:var(--ui-blur);-webkit-backdrop-filter:var(--ui-blur);
+  box-shadow:var(--ui-glasslift),inset 0 0 0 1px var(--ui-glassline);
+  font:inherit;font-size:9.5px;font-weight:700}
+/* 레일의 감춘 칸. `hidden` 속성만으로는 안 사라진다 — 아래 .decorail button 이
+   display 를 정하고 있어서 그 규칙이 UA 의 [hidden]{display:none} 을 이긴다.
+   (검사가 b.hidden 만 보고 통과했던 자리다 — 속성은 붙었고 화면은 안 바뀌었다.) */
+body.eerie #app.tabbar .decorail button[hidden]{display:none}
+body.eerie #app.tabbar .peekbtn.show{display:flex}
+body.eerie #app.tabbar .peekbtn svg{display:block;width:19px;height:19px;fill:currentColor}
+body.eerie #app.tabbar .peekbtn.on{background:var(--ui-accent);color:var(--ui-accentink);
+  backdrop-filter:none;-webkit-backdrop-filter:none}
+/* 시트는 **내용만큼만** 높다(위 .deco 의 height:auto). 그래서 단추 자리를 56vh 로
+   박아 두면 시트에서 한참 떨어진 허공 — 하필 게시판이 있는 자리 — 에 떠서, 배치
+   UI 의 일원이 아니라 「게시판 대신 뜬 것」으로 읽혔다. 실제 높이를 재서 붙인다
+   (js/cozy.js 가 --decoh 를 넣는다). */
+body.eerie #app.tabbar .peekbtn{bottom:calc(var(--decoh, 56vh) + 10px)}
+/* 미리보기가 켜지면 방만 남는다 — 시트·HUD·상단·하단까지 전부 */
+body.eerie #app.tabbar.peek .deco,
+body.eerie #app.tabbar.peek .edithud,
+body.eerie #app.tabbar.peek #colTabs,
+body.eerie #app.tabbar.peek #topbar,
+body.eerie #app.tabbar.peek .clockchip,
+body.eerie #app.tabbar.peek .stagefoot,
+body.eerie #app.tabbar.peek .stagecard{opacity:0;pointer-events:none;transition:opacity .18s}
+
+/* ── 가구(비품) 목록 — 값·이름·설명은 게임이 준다 ── */
+body.eerie #app.tabbar .shopgrid{grid-template-columns:repeat(3,minmax(0,1fr))}
+body.eerie #app.tabbar .shoptile{gap:5px;padding:10px 6px 9px}
+body.eerie #app.tabbar .shopem{font-size:26px;line-height:1.1}
+body.eerie #app.tabbar .shopcost{font-size:10px;color:var(--ui-soft)}
+body.eerie #app.tabbar .shoptile.owned .shopcost{color:#3F8A6E}
+body.eerie #app.tabbar .shoptile.locked{opacity:.5}
+body.eerie #app.tabbar .shoptile[disabled]{opacity:.5}
+body.eerie #app.tabbar .pickem{flex:0 0 auto;width:52px;height:52px;border-radius:13px;
+  background:var(--ui-sunk);display:flex;align-items:center;justify-content:center;font-size:26px}
+body.eerie #app.tabbar .decoapply small{display:block;font-size:10px;font-weight:600;opacity:.85;margin-top:1px}
+body.eerie #app.tabbar .decoapply.off{background:var(--ui-sunk);color:#B5A08A}
+
+/* ============================================================
+   창(모달) — 설정 · 사규 · 기록증 · 결산 · 면접 · 압수수색 …
+
+   전부 `modal()` 하나를 거쳐 나오므로 **한 곳만 칠하면 다 걸린다.**
+   다만 모달은 `#app` 밖(body 직속)에 붙어서 우리 선택자가 못 닿는다 —
+   그래서 skin.js 가 body 에 `cozyskin` 도장을 찍고, 여기서 그걸 문으로 쓴다.
+   ============================================================ */
+/* 토큰을 **여기에도** 깐다. 모달은 #app 밖(body 직속)이라 `#app.tabbar` 에 선언한
+   변수가 상속되지 않는다 — 한 판 그렇게 내보냈고, var() 가 빈 값이 되어 창이 게임의
+   옛 어두운 카드로 되돌아갔다. 값은 위와 같아야 하므로 한 줄씩 따라 적는다. */
+body.eerie.cozyskin{
+  --ui-paper:#FFFCF6; --ui-ground:#F4EDE2; --ui-ink:#4A3B2E; --ui-soft:#8B7A68;
+  --ui-sunk:#EFE7DA; --ui-on:#8A6A4A; --ui-onink:#F7F1E6;
+  --ui-accent:#E2A25C; --ui-accentink:#3A2A18;
+  --ui-cardlift:0 3px 10px rgba(74,55,40,.10);
+}
+body.eerie.cozyskin .veil{background:rgba(52,38,26,.46);
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);padding:14px;
+  /* 창이 그래도 넘치면 **막이 스크롤한다.** place-items:center 는 넘칠 때 위쪽을
+     화면 밖으로 밀어내는데, 그러면 머리말에 손이 안 닿는다. */
+  overflow-y:auto}
+/* `overflow:hidden` 을 걸었다가 **모달 스크롤을 통째로 막았다** — 달력처럼 긴 창에서
+   아래 목록에 손이 안 닿았다. 모서리를 깎으려고 건 것인데, auto 로도 깎인다. */
+body.eerie.cozyskin .modal{background:var(--ui-ground);border:0;border-radius:22px;
+  box-shadow:0 18px 44px rgba(40,26,14,.36);overflow-y:auto;overflow-x:hidden}
+/* 머리는 색 띠가 아니라 **여백**이다. 띠를 두면 창이 「대화상자」가 되고,
+   이 게임의 다른 화면은 전부 판 없는 크림이라 거기서 톤이 끊긴다. */
+body.eerie.cozyskin .modal .mhead{background:transparent;border-bottom:0;
+  padding:20px 20px 6px;text-align:left}
+body.eerie.cozyskin .modal .mhead .q{color:var(--ui-soft);font-size:10px;letter-spacing:3px}
+body.eerie.cozyskin .modal .mhead h3{color:var(--ui-ink);font-size:22px;margin:4px 0 3px;letter-spacing:-.4px}
+body.eerie.cozyskin .modal .mhead p{color:var(--ui-soft);font-size:12px}
+/* 어두운 머리(경찰·계약서·발견)는 그 자체가 이야기라 **남긴다.** 다만 모서리는 맞춘다 */
+body.eerie.cozyskin .modal .mhead.police,
+body.eerie.cozyskin .modal .mhead.contract,
+body.eerie.cozyskin .modal .mhead.found{border-bottom:0;padding:20px;text-align:center}
+body.eerie.cozyskin .modal .mbody{padding:6px 16px 16px;color:var(--ui-ink)}
+body.eerie.cozyskin .modal .card{background:var(--ui-paper);border:0;border-radius:16px;
+  box-shadow:var(--ui-cardlift);color:var(--ui-ink);margin-bottom:9px}
+body.eerie.cozyskin .modal .card b{color:var(--ui-ink)}
+body.eerie.cozyskin .modal .card span,
+body.eerie.cozyskin .modal .hint,
+body.eerie.cozyskin .modal small{color:var(--ui-soft)}
+body.eerie.cozyskin .modal .card .crow > .em{flex:0 0 auto;width:38px;height:38px;border-radius:50%;
+  background:var(--ui-sunk);display:flex;align-items:center;justify-content:center;font-size:19px}
+/* 손이 가는 것들 — 하단 탭·시트와 같은 문법(연한 알약, 고른 것만 갈색) */
+body.eerie.cozyskin .modal .buy{background:var(--ui-sunk);color:var(--ui-on);box-shadow:none;
+  border-radius:11px;font-weight:700}
+body.eerie.cozyskin .modal .buy.alt{background:#E4F0EA;color:#2F7A64}
+body.eerie.cozyskin .modal .buy[disabled]{background:var(--ui-sunk);color:#BFAE99}
+body.eerie.cozyskin .modal select{background:var(--ui-paper);color:var(--ui-ink);
+  border:1.5px solid rgba(74,59,46,.18);border-radius:11px;padding:8px 10px;font:inherit}
+/* ── 크림 카드 안의 상자들 ──
+   결산 보고의 「멍멍파 근황」이 **갈색 판**으로 떴다. eerie 판(어두운 그림체)에서 정한
+   색을 그대로 물려받았기 때문이다 — 그쪽은 창 자체가 어두우니 맞는 색인데, 폰의 아늑
+   스킨은 창을 **크림 카드**로 갈아 끼우므로 그 안에서는 혼자 어두운 상자가 된다.
+   뜻(초록은 좋은 일 · 붉은 것은 사고 · 노란 것은 남의 소식)은 그대로 두고 **밝기만** 뒤집는다. */
+body.eerie.cozyskin .modal .rivalbox,
+body.eerie.cozyskin .modal .rivalcard{background:#FBF3E2;border-color:#E7D3A6;color:var(--ui-ink)}
+body.eerie.cozyskin .modal .rivalbox .lbl,
+body.eerie.cozyskin .modal .rivalcard .lbl{color:#9C7A2E}
+body.eerie.cozyskin .modal .okbox,
+body.eerie.cozyskin .modal .promo{background:#EDF6F0;border-color:#BEDCCB;color:#2F6A4E}
+body.eerie.cozyskin .modal .raidbox,
+body.eerie.cozyskin .modal .legalbox,
+body.eerie.cozyskin .modal .legalcard{background:#FBEDEC;border-color:#EBC3BE;color:#8A4B44}
+body.eerie.cozyskin .modal .evt,
+body.eerie.cozyskin .modal .sigrow,
+body.eerie.cozyskin .modal .st,
+body.eerie.cozyskin .modal .chatline.big{background:rgba(128,110,92,.10);border-color:rgba(128,110,92,.26);
+  color:var(--ui-ink)}
+body.eerie.cozyskin .modal .evt .lbl{color:var(--ui-soft)}
+
+body.eerie.cozyskin .modal .mfoot{background:var(--ui-ground);border-top:0;padding:8px 16px 16px}
+body.eerie.cozyskin .modal .mfoot button{background:var(--ui-on);color:var(--ui-onink);
+  border:0;border-radius:13px;box-shadow:none;font-weight:700;padding:13px}
+/* 언어 같은 세 갈래 선택 — 고른 것만 갈색 테두리 */
+body.eerie.cozyskin .modal .seg,
+body.eerie.cozyskin .modal .segs{gap:8px}
+body.eerie.cozyskin .modal .seg button,
+body.eerie.cozyskin .modal .segs button{background:var(--ui-paper);color:var(--ui-soft);
+  border:0;border-radius:12px;box-shadow:var(--ui-cardlift);font-weight:700;padding:10px 6px}
+body.eerie.cozyskin .modal .seg button.on,
+body.eerie.cozyskin .modal .segs button.on{color:var(--ui-on);
+  box-shadow:var(--ui-cardlift),inset 0 0 0 2px var(--ui-on)}
+
+/* 이모지가 있던 칸에 들어온 그림 — 크기를 그 칸에 맞춘다 */
+body.eerie #app.tabbar .emico,
+body.eerie.cozyskin .modal .emico{display:inline-flex;align-items:center;justify-content:center;
+  color:currentColor}
+body.eerie #app.tabbar .emico svg,
+body.eerie.cozyskin .modal .emico svg{display:block;width:1.05em;height:1.05em;fill:currentColor}
+body.eerie #app.tabbar .card .crow > .em.emico svg,
+body.eerie.cozyskin .modal .card .crow > .em.emico svg{width:21px;height:21px;color:var(--ui-ink)}
+body.eerie #app.tabbar .shopem.emico svg{width:27px;height:27px;color:var(--ui-ink)}
+body.eerie #app.tabbar .pickem.emico svg{width:27px;height:27px;color:var(--ui-ink)}
+
+/* ============================================================
+   가구 목록 1열 · 상세바 · 배치 HUD (레퍼런스 대조)
+   ============================================================ */
+
+/* ── 한 줄로 옆으로 ── */
+body.eerie #app.tabbar .shoprow{display:flex;gap:9px;overflow-x:auto;overflow-y:hidden;
+  padding:2px 0 6px;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity}
+body.eerie #app.tabbar .shoprow::-webkit-scrollbar{height:0}
+body.eerie #app.tabbar .shoptile{position:relative;flex:0 0 112px;scroll-snap-align:start;
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  border:0;border-radius:14px;padding:8px 6px 9px;background:var(--ui-paper);
+  box-shadow:var(--ui-cardlift);font:inherit;text-align:center;cursor:pointer}
+/* 모형이 앉는 자리 — 살짝 파인 칸. 물건마다 크기가 달라서 칸이 있어야 줄이 맞는다 */
+body.eerie #app.tabbar .shopbox{display:flex;align-items:center;justify-content:center;
+  width:100%;height:72px;border-radius:10px;background:var(--ui-sunk)}
+body.eerie #app.tabbar .shopimg{max-width:100%;max-height:68px;display:block}
+body.eerie #app.tabbar .shopimg--em{font-size:28px;line-height:1}
+body.eerie #app.tabbar .shoptile b{font-size:11.5px;color:var(--ui-ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+body.eerie #app.tabbar .shoptile .shopcost{font-size:10.5px;color:var(--ui-soft)}
+body.eerie #app.tabbar .shoptile.owned .shopcost{color:#3F8A6E}
+body.eerie #app.tabbar .shoptile.sel{box-shadow:var(--ui-cardlift),inset 0 0 0 2px var(--ui-accent)}
+body.eerie #app.tabbar .shoptile.locked{opacity:.55}
+body.eerie #app.tabbar .shoptile[disabled]{opacity:.55;cursor:default}
+/* 자물쇠는 **모서리 배지**다 — 칸 전체를 흐리게만 하면 왜 못 사는지 안 보인다 */
+body.eerie #app.tabbar .shoplock{position:absolute;right:7px;top:7px;width:20px;height:20px;
+  border-radius:50%;background:var(--ui-sunk);display:flex;align-items:center;justify-content:center;
+  color:var(--ui-soft)}
+body.eerie #app.tabbar .shoplock svg{display:block;width:12px;height:12px;fill:currentColor}
+
+/* ── 상세바 — 왼쪽에 모형, 오른쪽에 큰 단추 ── */
+body.eerie #app.tabbar .pickbox{flex:0 0 auto;width:56px;height:56px;border-radius:13px;
+  background:var(--ui-sunk);display:flex;align-items:center;justify-content:center}
+body.eerie #app.tabbar .pickimg{max-width:52px;max-height:52px;display:block}
+body.eerie #app.tabbar .pickimg--em{font-size:26px;line-height:1}
+body.eerie #app.tabbar .decoapply.big{display:flex;flex-direction:column;align-items:center;gap:1px;
+  padding:11px 18px;border-radius:14px;background:var(--ui-on);color:var(--ui-onink)}
+body.eerie #app.tabbar .decoapply.big em{font-style:normal;font-size:13.5px;font-weight:700}
+body.eerie #app.tabbar .decoapply.big small{font-size:10.5px;font-weight:600;opacity:.9}
+body.eerie #app.tabbar .decoapply.big.off{background:var(--ui-sunk);color:#B5A08A}
+
+/* ── 말풍선 셋 ── */
+body.eerie #app.tabbar .edithud button{width:40px;height:40px}
+body.eerie #app.tabbar .edithud [data-k="ok"]{color:#3F8A6E}
+body.eerie #app.tabbar .edithud [data-k="off"]{color:var(--ui-soft)}
+
+/* ── 좌우 회전 화살표 ── */
+/* 폰 스킨의 화살표는 **폰에서만** 보인다. cozy.js 는 이 단추들을 `#app` 에 그냥 붙이고
+   보이고 숨기는 일은 전부 아래 `body.eerie #app.tabbar …` 규칙이 한다 — 그 범위 밖
+   (데스크톱·위젯)에서는 규칙이 하나도 안 걸려서 **스타일 없는 맨 단추가 무대 위에 떴다.**
+   보이지도 않아야 할 것이 마우스를 가로채고 있었다(3D 회전이 그 자리에서 막혔다).
+   화살표만의 문제가 아니라 cozy.js 가 `#app` 에 붙이는 폰 전용 조작 전부가 그랬다.
+
+   **폰 쪽은 한 글자도 안 건드린다.** 처음엔 `.editarr{display:none}` 같은 기본값을
+   뒀는데, `.decobtn`·`.gearbtn` 은 폰 규칙에 `display` 가 없어서 그 기본값이 폰에서도
+   이겨 버렸다(단추가 통째로 사라졌다). 그래서 반대로 **폰이 아닐 때만** 숨긴다. */
+#app:not(.tabbar) .editarr, #app:not(.tabbar) .peekbtn, #app:not(.tabbar) .edithud,
+#app:not(.tabbar) .decobtn, #app:not(.tabbar) .gearbtn, #app:not(.tabbar) .doorrail{display:none}
+/* ── 방향 화살표 ──
+   **고른 물건에 붙는다**(자리는 js/cozy.js 의 hudFollow 가 십자로 잡는다).
+   한 번 오른쪽 아래 고정 D패드로 옮겼다가 되물렸다 — 멀리 있으면 무엇을 밀고 있는지가
+   안 보인다. 대신 **작게** 만들었다(34 → 28): 물건 주위에 넷이 둘러서므로 클수록 가린다. */
+body.eerie #app.tabbar .editarr{position:fixed;z-index:8;display:none;
+  transform:translate(-50%,-50%);width:28px;height:28px;border:0;border-radius:50%;
+  background:var(--ui-paper);color:var(--ui-ink);box-shadow:var(--ui-lift);
+  align-items:center;justify-content:center}
+/* 화살표는 넷이다(상하좌우) — 자리는 js/cozy.js 의 hudFollow 가 십자로 잡는다.
+   왼쪽/오른쪽만 있던 시절의 .l/.r 규칙은 따로 없다: 넷 다 같은 모양이고 자리만 다르다. */
+body.eerie #app.tabbar .editarr.show{display:flex}
+body.eerie #app.tabbar .editarr svg{display:block;width:14px;height:14px;fill:currentColor}
+body.eerie #app.tabbar .editarr:active{transform:translate(-50%,-50%) scale(.92)}
+
+/* ── 고른 칸의 발자국 ──
+   **3D 에서는 이 줄들이 안 걸린다.** 거기서는 선택이 DOM 이 아니라 씬 안의 마커라
+   (R3.marker) 색을 여기서 못 바꾼다 — 발자국 색을 갈려면 render3d.js 의 MARK_COLOR
+   쪽 일이다. 아래는 도트 폴백에서만 쓰인다. */
+body.eerie #app.tabbar.decoon #editSel{border:2px dashed rgba(126,196,132,.9);
+  background:rgba(126,196,132,.16);border-radius:3px;box-shadow:0 0 18px rgba(126,196,132,.35)}
+body.eerie #app.tabbar.decoon #editSel::before,
+body.eerie #app.tabbar.decoon #editSel::after{content:'';position:absolute;width:13px;height:13px;
+  border:3px solid #9BE0A2;pointer-events:none}
+body.eerie #app.tabbar.decoon #editSel::before{left:-4px;top:-4px;border-right:0;border-bottom:0}
+body.eerie #app.tabbar.decoon #editSel::after{right:-4px;bottom:-4px;border-left:0;border-top:0}
+
+/* 벽지·바닥·러그 칸도 가구와 같은 줄에 선다 — 견본은 넓적하니 칸만 조금 넓힌다 */
+body.eerie #app.tabbar .shoprow .decotile{flex-basis:132px}
+body.eerie #app.tabbar .shoprow .decotile .shopbox{height:66px;padding:5px}
+body.eerie #app.tabbar .shoprow .decotile canvas{width:100%;height:auto;border-radius:7px;display:block}
+body.eerie #app.tabbar .decopick .pickbox canvas{width:52px;height:auto;border-radius:8px;display:block}
+/* 지금 발라져 있는 것 — 오른쪽 위 점 하나 */
+body.eerie #app.tabbar .shoprow .decotile.on::after{content:'';position:absolute;right:8px;top:8px;
+  width:9px;height:9px;border-radius:50%;background:var(--ui-accent);box-shadow:0 0 0 2px var(--ui-paper)}
+
+/* 사건 카드의 행동 단추(무마) — 글 오른쪽에 붙는다 */
+body.eerie #app.tabbar .stagecard .crow{align-items:center}
+body.eerie #app.tabbar .stagecard .cardact{flex:0 0 auto;align-self:center;margin-left:8px;
+  background:var(--ui-accent);color:var(--ui-accentink);border:0;border-radius:12px;
+  padding:9px 13px;font:inherit;font-size:12px;font-weight:700;box-shadow:none}
+body.eerie #app.tabbar .stagecard .cardact[disabled]{background:rgba(255,250,240,.14);
+  color:rgba(247,240,228,.45)}
+
+/* ── 창 안의 손잡이들 — 화면 밖(모달)이라 따로 칠해야 한다 ──
+   언어 고르기 · 크기 고르기(.size), 음량(range), 글 입력(input), 업무 상신까지
+   전부 `modal()` 안에 있고 `#app` 밖이다. */
+body.eerie.cozyskin .modal .sizes{display:flex;gap:8px}
+body.eerie.cozyskin .modal .size{flex:1;background:var(--ui-paper);color:var(--ui-soft);
+  border:0;border-radius:12px;padding:11px 6px;box-shadow:var(--ui-cardlift);font:inherit;font-weight:700}
+body.eerie.cozyskin .modal .size b{color:var(--ui-ink);font-weight:700}
+body.eerie.cozyskin .modal .size.on{color:var(--ui-on);
+  box-shadow:var(--ui-cardlift),inset 0 0 0 2px var(--ui-on)}
+body.eerie.cozyskin .modal .size.on b{color:var(--ui-on)}
+body.eerie.cozyskin .modal input[type=text],
+body.eerie.cozyskin .modal input[type=number],
+body.eerie.cozyskin .modal textarea{background:var(--ui-paper);color:var(--ui-ink);
+  border:1.5px solid rgba(74,59,46,.18);border-radius:12px;padding:11px 12px;font:inherit}
+body.eerie.cozyskin .modal input::placeholder{color:#B5A48E}
+/* 음량 — 트랙과 손잡이를 직접 그린다(기본 모양은 기기마다 완전히 다르다) */
+body.eerie.cozyskin .modal input[type=range]{-webkit-appearance:none;appearance:none;
+  width:100%;height:6px;border-radius:3px;background:var(--ui-sunk);outline:0;padding:0;border:0}
+body.eerie.cozyskin .modal input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;
+  width:22px;height:22px;border-radius:50%;background:var(--ui-on);border:3px solid var(--ui-paper);
+  box-shadow:0 2px 6px rgba(74,55,40,.35);cursor:pointer}
+body.eerie.cozyskin .modal input[type=range]::-moz-range-thumb{width:22px;height:22px;border:3px solid var(--ui-paper);
+  border-radius:50%;background:var(--ui-on);box-shadow:0 2px 6px rgba(74,55,40,.35);cursor:pointer}
+/* 달력의 날짜 줄 · 목록 */
+body.eerie.cozyskin .modal .calrow{background:var(--ui-paper);border:0;border-radius:12px;
+  box-shadow:var(--ui-cardlift);margin-bottom:7px;color:var(--ui-ink)}
+body.eerie.cozyskin .modal .calrow .tx{color:var(--ui-soft)}
+body.eerie.cozyskin .modal .empty{color:var(--ui-soft)}
+
+/* ── 우측 상단 세로 1열 — 달력 · 게시판 · 음악 ── */
+body.eerie #app.tabbar .doorrail{position:fixed;right:12px;top:112px;z-index:7;
+  display:none;flex-direction:column;gap:8px}
+body.eerie #app.tabbar[data-col="stage"] .doorrail{display:flex}
+/* 시트가 열려 있어도 줄은 남는다 — 망치가 그 줄의 첫 칸이고, 켜졌다는 표시가 거기
+   있다. 나머지 셋은 지금 누를 것이 아니라 흐리게 둔다. */
+body.eerie #app.tabbar.peek .doorrail{display:none}
+body.eerie #app.tabbar.decoon .doorrail button:not(.decobtn){opacity:.42;pointer-events:none}
+body.eerie #app.tabbar .doorrail button{width:52px;padding:8px 4px 7px;border:0;border-radius:14px;
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  background:var(--ui-glass);color:var(--ui-glassink);
+  backdrop-filter:var(--ui-blur);-webkit-backdrop-filter:var(--ui-blur);
+  box-shadow:var(--ui-glasslift),inset 0 0 0 1px var(--ui-glassline);
+  font:inherit;font-size:9.5px;font-weight:700}
+body.eerie #app.tabbar .doorrail svg{display:block;width:19px;height:19px;fill:currentColor}
+/* 택배에 티켓이 있을 때만 붙는 점(js/cozy.js doorBadge). 숫자를 적지 않는다 —
+   몇 장인지는 열어서 볼 일이고, 문에 붙은 숫자는 「빨리 써라」로 읽힌다. */
+body.eerie #app.tabbar .doorrail button.has{position:relative}
+body.eerie #app.tabbar .doorrail button.has::after{content:'';position:absolute;top:6px;right:8px;
+  width:7px;height:7px;border-radius:50%;background:#E2A25C;
+  box-shadow:0 0 0 2px var(--ui-glass)}
+body.eerie #app.tabbar .doorrail button:active{transform:translateY(2px)}
+/* 카메라는 그 줄 밑으로 내려간다 — 오른쪽에 두 무리가 겹치면 안 된다 */
+body.eerie #app.tabbar[data-col="stage"] .cambtn{bottom:calc(var(--navh) + var(--safeb) + 124px)}
+
+/* ── 세로 1열의 망치 — 옆 셋과 같은 모양이다 ── */
+body.eerie #app.tabbar .doorrail .decobtn{width:52px;padding:8px 4px 7px;border:0;border-radius:14px;
+  display:flex;flex-direction:column;align-items:center;gap:3px;
+  background:var(--ui-glass);color:var(--ui-glassink);
+  backdrop-filter:var(--ui-blur);-webkit-backdrop-filter:var(--ui-blur);
+  box-shadow:var(--ui-glasslift),inset 0 0 0 1px var(--ui-glassline);
+  font:inherit;font-size:9.5px;font-weight:700}
+body.eerie #app.tabbar .doorrail .decobtn.on{background:var(--ui-accent);color:var(--ui-accentink);
+  backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:var(--ui-lift)}
+/* 줄이 위로 올라온다 — 이제 넷이라 시계 밑에서 시작한다 */
+body.eerie #app.tabbar .doorrail{top:60px}
+
+/* ── 1. 견본 칸 정렬 ──
+   가구는 **물건 하나**라 칸 안에 여백을 두고 앉히는 게 맞지만, 벽지·바닥·러그는
+   **방 그림**이라 칸을 꽉 채워야 한다. 여백을 두면 그림이 칸 안에서 떠 보였다. */
+body.eerie #app.tabbar .shoprow .decotile .shopbox{padding:0;overflow:hidden;height:70px}
+body.eerie #app.tabbar .shoprow .decotile canvas{width:100%;height:100%;object-fit:cover;
+  border-radius:0;display:block}
+
+/* ── 3·5. 남은 어두운 판들 ──
+   `body.eerie` 가 게임 전체를 탄 갈색으로 칠해 두는데, 폰의 이 스킨은 흰 종이 쪽이다.
+   그 사이에 낀 것들이 「어두운 바탕 + 어두운 글자」나 「흰 바탕 + 흰 글자」로 남았다
+   (가구 조사 문구가 그랬다). 눈에 띄는 것들을 한꺼번에 되돌린다. */
+body.eerie.cozyskin .modal .cluebox,
+body.eerie.cozyskin .modal .letter{background:var(--ui-paper);color:var(--ui-ink);
+  border:0;border-radius:14px;box-shadow:var(--ui-cardlift)}
+body.eerie.cozyskin .modal .cluehead{color:var(--ui-ink);border-bottom-color:rgba(74,59,46,.18)}
+body.eerie.cozyskin .modal .cluebody,
+body.eerie.cozyskin .modal .observe,
+body.eerie.cozyskin .modal .letter{color:var(--ui-ink)}
+body.eerie.cozyskin .modal .cluegain{background:#EAF6F0;border-color:#CFE7DC;color:#2F7A64}
+body.eerie.cozyskin .modal .evt,
+body.eerie.cozyskin .modal .card.lockedrow,
+body.eerie.cozyskin .modal .card.owned,
+body.eerie.cozyskin .modal .hirecard{background:var(--ui-paper);border:0;color:var(--ui-ink);
+  box-shadow:var(--ui-cardlift)}
+body.eerie.cozyskin .modal .card.owned{box-shadow:var(--ui-cardlift),inset 0 0 0 1.5px #A8CFBC}
+body.eerie.cozyskin .modal .tab{background:var(--ui-paper);color:var(--ui-soft);border:0;
+  border-radius:12px;box-shadow:var(--ui-cardlift)}
+body.eerie.cozyskin .modal .tab.on{color:var(--ui-on);box-shadow:var(--ui-cardlift),inset 0 0 0 2px var(--ui-on)}
+body.eerie.cozyskin .modal .namerow input{background:var(--ui-paper);color:var(--ui-ink);
+  border:1.5px solid rgba(74,59,46,.18);border-radius:12px}
+body.eerie.cozyskin .modal .tag{background:var(--ui-sunk);color:var(--ui-soft);text-shadow:none}
+body.eerie.cozyskin .modal .tag.m{background:#F3E7D3;color:#8A6A2E}
+body.eerie.cozyskin .modal .tag.l{background:#F6E0D2;color:#9A5A32}
+body.eerie.cozyskin .modal .tag.s{background:#E3F3EC;color:#2F7A64}
+/* 근로계약서의 「이 고양이가 당신입니다」 줄 — eerie 의 어두운 판(#241E18)이
+   크림 계약서 한가운데 그대로 남아 있었다. 도장 자리답게 점선은 살리고 종이만 간다. */
+body.eerie.cozyskin .modal .sigrow{background:var(--ui-sunk);color:var(--ui-ink);
+  border:2px dashed #CBB89E;border-radius:12px}
+
+/* 방 위의 것 둘 — 고양이 말풍선과 알림. 어두운 갈색이었다. */
+body.eerie #app.tabbar .bubble{background:var(--ui-paper);--bub-bg:var(--ui-paper);color:var(--ui-ink);
+  border:0;border-radius:14px;box-shadow:var(--ui-lift)}
+body.eerie.cozyskin .toast{background:var(--ui-paper);color:var(--ui-ink);border:0;
+  border-radius:14px;box-shadow:0 8px 22px rgba(40,26,14,.32)}
+/* 위험 표시는 색으로 말한다 — 흰 종이 위에서도 붉게 */
+body.eerie #app.tabbar .stat.pen.warn{background:#FBF0DC;color:#8A5A22}
+body.eerie #app.tabbar .stat.pen.danger{background:#FBE6E4;color:#B4544C}
+body.eerie #app.tabbar[data-col="stage"] .stat.pen.warn{background:rgba(226,162,92,.30);color:#FFE0B8}
+body.eerie #app.tabbar[data-col="stage"] .stat.pen.danger{background:rgba(196,84,76,.34);color:#FFD2CC}
+
+/* ── 2. 남은 갈색 칸들 ──
+   창 안에서 게임이 쓰는 「파인 칸」들이다. body.eerie 가 이것들을 탄 갈색으로 칠하는데
+   흰 종이 위에서는 그게 구멍처럼 보인다. */
+body.eerie.cozyskin .modal .addbox{background:var(--ui-paper);border:0;border-radius:16px;
+  box-shadow:var(--ui-cardlift)}
+/* 유튜브 칸은 type 이 안 붙어 있어서 input[type=text] 로는 안 잡혔다 —
+   범위를 넓히고 슬라이더·체크만 뺀다. */
+body.eerie.cozyskin .modal input:not([type=range]):not([type=checkbox]):not([type=radio]),
+body.eerie.cozyskin .modal .ytrow input{background:var(--ui-paper);color:var(--ui-ink);
+  border:1.5px solid rgba(74,59,46,.18);border-radius:11px;padding:9px 11px;font:inherit}
+body.eerie.cozyskin .modal .ytrow input:focus{outline:0;border-color:var(--ui-accent)}
+/* 음량 줄 — 판을 밝게, 손잡이는 갈색 */
+body.eerie.cozyskin .modal .jukevol{background:var(--ui-sunk);border:0;border-radius:14px;
+  padding:9px 12px;gap:10px}
+body.eerie.cozyskin .modal .jukevol .volem{background:none;border:0;color:var(--ui-ink);box-shadow:none}
+body.eerie.cozyskin .modal .jukevol .volnum{color:var(--ui-ink);font-weight:700}
+/* 세부 업무·상신 칸의 크기 고르기와 올리기 단추 */
+body.eerie.cozyskin .modal .addbtn{background:var(--ui-accent);color:var(--ui-accentink);
+  border:0;border-radius:12px;box-shadow:none;font-weight:700}
+body.eerie.cozyskin .modal .due,
+body.eerie.cozyskin .modal .due.sub{background:var(--ui-sunk);color:var(--ui-soft);border:0;
+  border-radius:10px;box-shadow:none}
+
+/* 글 앞에 붙었던 이모지 자리 */
+body.eerie #app.tabbar .emico.lead,
+body.eerie.cozyskin .modal .emico.lead{margin-right:6px;vertical-align:-.15em}
+body.eerie #app.tabbar .emico.lead svg,
+body.eerie.cozyskin .modal .emico.lead svg{width:15px;height:15px}
+
+/* 쥬크박스의 「지금 트랙」 줄 — 짙은 판이었다. 이 창에서 제일 위에 있는 줄이라
+   여기만 어두우면 창 전체가 어두워 보인다. 지금 나오는 중일 때만 색으로 말한다. */
+body.eerie.cozyskin .modal .jukenow{background:var(--ui-paper);color:var(--ui-ink);
+  border:0;border-radius:16px;box-shadow:var(--ui-cardlift)}
+body.eerie.cozyskin .modal .jukenow b{color:var(--ui-ink)}
+body.eerie.cozyskin .modal .jukenow > div span{color:var(--ui-soft)}
+body.eerie.cozyskin .modal .jukenow .em{color:var(--ui-ink)}
+body.eerie.cozyskin .modal .jukenow .buy.kick{background:var(--ui-on);color:var(--ui-onink)}
+
+/* ── ⋯ 는 없다 ──
+   그 안의 다섯 중 배치는 망치로, 설정은 하단 탭으로 나왔고, 남은 셋은 설정 맨 아래로
+   갔다(아래 .cozyextra). 문이 하나도 안 남았으므로 단추도 없애는 게 맞다. */
+body.eerie #app.tabbar #btnMore{display:none}
+
+/* ── 설정 맨 아래 줄 셋 ── */
+body.eerie.cozyskin .modal .cozyextra{margin-top:14px;padding-top:12px;
+  border-top:1px solid rgba(74,59,46,.12);display:flex;flex-direction:column;gap:9px}
+body.eerie.cozyskin .modal .exrow{display:flex;align-items:center;gap:11px;width:100%;
+  text-align:left;border:0;border-radius:16px;padding:12px 13px;font:inherit;cursor:pointer;
+  background:var(--ui-paper);color:var(--ui-ink);box-shadow:var(--ui-cardlift)}
+body.eerie.cozyskin .modal .exrow .em{flex:0 0 auto;width:38px;height:38px;border-radius:50%;
+  background:var(--ui-sunk);display:flex;align-items:center;justify-content:center;color:var(--ui-ink)}
+body.eerie.cozyskin .modal .exrow .em svg{display:block;width:19px;height:19px;fill:currentColor}
+body.eerie.cozyskin .modal .exrow .info{min-width:0;display:block}
+body.eerie.cozyskin .modal .exrow .info b{display:block;font-size:13.5px;color:var(--ui-ink)}
+body.eerie.cozyskin .modal .exrow .info span{display:block;font-size:11px;color:var(--ui-soft);
+  line-height:1.5;margin-top:2px}
+body.eerie.cozyskin .modal .exrow:active{transform:translateY(1px)}
+/* 되돌릴 수 없는 줄은 **색으로** 말한다 — 맨 아래에 두는 것만으로는 안 된다 */
+body.eerie.cozyskin .modal .exrow.bad .em{background:#F6E2E0;color:#B4544C}
+body.eerie.cozyskin .modal .exrow.bad .info b{color:#B4544C}
+
+/* ── 설정 톱니 — ⋯ 가 있던 자리 ── */
+body.eerie #app.tabbar .gearbtn{border:0;border-radius:12px;background:var(--ui-paper);
+  box-shadow:var(--ui-lift);color:var(--ui-ink)}
+body.eerie #app.tabbar[data-col="stage"] .gearbtn{background:var(--ui-glass);color:var(--ui-glassink);
+  backdrop-filter:var(--ui-blur);-webkit-backdrop-filter:var(--ui-blur);
+  box-shadow:var(--ui-glasslift),inset 0 0 0 1px var(--ui-glassline)}
+
+/* ── 창고에 있는 가구 ──
+   한동안 창고에 든 칸 **전부**에 주황 테두리와 숫자 배지를 달았다. 가진 가구가 열 종이
+   넘으면 목록이 통째로 주황색이고, 그러면 그 색은 「여기를 봐」가 아니라 배경이다.
+   지금은 **고른 칸만** 그 옷을 입는다 — 평소에는 테두리도 숫자도 없다. */
+body.eerie #app.tabbar .shoptile.stored.sel{box-shadow:var(--ui-cardlift),inset 0 0 0 2px var(--ui-accent)}
+body.eerie #app.tabbar .storedot{display:none;position:absolute;right:7px;top:7px;
+  min-width:20px;height:20px;padding:0 5px;border-radius:10px;
+  background:var(--ui-accent);color:var(--ui-accentink);
+  align-items:center;justify-content:center;font-size:11px;font-weight:700}
+body.eerie #app.tabbar .shoptile.sel .storedot{display:flex}
+
+/* 분기 카드의 막대는 등불색이다 — 「차오르는 것」이라 사건(파랑)과 다른 색으로 말한다 */
+body.eerie #app.tabbar[data-col="stage"] .stagecard .bar i{background:var(--ui-accent)}
+
+
+/* ══ 면접창 — 마지막까지 검은 판으로 남아 있던 것들 ══
+   .st(능력치)와 .swatch(털색·색조)는 style.css 의 body.eerie 가 값을 박아 두고 있어서
+   모달 절의 .card 규칙으로는 안 덮인다. 이름 칸이 검은 건 더 조용한 이유였다 —
+   <input id="hireName"> 에 type 속성이 없어서 input[type=text] 가 애초에 안 걸린다.
+   모달 자체의 글자색도 어두운 방 시절 값(밝은 크림)이 남아, 크림 바탕에 크림 글씨였다. */
+body.eerie.cozyskin .modal{color:var(--ui-ink)}
+body.eerie.cozyskin .modal .resume{background:transparent}
+body.eerie.cozyskin .modal .statgrid{gap:8px}
+body.eerie.cozyskin .modal .st{background:var(--ui-paper);border:0;border-radius:14px;
+  padding:8px 4px;box-shadow:var(--ui-cardlift)}
+body.eerie.cozyskin .modal .st small{color:var(--ui-soft)}
+body.eerie.cozyskin .modal .st b{color:var(--ui-ink)}
+/* 높고 낮음은 장식이 아니라 정보다 — 색을 지우면 어느 쪽이 잘 나왔는지 못 읽는다.
+   그래서 없애지 않고 톤만 이 화면 쪽으로 당긴다. */
+body.eerie.cozyskin .modal .st.hi b,
+body.eerie.cozyskin .modal .st .plus{color:#3F8A6E}
+body.eerie.cozyskin .modal .st.lo b{color:#C0503C}
+body.eerie.cozyskin .modal .swatch{background:var(--ui-paper);border:0;border-radius:14px;
+  padding:7px 8px 6px;box-shadow:var(--ui-cardlift)}
+body.eerie.cozyskin .modal .swatch span{color:var(--ui-soft)}
+/* 고른 것은 갈색으로 채운다 — 가구·벽지 시트에서 고른 칸과 같은 말이어야 한다.
+   주황 테두리는 이 화면에 남은 마지막 강조색이었다. */
+body.eerie.cozyskin .modal .swatch.on{background:var(--ui-on);box-shadow:none}
+body.eerie.cozyskin .modal .swatch.on span{color:var(--ui-onink)}
+body.eerie.cozyskin .modal .namerow input,
+body.eerie.cozyskin .modal .addbox,
+body.eerie.cozyskin .modal .addbox input{background:var(--ui-paper);color:var(--ui-ink);
+  border:0;border-radius:12px;box-shadow:var(--ui-cardlift)}
+body.eerie.cozyskin .modal .namerow input{padding:9px 12px}
+/* 주사위 단추만 민트였다 — 보조 단추의 갈색 하나로 */
+body.eerie.cozyskin .modal .buy.alt{background:var(--ui-sunk);color:var(--ui-on)}
+/* 무늬 작업대도 크림 카드로. 무대는 조금 더 둥글게 — 안에 든 것이 사진이라
+   테두리가 각지면 액자가 되고, 이 화면에서 액자는 한 겹 더 멀어진다. */
+body.eerie.cozyskin .modal .mkstage{background:var(--ui-paper);border:0;border-radius:18px;
+  box-shadow:var(--ui-cardlift)}
+body.eerie.cozyskin .modal .mkink,
+body.eerie.cozyskin .modal .mksize,
+body.eerie.cozyskin .modal .mkspin,
+body.eerie.cozyskin .modal .mkmode,
+body.eerie.cozyskin .modal .mktab,
+body.eerie.cozyskin .modal .markopen{background:var(--ui-paper);border:0;border-radius:14px;
+  box-shadow:var(--ui-cardlift);color:var(--ui-ink)}
+body.eerie.cozyskin .modal .markopen b{color:var(--ui-ink)}
+body.eerie.cozyskin .modal .markopen i{color:var(--ui-soft)}
+body.eerie.cozyskin .modal .mkface .swatch{padding:6px 7px 5px}
+/* 아늑 스킨에는 테두리가 없다 — 갈라 주는 선도 그림자 한 겹으로 */
+body.eerie.cozyskin .modal .mkhand{border-bottom:0;box-shadow:0 1px 0 var(--ui-sunk);
+  padding-bottom:13px;margin-bottom:13px}
+body.eerie.cozyskin .modal .mkface .swatch.auto{box-shadow:var(--ui-cardlift),inset 0 0 0 1.5px var(--ui-soft)}
+body.eerie.cozyskin .modal .mksize i{background:var(--ui-ink)}
+body.eerie.cozyskin .modal .mkink.on,
+body.eerie.cozyskin .modal .mkmode.on,
+body.eerie.cozyskin .modal .mktab.on,
+body.eerie.cozyskin .modal .mksize.on{background:var(--ui-on);box-shadow:none}
+body.eerie.cozyskin .modal .mkmode.on,
+body.eerie.cozyskin .modal .mktab.on{color:var(--ui-onink)}
+body.eerie.cozyskin .modal .mksize.on i{background:var(--ui-onink)}
+
+/* ══ 멍멍파·수사 카드 ══
+   값이 규칙에 박혀 있어 .card 로 덮이지 않는다. 패널에 뜰 수도, 모달에 뜰 수도
+   있어서 두 자리에 같이 적는다. 흰 바탕에 테두리 색으로만 어느 쪽 소식인지 말한다. */
+body.eerie #app.tabbar .rivalcard,
+body.eerie.cozyskin .modal .rivalcard{background:var(--ui-paper);border:0;
+  box-shadow:var(--ui-cardlift),inset 0 0 0 1.5px #E3CFA8}
+body.eerie #app.tabbar .legalcard,
+body.eerie.cozyskin .modal .legalcard{background:#FFF8F6;border:0;
+  box-shadow:var(--ui-cardlift),inset 0 0 0 1.5px #EDBFB6}
+
+/* (가챠 공과 가챠 페이지 CSS 가 여기 있었다 — 2026-09-02 에 가챠를 내리면서 같이
+   걷었다. js/gacha.js 는 남아 있고, TODO 57 택배 뽑기가 그 화면을 다시 쓸 때
+   이 자리에 새로 쓴다. 파일 끝에 블록을 붙이지 말 것 — 두 번 통째로 날아간 자리다.) */

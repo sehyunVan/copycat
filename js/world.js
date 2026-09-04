@@ -45,6 +45,26 @@ const TILE = {
      음반이 CD 플레이어를 얻은 것과 같은 구조다(TODO 34): 이 회사에서 「생산 효과가
      없는데 돈을 쓰는」 물건은 상점 목록에 섞이지 않고 자기 문을 갖는다. */
   BINDER:38,
+
+  /* ============================================================
+     가구 카탈로그 (2026-09-01 · 39~62)
+
+     여기부터는 **효과가 하나뿐인 가구**다. 위의 비품들은 저마다 다른 숫자를 건드리지만
+     (생산·욕구·KPI·오프라인), 이 스물넷은 전부 「사무실 쾌적도」 하나에만 기여한다.
+     스물넷에 각자 다른 효과를 달면 표가 스물네 줄 늘어나는 게 아니라 **곱이 스물네 겹**이
+     되고, 그때부터 이 게임의 숫자는 아무도 못 읽는다(정제실 하나가 +90% 인 게임이다).
+
+     격자는 칸당 바이트 하나라 255까지 쓸 수 있다 — 자리는 넉넉하다.
+     쓰임(use)이 없는 것이 대부분이다: 고양이가 「쓰는」 가구가 아니라 **놓여 있는**
+     가구이고, 그 차이가 비품과 가구를 가른다. 예외는 앉는 것 넷(소파·안락의자·빈백·
+     카페의자)인데 그건 실제로 쉬는 자리라 social 을 준다.
+     ============================================================ */
+  DRAWER:39, FILECAB:40, MEETCHAIR:41,
+  LOCKER:42, CABINET:43, OPENSHELF:44, BOOKRACK:45, PAPERTRAY:46, BOX:47, BIN:48,
+  PLANT_S:49, PLANT_L:50, FLOORLAMP:51, CANDLE:52, LANTERN:53, PENHOLDER:54,
+  SOFA1:55, SOFA2:56, LOWTABLE:57, ARMCHAIR:58, BEANBAG:59, CAFETABLE:60, CAFECHAIR:61,
+  /* 벽에 거는 둘 — 격자에 안 들어가고 wallDecor 로만 산다(위 CLOCK 무리와 같다) */
+  CURTAIN:62, MEMO:63,
 };
 // 걸어 다닐 수 있는 타일
 const WALKABLE = new Set([TILE.FLOOR, TILE.DOOR]);
@@ -91,6 +111,36 @@ const TILE_INFO = {
   [TILE.FILLER]:    { em:'',   n:'',  use:null   },   // 여러 칸 가구가 차지하는 나머지 칸
   [TILE.BINDER]:    { em:'📕', n: L({ ko:'도배 견본책',  en:'Sample Binder',  ja:'見本帳' }),               use:null     },
   [TILE.DESK_R]:    { em:'💻', n: L({ ko:'책상', en:'Desk', ja:'デスク' }),  use:'work' },   // 2칸 책상의 오른쪽 절반
+
+  /* ---------- 가구 카탈로그 ----------
+     **대부분 use 가 없다.** 고양이가 쓰는 물건이 아니라 놓여 있는 물건이라,
+     쓰임을 주면 길찾기 목적지가 스물넷 늘어나서 고양이가 하루 종일 가구 순례를 한다.
+     앉는 것 넷만 social 을 갖는다 — 소파에 안 앉는 고양이는 소파가 아니라 벽이다. */
+  [TILE.DRAWER]:    { em:'🗄️', n: L({ ko:'서랍장',      en:'Drawer Unit',   ja:'引き出し' }),        use:null },
+  [TILE.FILECAB]:   { em:'🗃️', n: L({ ko:'파일 캐비닛',  en:'File Cabinet',  ja:'ファイルキャビネット' }), use:null },
+  [TILE.MEETCHAIR]: { em:'🪑', n: L({ ko:'회의용 의자',  en:'Meeting Chair', ja:'会議用椅子' }),      use:'social' },
+  [TILE.LOCKER]:    { em:'🚪', n: L({ ko:'락커',        en:'Lockers',       ja:'ロッカー' }),        use:null },
+  [TILE.CABINET]:   { em:'🗄️', n: L({ ko:'수납장',      en:'Cabinet',       ja:'収納棚' }),          use:null },
+  [TILE.OPENSHELF]: { em:'🪜', n: L({ ko:'오픈 선반',    en:'Open Shelving', ja:'オープン棚' }),      use:null },
+  [TILE.BOOKRACK]:  { em:'📚', n: L({ ko:'책꽂이',      en:'Book Rack',     ja:'本立て' }),          use:null },
+  [TILE.PAPERTRAY]: { em:'📄', n: L({ ko:'서류 트레이',  en:'Paper Tray',    ja:'書類トレイ' }),      use:null },
+  [TILE.BOX]:       { em:'📦', n: L({ ko:'박스',        en:'Box',           ja:'段ボール' }),        use:null },
+  [TILE.BIN]:       { em:'🗑️', n: L({ ko:'휴지통',      en:'Trash Bin',     ja:'ごみ箱' }),          use:null },
+  [TILE.PLANT_S]:   { em:'🌵', n: L({ ko:'화분 (소)',    en:'Plant (S)',     ja:'鉢植え(小)' }),      use:null },
+  [TILE.PLANT_L]:   { em:'🌴', n: L({ ko:'화분 (대)',    en:'Plant (L)',     ja:'鉢植え(大)' }),      use:null },
+  [TILE.FLOORLAMP]: { em:'🛋️', n: L({ ko:'스탠드 조명',  en:'Floor Lamp',    ja:'スタンドライト' }),  use:null },
+  [TILE.CANDLE]:    { em:'🕯️', n: L({ ko:'캔들',        en:'Candles',       ja:'キャンドル' }),      use:null },
+  [TILE.LANTERN]:   { em:'🏮', n: L({ ko:'랜턴',        en:'Lantern',       ja:'ランタン' }),        use:null },
+  [TILE.PENHOLDER]: { em:'🖊️', n: L({ ko:'펜 홀더',     en:'Pen Holder',    ja:'ペン立て' }),        use:null },
+  [TILE.SOFA1]:     { em:'🛋️', n: L({ ko:'소파 (1인)',   en:'Sofa (1)',      ja:'ソファ(1人)' }),     use:'social' },
+  [TILE.SOFA2]:     { em:'🛋️', n: L({ ko:'소파 (2인)',   en:'Sofa (2)',      ja:'ソファ(2人)' }),     use:'social' },
+  [TILE.LOWTABLE]:  { em:'🪵', n: L({ ko:'테이블',      en:'Low Table',     ja:'ローテーブル' }),    use:null },
+  [TILE.ARMCHAIR]:  { em:'💺', n: L({ ko:'안락 의자',    en:'Lounge Chair',  ja:'アームチェア' }),    use:'social' },
+  [TILE.BEANBAG]:   { em:'🫘', n: L({ ko:'빈백',        en:'Bean Bag',      ja:'ビーズクッション' }), use:'sleep' },
+  [TILE.CAFETABLE]: { em:'☕', n: L({ ko:'카페 테이블',  en:'Café Table',    ja:'カフェテーブル' }),  use:null },
+  [TILE.CAFECHAIR]: { em:'🪑', n: L({ ko:'카페 의자',    en:'Café Chair',    ja:'カフェチェア' }),    use:'social' },
+  [TILE.CURTAIN]:   { em:'🪟', n: L({ ko:'커튼',        en:'Curtains',      ja:'カーテン' }),        use:null },
+  [TILE.MEMO]:      { em:'🗒️', n: L({ ko:'스티커 메모',  en:'Sticky Notes',  ja:'付箋メモ' }),        use:null },
 };
 
 
@@ -108,6 +158,9 @@ const TILE_INFO = {
    아무것도 못 놓는다. 보이는 것과 막히는 것이 어긋나면 그건 그냥 버그다. */
 const FURN_SPAN = {
   [TILE.DESK]: 2, [TILE.MEETING]: 2, [TILE.LEGAL]: 2,
+  /* 2인 소파만 두 칸이다 — 폭이 1.46 이라 한 칸에 넣으면 옆 칸 가구를 뚫는다.
+     나머지 가구는 전부 1.0 아래로 깎아 뒀다(락커 0.92 · 수납장 1.00). */
+  [TILE.SOFA2]: 2,
 };
 
 /* 덩치 큰 가구 — 통로 한가운데 서 있으면 어색하니 벽 쪽에만 놓는다.
@@ -118,6 +171,8 @@ const FURN_BIG = {
   [TILE.DESK]:1, [TILE.MEETING]:1, [TILE.LEGAL]:1, [TILE.COOLER]:1, [TILE.PLANT]:1,
   [TILE.COFFEE]:1, [TILE.FEEDER]:1, [TILE.SERVER]:1, [TILE.LAB]:1, [TILE.GYM]:1,
   [TILE.SCRATCH]:1, [TILE.WHITEBOARD]:1, [TILE.SHELF]:1, [TILE.PERCH]:1, [TILE.SNACK]:1,
+  /* 키가 크거나 폭이 넓어 벽을 등져야 하는 것들 */
+  [TILE.LOCKER]:1, [TILE.FILECAB]:1, [TILE.CABINET]:1, [TILE.OPENSHELF]:1, [TILE.SOFA2]:1,
 };
 
 /* 가구 분류. 아무 데나 흩뿌리면 사무실이 아니라 창고로 보인다.
@@ -134,7 +189,28 @@ const FURN_CAT = {
   [TILE.MEETING]:'meet',  [TILE.LEGAL]:'meet',    [TILE.INBOX]:'meet',
   [TILE.PLANT]:'decor',   [TILE.SHELF]:'decor',
   [TILE.PERCH]:'wall',
+  /* 가구 카탈로그 — 수납은 벽을 등지고, 쉬는 것은 라운지로, 데코는 아무 데나.
+     이 세 줄이 「사무실이 사무실처럼 보이는가」의 대부분이다: 소파가 통로 한가운데
+     서 있고 락커가 방 복판에 있으면 가구를 아무리 잘 만들어도 창고다. */
+  [TILE.DRAWER]:'wall',   [TILE.FILECAB]:'wall',   [TILE.LOCKER]:'wall',
+  [TILE.CABINET]:'wall',  [TILE.OPENSHELF]:'wall', [TILE.BOOKRACK]:'wall',
+  [TILE.BIN]:'wall',      [TILE.BOX]:'wall',
+  [TILE.SOFA1]:'rest',    [TILE.SOFA2]:'rest',     [TILE.ARMCHAIR]:'rest',
+  [TILE.BEANBAG]:'rest',  [TILE.LOWTABLE]:'rest',
+  [TILE.CAFETABLE]:'break', [TILE.CAFECHAIR]:'break', [TILE.MEETCHAIR]:'meet',
+  [TILE.PLANT_S]:'decor', [TILE.PLANT_L]:'decor',  [TILE.FLOORLAMP]:'decor',
+  [TILE.CANDLE]:'decor',  [TILE.LANTERN]:'decor',  [TILE.PENHOLDER]:'decor',
+  [TILE.PAPERTRAY]:'decor',
 };
+
+/* 작은 소품 — 초·펜 홀더처럼 **책상 위에 놓는 크기**의 것들.
+   자리 고르기에서 규칙 하나를 풀어 준다: 큰 가구는 앞에 통로가 두 칸 있어야 하지만
+   (freeAround >= 2 — 고양이가 지나가고 쓸 자리), 초 한 개는 구석에 놓여도 된다.
+   그 규칙을 똑같이 걸어 뒀더니 **방이 좀 차면 초를 아예 못 놓았다.**
+   진짜 초는 구석에 놓는 물건이라 규칙이 물건을 안 닮은 쪽이었다. */
+const FURN_SMALL = new Set([
+  TILE.CANDLE, TILE.LANTERN, TILE.PENHOLDER, TILE.PAPERTRAY, TILE.PLANT_S,
+]);
 
 function mulberry32(a){
   return function(){
@@ -188,6 +264,16 @@ const SHOP_TILE = {
   lab:TILE.LAB, rocket:TILE.ROCKET,
   perch:TILE.PERCH, hammock:TILE.HAMMOCK, snack:TILE.SNACK,
   yarn:TILE.YARN, toy:TILE.TOY, game:TILE.GAME,
+  /* 가구 카탈로그. 비품과 같은 표를 쓴다 — 사는 경로가 하나여야 「샀는데 안 나타난다」가
+     한 곳에서만 생기고, 그 한 곳은 이미 고쳐져 있다(buyItem 의 자리부터 잡기). */
+  f_drawer:TILE.DRAWER,     f_filecab:TILE.FILECAB,   f_meetchair:TILE.MEETCHAIR,
+  f_locker:TILE.LOCKER,     f_cabinet:TILE.CABINET,   f_openshelf:TILE.OPENSHELF,
+  f_bookrack:TILE.BOOKRACK, f_papertray:TILE.PAPERTRAY, f_box:TILE.BOX, f_bin:TILE.BIN,
+  f_plantS:TILE.PLANT_S,    f_plantL:TILE.PLANT_L,    f_floorlamp:TILE.FLOORLAMP,
+  f_candle:TILE.CANDLE,     f_lantern:TILE.LANTERN,   f_penholder:TILE.PENHOLDER,
+  f_sofa1:TILE.SOFA1,       f_sofa2:TILE.SOFA2,       f_lowtable:TILE.LOWTABLE,
+  f_armchair:TILE.ARMCHAIR, f_beanbag:TILE.BEANBAG,
+  f_cafetable:TILE.CAFETABLE, f_cafechair:TILE.CAFECHAIR,
 };
 /* ---------- 생성 ---------- */
 function genOffice(tier, owned, seed){
@@ -507,7 +593,16 @@ function genOffice(tier, owned, seed){
      격자(grid)에는 못 싣는다. 한 칸이 타일 번호 하나짜리 바이트라 각도가 들어갈 자리가 없고,
      넓히면 저장·길찾기·검증이 전부 같이 넓어진다. 각도는 **그림에만** 쓰이는 값이므로
      따로 옆에 둔다 — 시뮬은 이 값을 한 번도 안 읽는다. */
-  const world = { W, H, grid:g, zone, wallDecor, clutter, rot:{}, machineSide, tier, desks, facilities, inbox, door:{x:doorX, y:H-1}, seed };
+  /* ── 가구 **위에** 얹힌 소품 ── (tops)
+     격자는 한 칸에 하나다. 그런데 초·펜 홀더는 진짜로 **책상 위에 놓는** 물건이라,
+     칸을 하나 먹는 것 자체가 물건을 안 닮았다(초 하나가 락커와 같은 자리를 차지한다).
+
+     그래서 격자를 안 건드리고 **목록을 하나 더** 둔다: `{ x, y, tile }` — 그 칸의 가구
+     위에 이 소품이 얹혀 있다는 뜻이다. 딸려 오는 성질이 이 설계의 이유다:
+       · 바닥 칸을 안 먹으므로 **길을 막을 수가 없다** — 검사 자체가 필요 없다
+       · 러그와 같은 방식이라(W.rugs) 저장·배치 모드가 이미 아는 모양이다
+       · 한 칸에 하나씩만 — 책상 위에 초를 열 개 쌓는 건 배치가 아니라 사고다 */
+  const world = { W, H, grid:g, zone, wallDecor, clutter, tops:[], lights:null, rot:{}, machineSide, tier, desks, facilities, inbox, door:{x:doorX, y:H-1}, seed };
 
   /* --- 연결성 검사: 문에서 못 가는 자리는 버린다 --- */
   const reach = floodFrom(world, { x:doorX, y:H-2 });
@@ -653,16 +748,41 @@ function placeFurniture(w, tile, rnd, machineSide){
           t !== TILE.DESK && t !== TILE.DESK_R && t !== TILE.FILLER) placed.push({ x, y });
     }
   const crowded = p => placed.some(q => Math.abs(q.x - p.x) <= 1 && Math.abs(q.y - p.y) <= 1);
+  /* ── 진입로를 지켜야 하는 것은 **쓰는 물건**뿐이다 ──
+     예전에는 `placed.every(p => freeAround(p) > 0)` 이었다 — 「모든 가구의 앞이 열려
+     있어야 한다」. 두 가지가 틀렸다.
+
+     첫째, **이미 막힌 가구가 하나라도 있으면 그때부터 아무것도 못 놓는다**(every 가
+     처음부터 거짓이다). 지킬 것은 「막힌 것을 열어라」가 아니라 「열린 것을 막지 마라」다.
+
+     둘째, **아무도 안 가는 가구까지 지키고 있었다.** 커피 머신·화장실처럼 시뮬이 걸어가서
+     쓰는 것(TILE_INFO 의 use)은 앞이 막히면 정말로 못 쓰게 된다. 그런데 락커·화분은
+     아무도 가지 않으므로 그 앞이 막혀도 아무 일도 안 일어난다. 전부를 지키게 해 두니
+     방이 좀 차면 **놓을 수 있는 칸이 남아 있는데도 전부 거부**됐다 — 실측으로 그 방에는
+     연결성까지 통과하는 칸이 일곱 개 있었고, 그 일곱 개가 모두 이 규칙에 걸렸다.
+
+     길이 끊기는 것은 별개로 계속 막는다(keepsConnected) — 그게 진짜 지켜야 하는 것이다. */
+  const usedTile = p => {
+    const tt = g[at(p.x, p.y)];
+    return !!(typeof TILE_INFO !== 'undefined' && TILE_INFO[tt] && TILE_INFO[tt].use);
+  };
+  const openBefore = placed.filter(p => usedTile(p) && freeAround(p) > 0);
 
   /* 후보 자리. 벽면만 쓰면 상단 벽에 한 줄로 늘어서고,
      안쪽만 쓰면 통로 한가운데 물건이 선다. 둘을 섞는다. */
   const breakSpots = [], wallSpots = [], innerSpots = [], meetSpots = [], loungeSpots = [];
+  /* **모든 후보.** 분류 목록만 두면 어느 목록에도 안 들어가는 칸이 생긴다 —
+     탕비실(zone 1) 안쪽처럼 벽에 안 닿는 칸이 그렇다(`z===1 && !touchesWall` 이
+     아무 목록에도 안 담겼다). 그 방에서는 빈 바닥이 스무 칸 남아도 **아무것도**
+     못 놓았다. 마지막 패스는 이 목록을 본다: 분류는 취향이고, 놓이는 건 약속이다. */
+  const allSpots = [];
   for (let y = 1; y <= H-2; y++){
     for (let x = 1; x <= W-2; x++){
       if (get(x, y) !== TILE.FLOOR) continue;
       if (isSeat(x, y)) continue;
       if (Math.abs(x - w.inbox.x) + Math.abs(y - w.inbox.y) < 2) continue;
       if (Math.abs(x - w.door.x) < 2 && y >= H-3) continue;
+      allSpots.push({ x, y });
       const touchesWall = get(x-1,y) === TILE.WALL || get(x+1,y) === TILE.WALL
                        || get(x,y-1) === TILE.WALL || get(x,y+1) === TILE.WALL;
       const z = zone ? zone[at(x,y)] : 0;
@@ -673,6 +793,7 @@ function placeFurniture(w, tile, rnd, machineSide){
       else innerSpots.push({ x, y });
     }
   }
+  shuffle(allSpots);
   shuffle(wallSpots); shuffle(innerSpots); shuffle(loungeSpots);
   const spots = breakSpots.slice();
   for (let i = 0; i < Math.max(wallSpots.length, innerSpots.length); i++){
@@ -710,7 +831,7 @@ function placeFurniture(w, tile, rnd, machineSide){
     const prev = get(x, y), prevR = wide > 1 ? get(x+1, y) : null;
     set(x, y, tile);
     if (wide > 1) set(x+1, y, TILE.FILLER);
-    const ok = freeAround({x,y}) > 0 && placed.every(p => freeAround(p) > 0) && keepsConnected();
+    const ok = freeAround({x,y}) > 0 && openBefore.every(p => freeAround(p) > 0) && keepsConnected();
     if (!ok){ set(x, y, prev); if (wide > 1) set(x+1, y, prevR); return false; }
     return true;
   };
@@ -719,15 +840,23 @@ function placeFurniture(w, tile, rnd, machineSide){
      그때 조용히 사라지면 산 사람은 돈만 잃는다(기본 사무실 10×8 에서는 벽 쉼터가
      들어갈 자리가 아예 0이었다). 자리 맞추기는 취향이고, 산 물건이 나타나는 건 약속이다.
      그래도 못 놓으면 null 을 돌려주고, 부른 쪽이 그걸 사람에게 말한다. */
+  /* 4번째 패스는 **작은 소품에만** 있다. 앞의 셋은 「앞에 통로 두 칸」을 요구하는데
+     (freeAround >= 2), 초·펜 홀더는 그럴 필요가 없다 — 그 규칙 때문에 방이 좀 차면
+     소품을 영영 못 놓았다(실제로 「놓을 자리가 없습니다」가 그것이었다).
+     한 칸만 열려 있으면 된다: 칸이 완전히 봉해지면 그건 벽 속에 넣는 것이라 여전히 막는다.
+     연결성 검사(tryAt 안의 keepsConnected)는 그대로다 — 길을 막는 자리는 못 쓴다. */
+  const small = FURN_SMALL.has(tile);
+  const anywhere = spots.concat(innerSpots, loungeSpots, meetSpots, allSpots);
   const passes = [
-    { list, spacedPass:spaced },        // 분류대로, 띄엄띄엄
-    { list, spacedPass:false },         // 분류대로, 붙여도 됨
-    { list:spots.concat(innerSpots, loungeSpots, meetSpots), spacedPass:false },  // 아무 데나
+    { list, spacedPass:spaced, need:2 },        // 분류대로, 띄엄띄엄
+    { list, spacedPass:false, need:2 },         // 분류대로, 붙여도 됨
+    { list:anywhere, spacedPass:false, need:2 },                      // 아무 데나
+    ...(small ? [{ list:anywhere, spacedPass:false, need:1 }] : []),  // 소품은 구석도
   ];
-  for (const { list: L, spacedPass } of passes){
+  for (const { list: L, spacedPass, need } of passes){
     for (const sp of L){
       if (get(sp.x, sp.y) !== TILE.FLOOR) continue;
-      if (freeAround(sp) < 2) continue;
+      if (freeAround(sp) < need) continue;
       if (spacedPass && crowded(sp)) continue;
       /* 두 칸짜리는 오른쪽이 막혔으면 왼쪽으로 한 칸 물러서서도 대 본다 —
          벽에 붙는 물건은 오른쪽이 벽인 자리가 많아서, 이것만으로 놓이는 경우가 꽤 있다. */
@@ -808,6 +937,30 @@ function ensureWallItem(w, tile, v){
   return false;
 }
 
+/* 벽에 거는 것을 **한 장 더** 건다. ensureWallItem 은 「없으면 건다」라서 두 번째부터
+   아무 일도 안 하는데, 커튼처럼 여럿 걸리는 물건에는 그게 조용한 실패가 된다.
+
+   자리는 액자를 승격시키지 않고 **빈 벽칸**에서만 찾는다 — 커튼 넉 장을 사면 액자가
+   넉 장 사라지는 건 산 사람이 기대한 일이 아니다. 북쪽 벽을 먼저, 없으면 서쪽 벽.
+   벽 장식은 길찾기와 무관하므로 자리 걱정은 「빈 칸이 있는가」뿐이다. */
+function addWallItem(w, tile, v){
+  if (!w) return false;
+  const list = w.wallDecor || (w.wallDecor = []);
+  const taken = (face, i) => list.some(d => (d.face === 'w') === (face === 'w')
+    && i >= (face === 'w' ? d.y : d.x) && i < (face === 'w' ? d.y : d.x) + (d.span || 1));
+  for (let x = 1; x <= w.W - 2; x++)
+    if (w.grid[x] === TILE.WALL && !taken('n', x)){
+      list.push({ x, y:0, tile, span:1, face:'n', v: v | 0 });
+      return true;
+    }
+  for (let y = 1; y <= w.H - 2; y++)
+    if (w.grid[y * w.W] === TILE.WALL && !taken('w', y)){
+      list.push({ x:0, y, tile, span:1, face:'w', v: v | 0 });
+      return true;
+    }
+  return false;
+}
+
 function ensureCal(w){
   if (!w) return false;
   const list = w.wallDecor || (w.wallDecor = []);
@@ -872,7 +1025,9 @@ function worldFromGrid(saved){
   const w = {
     W, H, tier: saved.tier, seed: saved.seed, machineSide: saved.machineSide || 'left',
     grid: Uint8Array.from(saved.grid), zone: Uint8Array.from(saved.zone || []),
-    wallDecor: saved.wallDecor || [], clutter: saved.clutter || [], rot: saved.rot || {},
+    wallDecor: saved.wallDecor || [], clutter: saved.clutter || [], tops: saved.tops || [],
+    lights: Array.isArray(saved.lights) ? saved.lights : null,
+    rot: saved.rot || {},
     desks: [], facilities: {}, inbox: { x:1, y:H-2 }, door: { x:Math.floor(W/2), y:H-1 },
   };
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++){

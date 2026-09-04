@@ -39,7 +39,7 @@ export const PAL = {
      (빨간 공 하나가 회색 사무실의 유일한 색이다) 벌을 갈 때 같이 회색이 되면 그 자리가
      비어 버린다. 화분의 잎이 벌과 무관하게 초록인 것과 같은 이유다. */
   toy:      0xC2705F,
-  glow:     0xFFD9A0,     // 밤에 켜지는 것들
+  glow:     0xFFB65C,     // 밤에 켜지는 것들 — 2026-08-28 에 주황 쪽으로 두 단계
   sky:      0xBBD9F0,     // 창밖
 };
 
@@ -477,18 +477,28 @@ export function wallArt(w = 0.5, h = 0.4, color = PAL.fabric2, motif = 0){
   return g;
 }
 
-export function wallShelf(w = 1.2){
+export function wallShelf(w = 1.2, opt = {}){
   const g = group(
     box(w, 0.07, 0.28, PAL.wood, 0, 0, 0),
     box(0.07, 0.20, 0.24, PAL.woodDark, -w / 2 + 0.08, -0.13, -0.02),
     box(0.07, 0.20, 0.24, PAL.woodDark,  w / 2 - 0.08, -0.13, -0.02),
   );
   if (!rich()) return g;
+  /* **오른쪽 끝을 비울 수 있다**(opt.free · 0~1). 선반 위에 등을 하나 올리려는데
+     잡동사니 넷이 판을 꽉 채우고 있어서 놓을 자리가 없었다. 등을 잡동사니 위에
+     겹쳐 놓는 길도 있었고 그건 선반이 아니라 사고로 보인다 — 자리를 비우는 게 맞다.
+     비운 자리에 무엇을 올릴지는 render3d 가 정한다(랜턴 · 양초). */
+  const free = Math.max(0, Math.min(0.6, opt.free || 0));
+  const span = w * (1 - free);
+  const x0 = -w / 2;
   const things = [PAL.pot, PAL.fabric, PAL.leaf, PAL.fabric2, PAL.screen];
   for (let i = 0; i < 4; i++){
-    const x = -w / 2 + 0.25 + i * (w - 0.5) / 3;
+    const x = x0 + 0.25 * (span / w) + i * (span - 0.5 * (span / w)) / 3;
     g.add(box(0.14, 0.16 + (i % 3) * 0.04, 0.14, things[i % things.length], x, 0.12 + (i % 3) * 0.02, 0));
   }
+  /* 비운 자리의 중심 — 여기에 등이 온다. 밖에서 셈을 다시 하면 free 를 고칠 때마다
+     두 곳이 어긋난다. */
+  if (free > 0) g.userData.free = new THREE.Vector3(w / 2 - (w * free) / 2, 0.035, 0);
   return g;
 }
 
@@ -509,6 +519,283 @@ export function pendant(drop = 0.7){
     box(0.30, 0.05, 0.30, PAL.glow, 0, -drop - 0.24, 0),
   );
   g.userData.bulb = new THREE.Vector3(0, -drop - 0.3, 0);
+  return g;
+}
+
+/* ============================================================
+   불 켜진 것들 — 조명 기구 한 벌 (2026-08-28)
+
+   레퍼런스(아늑한 아이소메트릭 방)를 픽셀로 뜯어 보고 알게 된 것 하나:
+   **아늑한 방은 밝은 방이 아니라 광원이 많은 방이다.** 그 그림에서 전역광을 걷어
+   내고 보면 남는 것이 전구줄·양초 셋·탁상등·창 — 다섯 종류의 작은 불이고, 그것들이
+   방 곳곳에 흩어져 **밝은 점을 열댓 개** 만든다. 밝기의 총합은 오히려 우리 사무실의
+   낮 화면보다 낮다. 다른 것은 총합이 아니라 **분포**다.
+
+   지금까지 이 방은 반대로 지어져 있었다 — 천장등 두엇이 방을 고르게 들고, 책상등이
+   웅덩이를 만들고, 끝. 종류가 둘뿐이니 「빛이 여기저기 고여 있다」가 나올 수가 없다.
+   그래서 기구를 늘린다. 아래 다섯이 그것이다:
+
+     floorLamp    스탠딩 스탠드 — 바닥에 서는 키 큰 등. 구석과 쉼터에 선다
+     stringLights 전구줄 — 벽 윗선을 따라 늘어진다. **작은 불 여럿**의 주력
+     sconce       벽등 — 벽에 간간히. 벽면을 위아래로 씻는다
+     candles      양초 — 선반·탁자 위. 진짜 광원은 아니고 떨리는 발광점이다
+     lantern      랜턴 — 선반 위 유리등. 사방이 다 빛나서 어느 각도에서도 읽힌다
+
+   ── 위에서 내려다보는 화면이라는 제약 ──
+
+   이 게임의 카메라는 늘 위에 있다. 그래서 **갓이 아래를 향하는 조명은 켜졌는지 안
+   보인다** — 빛나는 면이 갓에 통째로 가린다(천장 펜던트를 2026-08-25 에 없앤 이유가
+   이것이었다). 아래 기구들은 전부 그 반대로 지었다: 빛나는 면이 **위나 옆**을 본다.
+   토치에르는 사발이 하늘을 보고, 전구줄은 알맹이가 사방으로 빛나고, 벽등은 위로 씻고,
+   양초와 랜턴은 애초에 갓이 없다. 「조명 기구를 놓았다」가 아니라 「불이 켜져 있다」로
+   읽혀야 하고, 그 차이가 전부 여기서 갈린다.
+
+   ── 발광면과 광원은 다른 물건이다 ──
+
+   여기서 만드는 것은 **발광면**뿐이다(matGlow). 점광원은 render3d 가 붙인다 —
+   기구마다 userData.bulb 에 「불이 있는 자리」를 로컬 좌표로 찍어 두면 그쪽에서 읽는다
+   (pendant 가 쓰던 규약을 그대로 따른다). 나누는 이유는 값이 다르기 때문이다:
+   발광면은 스무 개가 있어도 공짜지만 점광원은 셰이더가 픽셀마다 도는 루프라
+   **개수를 세어 가며 써야 한다.** 양초에 광원을 안 주는 것이 그 판단이다.
+
+   userData.lit 은 그 발광면의 기준 세기다. render3d 의 night() 이 시간대마다
+   이 값을 배율로 다시 칠한다. userData.flame 이 찍힌 것은 매 프레임 떤다.
+   ============================================================ */
+
+/* 빛나는 부품. box/stub/cone 은 mat() 로 굽고 나오므로 재질만 갈아 끼운다.
+   그림자는 안 만든다 — 스스로 빛나는 면이 제 그림자를 드리우면 그건 전구가 아니라
+   전구 모양 돌이다. dynamic 을 찍어야 정적 병합에서 빠진다(merge.js): 병합은 색을
+   정점에 구워 넣는 최적화라, 여기 딸려 들어가면 발광이 그냥 노란 페인트가 된다. */
+function litOf(m, color, k){
+  m.material = matGlow(color, k);
+  m.castShadow = false;
+  m.userData.dynamic = true;
+  m.userData.lit = k;
+  m.userData.litColor = color;
+  return m;
+}
+function litBox(w, h, d, color, k, x = 0, y = 0, z = 0){
+  return litOf(box(w, h, d, color, x, y, z), color, k);
+}
+function litBall(r, color, k, x = 0, y = 0, z = 0){
+  const m = litOf(ellip(r * 2, r * 2, r * 2, color), color, k);
+  m.position.set(x, y, z);
+  return m;
+}
+function litDisc(r, h, color, k, x = 0, y = 0, z = 0){
+  const m = litOf(stub(r, r, h, color, 10), color, k);
+  m.position.set(x, y, z);
+  return m;
+}
+
+/* ---------- 스탠딩 스탠드 ----------
+   바닥에 서는 키 큰 등. 이 방에 없던 종류다 — 지금까지 바닥 광원은 책상에 붙은
+   것뿐이라, 책상이 없는 자리(쉼터·구석·통로)에는 불을 놓을 방법이 아예 없었다.
+   천장등을 밝혀 메우는 길이 있었고 그건 이미 해 봤다: 방이 고르게 밝아지면서
+   웅덩이가 통째로 사라졌다. 구석에 필요한 것은 **그 구석의 등**이다.
+
+   v=0 토치에르 — 사발이 하늘을 본다. 위에서 보는 화면에서 켜진 게 제일 잘 읽히는
+        모양이고, 빛도 실제로 위로 나가 벽 윗부분을 데운다(방이 감싸이는 느낌은
+        눈높이 **위**가 밝을 때 생긴다 — 이 파일 「cozy 재료」 절의 첫 줄이다).
+   v=1 종이 등 — 기둥 위에 빛나는 공. 갓이 없으니 각도를 안 탄다.
+        토치에르와 실루엣이 완전히 달라야 둘을 같이 놓았을 때 「같은 물건 두 개」로
+        안 보인다. 그래서 하나는 각지고 위로 열린 것, 하나는 둥근 것으로 갈랐다. */
+export function floorLamp(v = 0){
+  const g = new THREE.Group();
+  const H = v === 1 ? 1.30 : 1.54;
+  /* 받침. 키가 큰 물건이라 받침이 작으면 넘어질 듯이 보인다 — 실제로 쓰러지지는
+     않지만 「불안한 가구」는 아늑함의 반대말이다. */
+  g.add(box(0.30, 0.035, 0.30, PAL.metalDark, 0, 0.018, 0));
+  g.add(box(0.34, 0.02, 0.34, PAL.metalDark, 0, 0.006, 0));
+  g.add(box(0.045, H - 0.1, 0.045, PAL.metalDark, 0, (H - 0.1) / 2 + 0.03, 0));
+
+  if (v === 1){
+    /* 종이 등 — 공 하나가 통째로 빛난다.
+
+       **살의 크기가 공보다 크면 안 된다.** 처음엔 0.44·0.46 짜리 판을 위아래로 둘러서
+       「등의 테」를 만들려고 했는데, 공의 지름이 0.42 라 판이 더 컸다. 위에서 내려다보는
+       화면에서 그건 공을 가린 접시 두 장이고, 실제로 찍어 보니 등이 아니라 **햄버거**로
+       보였다(spike/l1-lights.html). 조형을 방 안에서 판정할 수 없다는 걸 그때 알았고,
+       그래서 그 페이지를 만들었다.
+
+       지금은 살을 **구면에 맞춰** 자른다. 반지름 0.24 짜리 공의 y=±0.13 자리 폭이
+       0.40 이라 그 값을 그대로 쓴다 — 살이 공의 실루엣 안에 들어가므로 가리지 않고
+       띠로만 읽힌다. */
+    const R = 0.24;
+    g.add(litBall(R, PAL.glow, 1.0, 0, H, 0));
+    /* 살은 **원반**이어야 한다. 네모 판으로 하면 폭을 구면에 맞춰도 **모서리**가
+       0.283 까지 뻗어서(폭×√2÷2) 공 밖으로 삼각형 네 개가 튀어나온다.
+       한 번 고치고 또 걸린 자리라 치수 대신 도형을 바꿨다. */
+    const bandR = Math.sqrt(R * R - 0.13 * 0.13);
+    [0.13, -0.13].forEach(dy => {
+      const b = stub(bandR, bandR, 0.016, PAL.paper, 10);
+      b.position.set(0, H + dy, 0);
+      g.add(b);
+    });
+    /* 꼭지는 작게. 크면 그게 다시 공을 덮는다 — 위 실수의 축소판이다. */
+    g.add(box(0.07, 0.035, 0.07, PAL.metalDark, 0, H + R + 0.02, 0));
+    g.userData.bulb = new THREE.Vector3(0, H, 0);
+  } else {
+    /* 토치에르 — 위로 벌어진 사발. rTop > rBot 이라 위에서 보면 **안이 보인다**.
+       거꾸로(rTop < rBot) 만들면 흔한 갓등이 되는데, 그 모양은 이 카메라에서
+       빛나는 면이 통째로 가려서 「꺼진 등」과 구별이 안 된다. */
+    const bowl = stub(0.30, 0.13, 0.20, PAL.metal, 8);
+    bowl.position.set(0, H - 0.02, 0);
+    g.add(bowl);
+    /* 사발 안의 빛. 테두리보다 살짝 낮게 앉혀야 「사발에 고인 빛」이 된다 —
+       테두리 위로 올리면 사발에 얹힌 원판이다. */
+    g.add(litDisc(0.255, 0.03, PAL.glow, 1.0, 0, H + 0.045, 0));
+    /* 테두리 한 겹. 안쪽 빛이 벌어진 면을 타고 나오는 것처럼 보이게 하는 값싼 수법이다. */
+    g.add(litDisc(0.30, 0.022, PAL.glow, 0.55, 0, H + 0.075, 0));
+    g.userData.bulb = new THREE.Vector3(0, H + 0.10, 0);
+  }
+  /* 스탠드 발치의 전선. 손톱만 한 물건인데 이게 있으면 등이 방에 **꽂혀 있는** 것이
+     된다(벽의 콘센트를 세 칸마다 박아 둔 것과 같은 판단이다). */
+  g.add(box(0.03, 0.02, 0.26, PAL.ink, 0.06, 0.012, 0.22));
+  return g;
+}
+
+/* ---------- 전구줄 ----------
+   이 한 벌에서 **주력**이다. 레퍼런스가 아늑한 이유의 절반이 여기 있다 — 작은 불
+   열댓 개가 눈높이 위를 가로지르면 방이 그 선 아래로 감싸인다.
+
+   **매듭져 늘어뜨린다**(festoon). 한 줄을 양 끝에서만 잡으면 8칸짜리 벽에서
+   한가운데가 바닥까지 처지는데, 그건 전구줄이 아니라 빨랫줄이다. 2.2칸쯤마다 못을
+   박고 그 사이만 처지게 한다 — 실제로 이렇게 다는 물건이기도 하고, 무엇보다
+   **처짐이 반복되면 그게 리듬이 된다.** 벽 하나에 같은 곡선이 서너 번 반복되는 것이
+   이 물건의 그림이다.
+
+   알맹이는 **점광원이 아니다.** 열여섯 개를 진짜 광원으로 달면 셰이더가 픽셀마다
+   열여섯 번 도는데, 그 값을 치르고 얻는 것은 「고르게 데워진 벽」이다 — 알맹이가
+   촘촘해서 웅덩이가 안 생긴다. render3d 가 이 줄에 **띄엄띄엄** 광원을 얹는다. */
+export function stringLights(len = 4, opt = {}){
+  const g = new THREE.Group();
+  const SAG = opt.sag ?? 0.17;
+  const gap = opt.gap ?? 0.34;
+  const n = Math.max(4, Math.round(len / gap) + 1);
+  const seg = Math.max(1, Math.round(len / 2.2));      // 못 사이 칸 수
+  const yAt = u => -Math.sin(((u * seg) % 1) * Math.PI) * SAG;
+  const pts = [];
+  for (let i = 0; i < n; i++){
+    const u = i / (n - 1);
+    pts.push([-len / 2 + u * len, yAt(u), 0]);
+  }
+  /* 줄. 점 사이를 잇는 얇은 막대를 눕힌다 — 곡선을 진짜로 굽히는 것보다 싸고,
+     로우폴리에서는 꺾인 선이 오히려 어울린다. */
+  for (let i = 0; i < n - 1; i++){
+    const a = pts[i], b = pts[i + 1];
+    const dx = b[0] - a[0], dy = b[1] - a[1];
+    const L = Math.hypot(dx, dy);
+    const w = box(L + 0.01, 0.014, 0.014, PAL.ink, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, 0);
+    w.rotation.z = Math.atan2(dy, dx);
+    w.castShadow = false;
+    g.add(w);
+  }
+  /* 알맹이. 하나씩 걸린 소켓이 있어야 「줄에 달린 전구」가 된다 — 빛나는 공만
+     늘어놓으면 공중에 뜬 점이 된다.
+
+     **소켓은 알맹이보다 확실히 작아야 한다.** 처음엔 0.026 짜리 어두운 상자를 알맹이
+     바로 위에 얹었는데, 게임 화면에서 알맹이가 5px 도 안 되다 보니 그 위의 검은 점과
+     뭉쳐서 **줄 전체가 검은 점선**으로 보였다(밤 스크린샷 확대). 소켓을 0.02 로 줄이고
+     밝은 쪽 금속으로 바꾸고 알맹이를 0.052 로 키웠다 — 이제 폭이 다섯 배 차이다. */
+  const bulbs = [];
+  for (let i = 0; i < n; i++){
+    const [x, y] = pts[i];
+    g.add(box(0.02, 0.022, 0.02, PAL.metal, x, y - 0.016, 0));
+    const b = litBall(0.052, PAL.glow, 1.0, x, y - 0.058, 0);
+    g.add(b);
+    bulbs.push(b);
+  }
+  /* 못. 처짐이 시작되는 자리마다 하나 — 줄이 벽에 **붙어 있다**를 말한다. */
+  for (let s = 0; s <= seg; s++){
+    const x = -len / 2 + (len * s) / seg;
+    g.add(box(0.03, 0.05, 0.05, PAL.wallTrim, x, 0.012, -0.012));
+  }
+  g.userData.bulbs = bulbs;
+  /* 광원을 얹을 자리 몇 곳 — 처진 골의 제일 낮은 데다. 골마다 하나면 벽을 따라
+     빛이 **일정한 간격으로 고인다**(줄 전체를 하나로 데우는 것과 다르다). */
+  g.userData.hooks = Array.from({ length: seg }, (_, s) =>
+    new THREE.Vector3(-len / 2 + (len * (s + 0.5)) / seg, -SAG - 0.06, 0));
+  return g;
+}
+
+/* ---------- 벽등 ----------
+   벽에 간간히 걸리는 등. 전구줄이 벽 **윗선**을 지나간다면 이쪽은 벽 **면**을 씻는다 —
+   빛이 위아래로 부챗살처럼 번지는 그 자국이 벽을 평평한 판에서 벽으로 만든다.
+
+   반쪽 갓이 위로 열려 있다. 아래로 닫으면 이 카메라에서 안 읽히고(위 머리말),
+   위로 열면 갓 안의 빛이 그대로 보이면서 벽 윗부분이 같이 밝아진다. */
+export function sconce(v = 0){
+  const g = new THREE.Group();
+  /* 벽에 대는 판 */
+  g.add(box(0.16, 0.20, 0.05, PAL.metalDark, 0, -0.10, 0.02));
+  g.add(box(0.07, 0.07, 0.13, PAL.metalDark, 0, 0.0, 0.07));
+  if (v === 1){
+    /* 유리 관 — 세로로 긴 등. 갓등과 실루엣이 달라야 벽에 둘이 걸렸을 때 다른
+       물건으로 보인다. */
+    g.add(litBox(0.12, 0.38, 0.12, PAL.glow, 1.0, 0, 0.02, 0.12));
+    /* 캡은 얇고 **관보다 넓지 않게**. 0.16 짜리를 얹었더니 위에서 내려다보는 화면에서
+       그 윗면이 통째로 보여서 「빛나는 관에 얹힌 검은 판」이 됐다(파스텔 판에서 잡혔다).
+       종이 등의 살에서 한 번, 여기서 또 한 번 — 이 카메라에서 **가로 판은 늘 정면**이다. */
+    g.add(box(0.13, 0.022, 0.13, PAL.metal, 0, 0.218, 0.12));
+    g.add(box(0.13, 0.022, 0.13, PAL.metal, 0, -0.178, 0.12));
+    g.userData.bulb = new THREE.Vector3(0, 0.02, 0.20);
+  } else {
+    /* 위로 열린 반쪽 갓 */
+    const bowl = stub(0.19, 0.10, 0.15, PAL.paper, 8);
+    bowl.position.set(0, 0.06, 0.15);
+    g.add(bowl);
+    g.add(litDisc(0.155, 0.028, PAL.glow, 1.0, 0, 0.125, 0.15));
+    g.userData.bulb = new THREE.Vector3(0, 0.16, 0.20);
+  }
+  return g;
+}
+
+/* ---------- 양초 ----------
+   **광원을 안 준다.** 촛불 하나가 실제로 방을 밝히지는 않고, 이 방에서 촛불이 하는
+   일은 밝히는 것이 아니라 **떠는 것**이다 — 가만한 빛만 있는 방은 조명이 잘 된 방이고,
+   떠는 점이 하나 있어야 「불이 켜져 있다」가 된다. 그 일에 셰이더 루프를 한 칸 쓰는
+   것은 비싸다. 대신 발광면을 매 프레임 흔든다(render3d 의 tickFlames).
+
+   키가 다른 셋. 같은 키로 늘어놓으면 초가 아니라 울타리다. */
+export function candles(n = 3){
+  const g = new THREE.Group();
+  g.add(box(0.30, 0.022, 0.22, PAL.woodDark, 0, 0.011, 0));
+  const HS = [0.15, 0.095, 0.125, 0.075];
+  const flames = [];
+  for (let i = 0; i < n; i++){
+    const h = HS[i % HS.length];
+    const x = (i - (n - 1) / 2) * 0.085;
+    const z = (i % 2) * 0.05 - 0.025;
+    const wax = stub(0.031, 0.034, h, PAL.paper, 7);
+    wax.position.set(x, 0.022 + h / 2, z);
+    g.add(wax);
+    /* 불꽃. 심지가 없으면 초 위에 뜬 노란 조각이라, 어두운 꼭지를 한 칸 끼운다. */
+    g.add(box(0.012, 0.022, 0.012, PAL.ink, x, 0.022 + h + 0.011, z));
+    const f = litOf(cone(0.038, 0.095, PAL.glow, 6), PAL.glow, 1.2);
+    f.position.set(x, 0.022 + h + 0.068, z);
+    f.userData.flame = 1;
+    g.add(f);
+    flames.push(f);
+  }
+  g.userData.flames = flames;
+  return g;
+}
+
+/* ---------- 랜턴 ----------
+   선반과 탁자에 놓는 유리등. 네 면이 다 빛나서 **각도를 안 탄다** — 벽 선반은
+   높은 데 있어서 카메라가 옆에서 보게 되는데, 거기에 갓 달린 등을 올려 두면
+   빛나는 면이 안 보인다. 손잡이 고리가 이 물건을 「등」으로 만든다. */
+export function lantern(){
+  const g = new THREE.Group();
+  g.add(box(0.20, 0.03, 0.20, PAL.metalDark, 0, 0.015, 0));
+  g.add(litBox(0.145, 0.19, 0.145, PAL.glow, 0.92, 0, 0.13, 0));
+  /* 기둥 넷. 이게 없으면 빛나는 상자다. */
+  for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]])
+    g.add(box(0.022, 0.20, 0.022, PAL.metalDark, sx * 0.076, 0.13, sz * 0.076));
+  g.add(box(0.21, 0.028, 0.21, PAL.metalDark, 0, 0.24, 0));
+  g.add(box(0.03, 0.055, 0.03, PAL.metalDark, 0, 0.28, 0));
+  g.userData.bulb = new THREE.Vector3(0, 0.14, 0);
   return g;
 }
 
@@ -1228,6 +1515,395 @@ export function succulent(){
 /* ---------- 방 ----------
    벽을 네 덩어리로 따로 만든다. 카메라를 돌리면 앞벽이 씬을 가리기 때문에
    면마다 통째로 껐다 켤 수 있어야 한다 (2D 에서 "양옆 벽을 안 그리던" 트릭의 3D 판). */
+/* ============================================================
+   가구 카탈로그 (2026-09-01)
+
+   레퍼런스로 받은 「사무실 가구 목록」 한 장을 그대로 구현한 것들이다. 다섯 분류
+   ― 업무 · 수납 · 데코 · 휴식 · 바닥/벽 ― 인데, 절반은 이미 이 파일에 있었다
+   (책상 · 의자 · 책장 · 화이트보드 · 화분 · 시계 · 액자 · 정수기 · 커피머신 ·
+   러그 · 블라인드 · 벽 선반 · 스탠드 조명 · 탁상 조명 · 캔들 · 포스터 · 박스 · 펜 홀더).
+   여기 있는 것은 **없던 것들**이다.
+
+   ── 이 한 벌을 관통하는 규칙 셋 ──
+
+   1. **위에서 내려다보는 화면이다.** 조명 한 벌에서 세 번 걸린 그 규칙이 가구에도
+      그대로 걸린다 — 뚜껑이 몸통보다 넓으면 위에서 그 뚜껑만 보인다. 서랍장의 상판,
+      락커의 천장, 소파의 등받이가 전부 이 문제를 갖고 있어서 넓이를 몸통에 맞췄다.
+
+   2. **정면에 선이 하나는 있어야 한다.** 로우폴리에서 상자 하나는 상자로 보인다.
+      서랍 손잡이 · 문틈 · 쿠션 이음새 — 면을 가르는 선이 하나 들어가야 그게 가구가 된다.
+      rich() 가 꺼진 판(저사양)에서는 그 선들만 빠지고 덩치는 남는다.
+
+   3. **색은 팔레트에서만 가져온다.** 벽지·바닥 톤을 갈면 가구도 같이 가야 하는데
+      (decor.js 의 pal()), 여기서 색을 직접 쓰면 그 가구만 옛 톤으로 남는다.
+      예외는 잎(leaf)과 장난감(toy) 둘뿐이고 그건 팔레트가 이미 그렇게 정해 뒀다.
+   ============================================================ */
+
+/* ---------- 업무 ---------- */
+
+/* 서랍장 — 책상 옆에 붙는 낮은 3단. 상판이 몸통보다 **한 뼘만** 넓다.
+   많이 넓히면 위에서 상판만 보이고 서랍이 안 읽힌다(규칙 1). */
+export function drawerUnit(){
+  const g = group(
+    box(0.62, 0.06, 0.50, PAL.wood,     0, 0.69, 0),      // 상판
+    box(0.58, 0.66, 0.46, PAL.woodDark, 0, 0.33, 0),
+    box(0.50, 0.05, 0.44, PAL.woodDark, 0, 0.03, 0),      // 굽
+  );
+  if (!rich()) return g;
+  for (let i = 0; i < 3; i++){
+    const y = 0.16 + i * 0.21;
+    g.add(box(0.50, 0.17, 0.03, PAL.wood, 0, y, 0.235));   // 서랍 앞판
+    g.add(box(0.18, 0.03, 0.03, PAL.metal, 0, y, 0.255));  // 손잡이
+  }
+  return g;
+}
+
+/* 파일 캐비닛 — 서랍장의 키 큰 형제. 금속이고 4단이라 실루엣이 확실히 다르다.
+   둘이 같은 나무 상자면 목록에서 두 줄을 쓸 이유가 없다. */
+export function fileCabinet(){
+  const g = group(
+    box(0.54, 1.32, 0.48, PAL.metal,     0, 0.66, 0),
+    box(0.58, 0.05, 0.52, PAL.metalDark, 0, 1.32, 0),      // 천장 테
+    box(0.50, 0.04, 0.44, PAL.metalDark, 0, 0.02, 0),
+  );
+  if (!rich()) return g;
+  for (let i = 0; i < 4; i++){
+    const y = 0.22 + i * 0.30;
+    g.add(box(0.46, 0.26, 0.02, PAL.metalDark, 0, y, 0.245));
+    g.add(box(0.14, 0.035, 0.03, PAL.paper, 0, y + 0.06, 0.26));   // 라벨 홀더
+  }
+  return g;
+}
+
+/* 회의용 의자 — 사무 의자(chair)와 달리 바퀴가 없고 다리가 넷이다.
+   회의탁자에 딸려 오는 물건이라 등받이가 낮고 팔걸이가 있다. */
+export function meetChair(turn = 0){
+  const g = group(
+    box(0.42, 0.07, 0.42, PAL.fabric,    0, 0.44, 0),
+    box(0.40, 0.36, 0.07, PAL.fabric,    0, 0.64, -0.18),
+    box(0.06, 0.44, 0.06, PAL.metalDark, -0.16, 0.22, -0.14),
+    box(0.06, 0.44, 0.06, PAL.metalDark,  0.16, 0.22, -0.14),
+    box(0.06, 0.44, 0.06, PAL.metalDark, -0.16, 0.22,  0.14),
+    box(0.06, 0.44, 0.06, PAL.metalDark,  0.16, 0.22,  0.14),
+  );
+  if (rich()){
+    g.add(box(0.05, 0.05, 0.34, PAL.metalDark, -0.21, 0.60, -0.02));
+    g.add(box(0.05, 0.05, 0.34, PAL.metalDark,  0.21, 0.60, -0.02));
+  }
+  g.rotation.y = turn;
+  return g;
+}
+
+/* ---------- 수납 ---------- */
+
+/* 락커 — 세 짝. **문틈이 이 물건의 전부다**(규칙 2): 문틈이 없으면 회색 기둥이다. */
+export function locker(){
+  const g = group(
+    box(0.92, 1.50, 0.44, PAL.metal,     0, 0.75, 0),
+    box(0.96, 0.05, 0.48, PAL.metalDark, 0, 1.50, 0),
+    box(0.88, 0.06, 0.40, PAL.metalDark, 0, 0.03, 0),
+  );
+  if (!rich()) return g;
+  for (let i = 0; i < 3; i++){
+    const x = -0.30 + i * 0.30;
+    g.add(box(0.015, 1.36, 0.02, PAL.metalDark, x + 0.15, 0.78, 0.225));  // 문틈
+    g.add(box(0.03, 0.10, 0.03, PAL.metalDark, x + 0.09, 0.86, 0.235));   // 손잡이
+    g.add(box(0.12, 0.02, 0.02, PAL.metalDark, x, 1.34, 0.235));          // 통풍구
+  }
+  return g;
+}
+
+/* 수납장 — 미닫이 두 짝짜리 낮은 장. 위에 물건을 올릴 수 있어 보여야 해서
+   상판을 두껍게 뽑았다(락커와 실루엣을 가르는 것도 그 상판이다). */
+export function cabinet(){
+  const g = group(
+    box(1.00, 0.08, 0.50, PAL.woodDark, 0, 0.86, 0),
+    box(0.94, 0.78, 0.46, PAL.metal,    0, 0.43, 0),
+    box(0.88, 0.06, 0.40, PAL.metalDark,0, 0.03, 0),
+  );
+  if (!rich()) return g;
+  g.add(box(0.44, 0.62, 0.02, PAL.wood, -0.23, 0.44, 0.235));
+  g.add(box(0.44, 0.62, 0.02, PAL.wood,  0.23, 0.44, 0.235));
+  g.add(box(0.03, 0.20, 0.03, PAL.metalDark, -0.03, 0.44, 0.25));
+  g.add(box(0.03, 0.20, 0.03, PAL.metalDark,  0.03, 0.44, 0.25));
+  return g;
+}
+
+/* 오픈 선반 — 문이 없다. 그래서 **선반 사이가 비어 보여야** 하고, 그 빈 칸이
+   이 가구의 그림이다. 뒤판을 안 대는 이유도 같다. */
+export function openShelf(){
+  const g = group(
+    box(0.06, 1.10, 0.40, PAL.metalDark, -0.42, 0.55, 0),
+    box(0.06, 1.10, 0.40, PAL.metalDark,  0.42, 0.55, 0),
+  );
+  for (let i = 0; i < 3; i++)
+    g.add(box(0.90, 0.05, 0.40, PAL.wood, 0, 0.12 + i * 0.42, 0));
+  if (!rich()) return g;
+  /* 올려 둔 것들 — 상자와 서류철. 빈 선반은 「아직 안 쓰는 가구」로 보인다. */
+  const cs = [PAL.pot, PAL.fabric2, PAL.leafDark, PAL.fabric];
+  for (let i = 0; i < 5; i++){
+    const s = i % 3, x = -0.28 + (i % 3) * 0.28 + (i > 2 ? 0.12 : 0);
+    g.add(box(0.20, 0.20, 0.26, cs[i % cs.length], x, 0.25 + (i > 2 ? 0.42 : 0), 0));
+  }
+  return g;
+}
+
+/* 책꽂이 — 비스듬한 잡지꽂이. 선반과 겹치지 않는 유일한 길이 **기울기**였다.
+   똑바로 세우면 오픈 선반의 축소판이 되고, 그러면 목록에서 두 줄이 같은 그림이다. */
+export function bookRack(){
+  const g = group(
+    box(0.80, 0.06, 0.44, PAL.woodDark, 0, 0.03, 0),
+    box(0.06, 0.62, 0.44, PAL.woodDark, -0.37, 0.34, 0),
+    box(0.06, 0.62, 0.44, PAL.woodDark,  0.37, 0.34, 0),
+  );
+  const back = box(0.74, 0.60, 0.05, PAL.wood, 0, 0.36, -0.14);
+  back.rotation.x = -0.30;
+  g.add(back);
+  if (!rich()) return g;
+  const spines = [PAL.fabric, PAL.fabric2, PAL.leafDark, PAL.pot, PAL.screen];
+  for (let i = 0; i < 5; i++){
+    const b = box(0.13, 0.30, 0.04, spines[i % spines.length], -0.28 + i * 0.14, 0.32, 0.02);
+    b.rotation.x = -0.30;
+    g.add(b);
+  }
+  return g;
+}
+
+/* 서류 트레이 — 책상 위에 올리는 3단. 이 목록에서 제일 작은 물건이라
+   칸을 통째로 먹으면 이상하고, **아래의 deskTop 이 책상에 얹는다.** */
+export function paperTray(){
+  const g = new THREE.Group();
+  for (let i = 0; i < 3; i++){
+    const y = 0.03 + i * 0.075;
+    g.add(box(0.30, 0.015, 0.24, PAL.metalDark, 0, y, 0));
+    g.add(box(0.03, 0.06, 0.03, PAL.metalDark, -0.13, y + 0.035, -0.10));
+    g.add(box(0.03, 0.06, 0.03, PAL.metalDark,  0.13, y + 0.035, -0.10));
+    if (rich() && i < 2) g.add(box(0.26, 0.02, 0.20, PAL.paper, 0, y + 0.02, 0.01));
+  }
+  return g;
+}
+
+/* 휴지통 — 위로 벌어진 원통. 아래가 좁아야 「통」이고, 똑바르면 그건 파이프다. */
+export function trashBin(){
+  const g = new THREE.Group();
+  const body = stub(0.17, 0.13, 0.36, PAL.metalDark, 8);
+  body.position.y = 0.18;
+  g.add(body);
+  if (rich()){
+    const rim = stub(0.18, 0.18, 0.03, PAL.metal, 8);
+    rim.position.y = 0.36;
+    g.add(rim, box(0.10, 0.10, 0.10, PAL.paper, 0.03, 0.38, 0.02));   // 삐져나온 종이
+  }
+  return g;
+}
+
+/* ---------- 데코 ---------- */
+
+/* 화분 셋 — 크기만 다른 게 아니라 **잎이 다르다.** 같은 모양을 스케일만 바꿔 놓으면
+   목록에서 세 줄이 한 물건이고, 방에 셋을 놓아도 하나를 세 번 놓은 것으로 보인다.
+   plant() 가 이미 중간 것이므로 여기서는 작은 것과 큰 것만 만든다. */
+export function plantSm(){
+  const g = group(
+    stubAt(0.11, 0.09, 0.16, PAL.pot, 0.08),
+    box(0.24, 0.03, 0.24, PAL.pot, 0, 0.16, 0),
+  );
+  /* 다육식물 — 짧고 통통한 잎이 방사형. 큰 화분의 긴 잎과 정반대다. */
+  for (let i = 0; i < 6; i++){
+    const a = (i / 6) * Math.PI * 2;
+    const l = box(0.06, 0.13, 0.06, i % 2 ? PAL.leaf : PAL.leafDark,
+                  Math.cos(a) * 0.055, 0.24, Math.sin(a) * 0.055);
+    l.rotation.z = Math.cos(a) * 0.5;
+    l.rotation.x = -Math.sin(a) * 0.5;
+    g.add(l);
+  }
+  return g;
+}
+export function plantLg(){
+  const g = group(
+    stubAt(0.26, 0.20, 0.42, PAL.pot, 0.21),
+    box(0.56, 0.05, 0.56, PAL.pot, 0, 0.42, 0),
+    box(0.09, 0.55, 0.09, PAL.leafDark, 0, 0.70, 0),      // 줄기
+  );
+  /* 긴 잎이 부채처럼. 여섯 장을 각각 다른 각으로 세워야 나무가 된다. */
+  for (let i = 0; i < 6; i++){
+    const a = (i / 6) * Math.PI * 2 + 0.4;
+    const l = box(0.12, 0.62, 0.05, i % 2 ? PAL.leaf : PAL.leafDark,
+                  Math.cos(a) * 0.16, 0.98 + (i % 3) * 0.09, Math.sin(a) * 0.16);
+    l.rotation.z = Math.cos(a) * 0.62;
+    l.rotation.x = -Math.sin(a) * 0.62;
+    g.add(l);
+  }
+  return g;
+}
+/* stub 은 원점 기준이라 위치를 따로 줘야 한다 — 화분마다 세 줄이 되므로 묶는다 */
+function stubAt(rTop, rBot, h, color, y){
+  const m = stub(rTop, rBot, h, color, 8);
+  m.position.y = y;
+  return m;
+}
+
+/* ---------- 휴식 ---------- */
+
+/* 소파 — 1인과 2인. **쿠션 이음새가 정면의 선이다**(규칙 2).
+   등받이를 좌판보다 살짝 뒤로 물려야 앉는 물건으로 보인다. */
+function sofaBody(w){
+  const g = group(
+    box(w, 0.22, 0.72, PAL.woodDark, 0, 0.17, 0),                 // 몸통
+    box(w, 0.34, 0.20, PAL.fabric,   0, 0.45, -0.26),             // 등받이
+    box(0.18, 0.30, 0.68, PAL.fabric, -w / 2 + 0.09, 0.43, 0.02), // 팔걸이
+    box(0.18, 0.30, 0.68, PAL.fabric,  w / 2 - 0.09, 0.43, 0.02),
+  );
+  const seatW = w - 0.36;
+  if (!rich()){
+    g.add(box(seatW, 0.14, 0.60, PAL.fabric, 0, 0.35, 0.04));
+    return g;
+  }
+  const n = w > 1.1 ? 2 : 1;
+  for (let i = 0; i < n; i++)
+    g.add(box(seatW / n - 0.03, 0.15, 0.58, PAL.fabric,
+              (i - (n - 1) / 2) * (seatW / n), 0.35, 0.04));
+  for (let i = 0; i < 4; i++)
+    g.add(box(0.07, 0.10, 0.07, PAL.woodDark,
+              (i % 2 ? 1 : -1) * (w / 2 - 0.10), 0.05, (i < 2 ? -1 : 1) * 0.28));
+  return g;
+}
+export function sofa1(){ return sofaBody(0.82); }
+export function sofa2(){ return sofaBody(1.46); }
+
+/* 안락 의자 — 소파 1인과 뭐가 다른가. **등받이가 높고 다리가 가늘다.**
+   1인 소파가 「덩어리」라면 이쪽은 「의자」다. */
+export function loungeChair(){
+  const g = group(
+    box(0.66, 0.14, 0.62, PAL.fabric2, 0, 0.44, 0.02),
+    box(0.66, 0.58, 0.16, PAL.fabric2, 0, 0.72, -0.25),
+    box(0.12, 0.24, 0.56, PAL.fabric2, -0.30, 0.56, 0.02),
+    box(0.12, 0.24, 0.56, PAL.fabric2,  0.30, 0.56, 0.02),
+  );
+  for (let i = 0; i < 4; i++){
+    const l = box(0.06, 0.40, 0.06, PAL.woodDark,
+                  (i % 2 ? 1 : -1) * 0.24, 0.19, (i < 2 ? -1 : 1) * 0.22);
+    l.rotation.z = (i % 2 ? -1 : 1) * 0.10;
+    g.add(l);
+  }
+  return g;
+}
+
+/* 빈백 — 이 목록에서 유일하게 **모서리가 없는** 가구다. 상자로 만들면 그냥 상자라,
+   정이십면체를 눌러서 쓴다. 위가 살짝 파여야 앉는 자리로 읽힌다. */
+export function beanBag(){
+  const g = new THREE.Group();
+  const b = ellip(0.78, 0.52, 0.74, PAL.fabric, 1);
+  b.position.y = 0.26;
+  g.add(b);
+  const top = ellip(0.52, 0.16, 0.50, PAL.fabric2, 1);
+  top.position.set(0, 0.46, 0.04);
+  g.add(top);
+  return g;
+}
+
+/* 낮은 탁자 — 소파 앞. 상판이 얇고 다리가 짧아야 「낮은」 탁자다. */
+export function lowTable(){
+  const g = group(
+    box(0.86, 0.06, 0.56, PAL.wood, 0, 0.36, 0),
+    box(0.78, 0.04, 0.48, PAL.woodDark, 0, 0.14, 0),      // 아래 선반
+  );
+  for (let i = 0; i < 4; i++)
+    g.add(box(0.06, 0.36, 0.06, PAL.woodDark,
+              (i % 2 ? 1 : -1) * 0.36, 0.18, (i < 2 ? -1 : 1) * 0.22));
+  if (rich()){
+    const c = mug(PAL.fabric2);
+    c.position.set(0.18, 0.39, 0.06);
+    g.add(c);
+  }
+  return g;
+}
+
+/* 카페 테이블 — 다리가 하나(외다리)라 낮은 탁자와 실루엣이 확실히 갈린다.
+   상판이 둥근 것도 같은 이유다 — 이 목록에서 유일한 원형 상판. */
+export function cafeTable(){
+  const g = new THREE.Group();
+  const top = stub(0.36, 0.36, 0.05, PAL.wood, 12);
+  top.position.y = 0.70;
+  const pole = stub(0.05, 0.06, 0.68, PAL.metalDark, 8);
+  pole.position.y = 0.34;
+  const foot = stub(0.22, 0.24, 0.04, PAL.metalDark, 12);
+  foot.position.y = 0.02;
+  g.add(top, pole, foot);
+  if (rich()){
+    const cup = mug(PAL.paper);
+    cup.position.set(0.10, 0.73, 0.04);
+    g.add(cup);
+  }
+  return g;
+}
+
+/* 카페 의자 — 등받이 살이 보이는 나무 의자. 회의용 의자와 달리 팔걸이가 없고
+   등받이가 **뚫려 있다**. 그 구멍이 두 의자를 가른다. */
+export function cafeChair(turn = 0){
+  const g = group(
+    box(0.38, 0.05, 0.38, PAL.wood, 0, 0.44, 0),
+    box(0.36, 0.05, 0.05, PAL.woodDark, 0, 0.78, -0.16),   // 등받이 윗살
+  );
+  if (rich()) for (let i = 0; i < 3; i++)
+    g.add(box(0.05, 0.34, 0.04, PAL.woodDark, -0.12 + i * 0.12, 0.61, -0.16));
+  else g.add(box(0.36, 0.34, 0.04, PAL.woodDark, 0, 0.61, -0.16));
+  for (let i = 0; i < 4; i++)
+    g.add(box(0.05, 0.44, 0.05, PAL.woodDark,
+              (i % 2 ? 1 : -1) * 0.15, 0.22, (i < 2 ? -1 : 1) * 0.15));
+  g.rotation.y = turn;
+  return g;
+}
+
+/* ---------- 벽 ---------- */
+
+/* 커튼 — 창 옆에 걸린다. 블라인드(windowUnit 안에 있다)와 겹치지 않게 **천 두 폭**만
+   양쪽에 두고 가운데를 비운다. 다 덮으면 창이 안 보이고, 창은 이 게임의 시계다. */
+export function curtain(w = 1.5, h = 1.2){
+  const g = group(
+    box(w + 0.20, 0.06, 0.10, PAL.woodDark, 0, h / 2 + 0.06, 0.06),   // 커튼봉
+    box(0.05, 0.05, 0.05, PAL.metalDark, -(w + 0.20) / 2, h / 2 + 0.06, 0.06),
+    box(0.05, 0.05, 0.05, PAL.metalDark,  (w + 0.20) / 2, h / 2 + 0.06, 0.06),
+  );
+  /* 주름 — 폭마다 세 겹씩 두께를 흔든다. 판 하나면 커튼이 아니라 벽지다. */
+  for (const s of [-1, 1])
+    for (let i = 0; i < 3; i++)
+      g.add(box(0.12, h, 0.05 + (i % 2) * 0.03, i % 2 ? PAL.fabric : PAL.fabric2,
+                s * (w / 2 - 0.06 - i * 0.12), 0, 0.07));
+  return g;
+}
+
+/* 스티커 메모 — 벽에 붙인 포스트잇 몇 장. 액자와 달리 **틀이 없고 각도가 제각각**이라
+   벽에서 「누가 붙여 둔 것」으로 읽힌다. */
+export function stickyMemo(v = 0){
+  const g = new THREE.Group();
+  const cs = [0xF2D98C, 0xF0A9A0, 0xA8D3A0, 0xA8B8E0];
+  for (let i = 0; i < 5; i++){
+    const h = (v * 7 + i * 13) % 5;
+    const n = box(0.16, 0.16, 0.012, cs[(v + i) % cs.length],
+                  -0.20 + (i % 3) * 0.20, 0.14 - Math.floor(i / 3) * 0.20, 0);
+    n.rotation.z = (h - 2) * 0.10;
+    g.add(n);
+  }
+  return g;
+}
+
+/* 펜 홀더 — penCup() 이 이미 책상 잔물건으로 있다. 목록의 「펜 홀더」는 그것보다
+   크고 칸을 하나 먹는 물건이라, 통을 나무 상자로 바꾸고 연필을 늘렸다. */
+export function penHolder(){
+  const g = group(
+    box(0.26, 0.20, 0.20, PAL.woodDark, 0, 0.10, 0),
+    box(0.22, 0.03, 0.16, PAL.wood, 0, 0.20, 0),
+  );
+  if (!rich()) return g;
+  const cs = [PAL.fabric2, PAL.fabric, PAL.leafDark, PAL.pot];
+  for (let i = 0; i < 4; i++){
+    const p = box(0.025, 0.24, 0.025, cs[i % cs.length], -0.06 + i * 0.04, 0.30, (i % 2) * 0.03);
+    p.rotation.z = (i - 1.5) * 0.10;
+    g.add(p);
+  }
+  return g;
+}
+
 export function room(W, H, opt = {}){
   const g = new THREE.Group();
   const zoneAt = opt.zoneAt || (() => 0);

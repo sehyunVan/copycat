@@ -60,6 +60,17 @@ const paths = [
       ? fs.readdirSync(ROOT + 'assets/tones').filter(f => f.endsWith('.jpg'))
           .map(f => 'assets/tones/' + f).sort()
       : []),
+  /* 로딩 화면의 그 고양이(26KB). 택배를 뜯는 장면이 쓴다 — js/gacha.js 의 gaOpening.
+     로고의 고양이와 같은 고양이이고, 머리만 잘린 로고 컷과 달리 앉은 몸이 다 들어 있다. */
+  'assets/loading-cat.png',
+  /* 지점 간판 마흔넷(TODO 59 · tools/split-logos.js 가 시안 시트를 자른 것).
+     검은 잉크에 투명 배경이라 잘 눌려서 합쳐 138KB 다 — 항상 싣는다.
+     이게 없으면 지점 등록 창이 아예 안 뜨고(ui.js showBranch 가 목록이 비면 건너뛴다),
+     시작화면은 박아 둔 글자 로고로 돌아간다. 즉 조용히 기능 하나가 빠진다. */
+  ...(fs.existsSync(ROOT + 'assets/logos')
+      ? fs.readdirSync(ROOT + 'assets/logos').filter(f => f.endsWith('.png'))
+          .map(f => 'assets/logos/' + f).sort()
+      : []),
 ];
 /* 안 실린 곡을 고르면 music.js 가 오르골로 내려가면서 **그렇다고 말해 준다** —
    그래서 기본 곡만 실어도 조용히 무음이 되지는 않는다. */

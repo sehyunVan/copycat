@@ -68,9 +68,40 @@ function rugTargetOK(unit, tx, ty){
 }
 
 /* (x,y)에 있는 "옮길 수 있는 한 덩어리"를 찾는다 */
+/* 방을 밝히는 등 (W.lights — render3d.js 의 buildCozy 머리말).
+   격자에 없는 물건이라 예전에는 **아무도 못 만졌다** — 지울 수 없는 가구였다.
+   이제 목록이므로 러그·얹은 소품과 같은 방식으로 고르고 옮기고 치운다. */
+const lightAt = (x, y) => (W.lights || []).find(p => p.x === x && p.y === y) || null;
+const asLight = p => ({ kind:'light', x:p.x, y:p.y, tile:null, span:1, ref:p });
+
+/* 그 칸의 가구 **위에** 얹힌 소품 (W.tops — world.js 머리말) */
+const topAt = (x, y) => (W.tops || []).find(p => p.x === x && p.y === y) || null;
+const asTop = p => ({ kind:'top', x:p.x, y:p.y, tile:p.tile, span:1, ref:p });
+/* 소품을 받칠 수 있는 칸인가 — 바닥·벽·문이 아니고, 벽에 거는 것도 아니다.
+   두 칸짜리 가구의 오른쪽 절반(FILLER)은 왼쪽이 주인이라 거기로 보낸다. */
+function topHostAt(x, y){
+  if (!W) return null;
+  const t = tileAt(W, x, y);
+  if (t === TILE.FILLER) return topHostAt(x - 1, y);
+  if (t === undefined || EDIT_FIXED.has(t)) return null;
+  if (t === TILE.DESK_R) return tileAt(W, x-1, y) === TILE.DESK ? { x:x-1, y } : null;
+  return { x, y };
+}
+
 function unitAt(x, y, prefer){
   if (!W) return null;
   const t = tileAt(W, x, y);
+  /* **위에 얹힌 것이 먼저다.** 손이 닿는 순서가 그렇다 — 책상 위의 초를 집으려는데
+     책상이 잡히면 초는 영영 못 옮긴다(러그가 늘 가구 밑에 깔려 있던 것과 같은 문제,
+     방향만 반대다). 아래의 가구를 잡으려면 한 번 더 누른다(prefer 'under'). */
+  if (prefer !== 'under'){
+    const p0 = topAt(x, y) || (t === TILE.FILLER || t === TILE.DESK_R
+      ? (topHostAt(x, y) && topAt(topHostAt(x, y).x, topHostAt(x, y).y)) : null);
+    if (p0) return asTop(p0);
+    /* 등은 빈 바닥 위에 서 있다 — 그 칸에 가구가 없을 때만 잡힌다(가구가 우선). */
+    const g0 = lightAt(x, y);
+    if (g0 && (t === TILE.FLOOR || t === undefined)) return asLight(g0);
+  }
   /* 러그를 달라고 했으면 **다른 무엇보다 먼저** 준다. 아래의 책상·두 칸짜리 분기가
      일찍 돌려보내므로, 여기서 안 가로채면 책상 밑 러그는 영영 안 잡힌다. */
   if (prefer === 'rug'){
@@ -126,6 +157,18 @@ function moveRot(fx, fy, tx, ty){
 }
 
 function unitName(u){
+  /* 등은 격자에 없어서 TILE_INFO 가 답을 못 한다 — 여기서 직접 부른다. */
+  if (u && u.kind === 'light')
+    return (u.ref && u.ref.kind === 'lantern')
+      ? L({ ko:'🏮 랜턴', en:'🏮 Lantern', ja:'🏮 ランタン' })
+      : L({ ko:'💡 스탠드', en:'💡 Floor lamp', ja:'💡 スタンドライト' });
+  /* 얹힌 소품도 이름은 그 물건의 이름이다. 다만 **어디에 있는지**를 붙여 준다 —
+     든 것이 책상 위의 초라는 걸 알아야 다음에 어디를 눌러야 하는지도 안다. */
+  if (u && u.kind === 'top'){
+    const inf0 = TILE_INFO[u.tile] || {};
+    return (inf0.em || '') + ' ' + (inf0.n || '')
+      + L({ ko:' (얹힌 것)', en:' (on top)', ja:'（上に置いたもの）' });
+  }
   if (u.kind === 'rug'){
     const it = (typeof DECOR !== 'undefined') && DECOR.byId(u.tile);
     return '🧶 ' + (it ? it.n : 'rug');
@@ -135,24 +178,72 @@ function unitName(u){
 }
 
 /* ---------- 검증: 이 격자로 사무실이 굴러가는가 ---------- */
+/* 진입로가 **필요한** 물건. 시뮬이 실제로 걸어가서 쓰는 것뿐이다:
+   결재함(서류를 물어 온다)과 TILE_INFO 에 use 가 붙은 설비(커피·화장실·해먹·CD…).
+   락커·화분·초 앞이 막혀도 아무 일도 안 일어난다 — 아무도 거기 안 간다.
+   world.js 의 placeFurniture 와 **같은 규칙**이다: 두 곳이 다르면 절차 생성이 놓은
+   자리를 손으로는 못 만지게 된다. */
+function editNeedsAccess(t){
+  if (t === TILE.INBOX) return true;
+  return !!(typeof TILE_INFO !== 'undefined' && TILE_INFO[t] && TILE_INFO[t].use);
+}
+
+/* ── 「길막」 판정 ──
+   예전에는 방의 **모든** 가구가 접근 칸을 갖고 있어야 통과였다. 두 가지가 틀렸다.
+
+   첫째, **이미 막혀 있던 가구가 하나라도 있으면 모든 이동이 거부된다.** 그 가구는
+   내가 지금 옮기는 것과 아무 상관이 없는데도, 판정이 절대값이라 방 전체가 잠긴다 —
+   「어딜 놓으려고 해도 길막한다」가 이것이었다. 지킬 것은 「막힌 것을 열어라」가 아니라
+   **「열려 있던 것을 막지 마라」**다. 그래서 옮기기 **전** 격자와 비교한다.
+
+   둘째, 아무도 안 가는 가구까지 지키고 있었다(위 editNeedsAccess).
+
+   바닥이 끊기는 것은 그대로 막는다 — 고양이가 못 가는 구역이 생기는 건 진짜 사고다. */
 function editGridOK(g2){
   const WW = W.W, HH = W.H;
   const P = { W:WW, H:HH, grid:g2 };
+  const P0 = { W:WW, H:HH, grid:W.grid };            // 옮기기 전
   const entry = { x:W.door.x, y:HH - 2 };
   if (!walkable(P, entry.x, entry.y)) return false;
   const reach = floodFrom(P, entry);
+  const reach0 = floodFrom(P0, entry);               // 옮기기 전에 닿던 곳
+  /* 진입로 하나 — **닿을 수 있는** 이웃이어야 한다. 걸을 수 있는 것만 보면,
+     그 이웃이 통째로 끊긴 구역 안에 있어도 통과한다. */
+  const open = (Q, R, x, y) => [[1,0],[-1,0],[0,1],[0,-1]]
+    .some(([dx,dy]) => walkable(Q, x+dx, y+dy) && R.has((y+dy)*WW + (x+dx)));
+  /* 이 이동의 잘못인가 — 「지금 안 되고, 전에는 됐다」일 때만 거부한다. */
+  const broke = (now, before) => !now && before;
+
   for (let y = 1; y < HH-1; y++){
     for (let x = 1; x < WW-1; x++){
       const i = y*WW + x, t = g2[i];
-      if (WALKABLE.has(t)){ if (!reach.has(i)) return false; continue; }   // 끊긴 바닥
-      if (t === TILE.WALL || t === TILE.FILLER) continue;
-      if (t === TILE.DESK || t === TILE.DESK_R){
-        if (!WALKABLE.has(g2[(y+1)*WW + x])) return false;                 // 자리가 막혔다
+      if (WALKABLE.has(t)){
+        if (reach.has(i)) continue;
+        /* ── 못 닿는 빈 칸은 **그 자체로는 사고가 아니다** ──
+           예전에는 끊긴 바닥이 한 칸이라도 생기면 거부했다. 그런데 아무도 못 들어가는
+           칸은 그냥 못 쓰는 칸일 뿐이다 — 실측: 갓 생성한 사무실에서 한 칸 이동 23번 중
+           6번이 막혔고 그중 **5번이 빈 칸 하나가 끊기는 것**이었다.
+           방이 차면 이 비율이 올라가고, 그게 「어딜 놓으려고 해도 길막」이 된다.
+
+           진짜 사고는 **갇히는 것**이다: 고양이가 그 안에 서 있거나 자리가 그 안에 들어가면
+           그 고양이는 영영 못 나오고 그 자리는 영영 못 앉는다. 그때만 거부한다.
+           (원래도 안 닿던 칸이면 이 이동의 잘못이 아니다.) */
+        if (reach0.has(i)){
+          if ((S.cats || []).some(c => c.x === x && c.y === y)) return false;
+          if ((W.desks || []).some(d => d.seat.x === x && d.seat.y === y)) return false;
+        }
         continue;
       }
-      // 그 밖의 가구·결재함: 접근 칸이 하나는 있어야 한다
-      if (![[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy]) => walkable(P, x+dx, y+dy)))
-        return false;
+      if (t === TILE.WALL || t === TILE.FILLER) continue;
+      if (t === TILE.DESK || t === TILE.DESK_R){
+        const si = (y+1)*WW + x;
+        /* 자리는 **걸을 수 있고 닿을 수 있어야** 한다 — 앉으러 갈 수 있어야 자리다 */
+        if (broke(WALKABLE.has(g2[si]) && reach.has(si),
+                  WALKABLE.has(W.grid[si]) && reach0.has(si))) return false;
+        continue;
+      }
+      if (!editNeedsAccess(t)) continue;
+      if (broke(open(P, reach, x, y), open(P0, reach0, x, y))) return false;
     }
   }
   return true;
@@ -226,6 +317,57 @@ function editApply(unit, tx, ty){
     bus.emit('world:rebuilt', W);
     return true;
   }
+  /* 등 — 격자를 한 칸도 안 건드린다. 방 안의 **빈 바닥**이면 어디든 선다.
+     길을 막을 수가 없으므로 검사할 것도 없다(러그와 같다). */
+  if (unit.kind === 'light'){
+    if (tileAt(W, tx, ty) !== TILE.FLOOR) return 'bad';
+    if (lightAt(tx, ty)) return 'bad';                 // 한 칸에 하나
+    unit.ref.x = tx; unit.ref.y = ty;
+    unit.ref.ox = 0.5; unit.ref.oz = 0.5;              // 손으로 옮긴 것은 칸 가운데
+    snapshotWorld(); save();
+    bus.emit('world:rebuilt', W);
+    return true;
+  }
+
+  /* ── 위에 얹힌 소품 ── (world.js 의 tops 머리말)
+     격자를 한 칸도 안 건드린다. 그래서 **길을 막을 수가 없다** — 검사할 것이 없다.
+       얹힌 것 → 다른 가구 위: 자리만 옮긴다
+       얹힌 것 → 빈 바닥:      격자로 내려온다(다시 보통 가구가 된다)
+     한 칸에 하나만 얹는다. 이미 뭐가 얹혀 있으면 'bad' 다 — 쌓기는 배치가 아니다. */
+  if (unit.kind === 'top'){
+    const host = topHostAt(tx, ty);
+    if (host){
+      if (topAt(host.x, host.y) && !(host.x === unit.x && host.y === unit.y)) return 'bad';
+      unit.ref.x = host.x; unit.ref.y = host.y;
+      snapshotWorld(); save();
+      bus.emit('world:rebuilt', W);
+      return true;
+    }
+    /* 빈 바닥이면 내려놓는다 — 그 순간부터 보통 가구다(칸을 먹고 길 검사를 받는다) */
+    if (tileAt(W, tx, ty) !== TILE.FLOOR) return 'bad';
+    const g2 = Uint8Array.from(W.grid);
+    g2[ty * W.W + tx] = unit.tile;
+    if (!editGridOK(g2)) return 'block';
+    W.tops = (W.tops || []).filter(p => p !== unit.ref);
+    W.grid = g2;
+    snapshotWorld(); buildWorld(); save();
+    return true;
+  }
+  /* 바닥 가구를 **다른 가구 위에** 얹는다 — 작은 소품만. 초·펜 홀더는 진짜로
+     책상 위에 놓는 물건인데 격자에서는 락커와 같은 한 칸을 먹고 있었다. */
+  if (unit.kind === 'furn' && unit.span === 1
+      && typeof FURN_SMALL !== 'undefined' && FURN_SMALL.has(unit.tile)){
+    const host = topHostAt(tx, ty);
+    if (host && !(host.x === unit.x && host.y === unit.y)){
+      if (topAt(host.x, host.y)) return 'bad';
+      const g2 = Uint8Array.from(W.grid);
+      g2[unit.y * W.W + unit.x] = TILE.FLOOR;        // 있던 칸은 비운다
+      W.tops = (W.tops || []).concat([{ x:host.x, y:host.y, tile:unit.tile }]);
+      W.grid = g2;
+      snapshotWorld(); buildWorld(); save();
+      return true;
+    }
+  }
   const r = editTryMove(unit, tx, ty);
   if (r === 'bad' || r === 'block') return r;
   moveRot(unit.x, unit.y, tx, ty);
@@ -263,6 +405,100 @@ function editRotate(dir){
   snapshotWorld(); save();
   keepSel = true;                    // 한 번 누르고 또 누르는 조작이다. 선택을 뺏으면 안 된다
   bus.emit('world:rebuilt', W);
+  return true;
+}
+
+/* ---------- 치우기 ----------
+   고른 것을 방에서 뺀다. 배치 모드의 ✕ 가 이걸 부른다(js/cozy.js).
+
+   검증이 없다: **빼는 것은 길을 막지 않는다.** 옮기기는 「거기 놓아도 사무실이
+   굴러가는가」를 물어야 하지만(문에서 모든 바닥이 닿아야 하고 가구마다 접근 칸이
+   있어야 한다), 치우기는 칸을 바닥으로 되돌리므로 그 조건을 어길 수가 없다.
+
+   ── 다시 나타난다 ──
+   절차 생성(world.js genOffice)이 **보유 개수만큼** 가구를 놓는다. 그래서 사무실을
+   옮기면(분기 승급) 치운 가구가 다시 들어온다. 창고가 없어서 그렇다 — 진짜로 없애려면
+   「보유 개수를 줄인다」는 규칙(환불이냐 폐기냐)이 필요하고, 그건 이 문이 정할 일이
+   아니다. 지금 이 기능의 약속은 「이 방에서 지금 빼 준다」까지다. */
+/* ── 치운 것은 **창고로** 간다 ──
+   창고는 따로 저장되는 목록이 아니다: **가진 수 − 방에 있는 수**다(js/cozy.js furnList).
+   그래서 격자에서 빼기만 하면 창고에 하나 늘어난다 — 산 가구는 그것으로 끝난다.
+
+   그런데 **생성기가 놓아 준 가구는 「가진 수」가 0 이다.** 처음 사무실에 있던 소파를
+   치우면 가진 수 0, 방에 있는 수 0 이 되어 그 소파는 세상에서 사라졌다 —
+   되살릴 방법이 없다. 치우기는 되돌아오지 않는 조작이지만 **없애는 조작은 아니다.**
+
+   그래서 치울 때 가진 수를 「방에 남은 수 + 1」까지 올려 준다. 산 가구에는 아무 일도
+   안 일어나고(이미 그보다 크다), 생성기가 준 가구는 그때 처음으로 「내 것」이 된다.
+   치웠다 놓기를 반복해도 늘지 않는다 — 올리는 것이 아니라 **맞추는** 것이라서. */
+/* 이 칸의 물건이 **카탈로그에 있는가** — 있으면 창고로 돌아올 수 있다. */
+function editShopId(tile){
+  if (tile === undefined || typeof SHOP_TILE === 'undefined') return null;
+  return Object.keys(SHOP_TILE).find(k => SHOP_TILE[k] === tile) || null;
+}
+
+function editToStorage(tile, grid){
+  const id = editShopId(tile);
+  if (!id || typeof shopCount !== 'function') return;
+  let placed = 0;
+  for (let i = 0; i < grid.length; i++) if (grid[i] === tile) placed++;
+  for (const p of (W.tops || [])) if (p.tile === tile) placed++;
+  if (shopCount(id) <= placed) S.shop[id] = placed + 1;
+}
+
+function editRemove(){
+  const u = EDIT.sel;
+  if (!u || !W) return false;
+  /* ── 되돌아올 수 없는 것은 **안 치운다** ──
+     치우기는 「창고로 보내기」다. 그런데 결재함·화장실·정수기처럼 **카탈로그에 없는**
+     것들은 돌아올 자리가 없다 — 치우면 그 방에서 영영 사라지고 다시 만들 길이 없다.
+     그건 배치가 아니라 파괴다. 등·러그·얹은 소품은 제 목록으로 돌아가므로 예외다. */
+  if ((u.kind === 'furn' || u.kind === 'top') && !editShopId(u.tile)){
+    if (typeof toast === 'function') toast(L({
+      ko: `${unitName(u)} 은(는) 치울 수 없습니다 — 창고로 돌아올 수 없는 물건입니다.`,
+      en: `${unitName(u)} can’t be put away — it has no place in storage.`,
+      ja: `${unitName(u)} は片づけられません — 倉庫に戻せない物です。` }));
+    try { sfx.err(); } catch (e) {}
+    return false;
+  }
+
+  if (u.kind === 'light'){
+    W.lights = (W.lights || []).filter(p => p !== u.ref);
+    /* 등도 **창고로 간다.** 카탈로그에 같은 물건이 있다(스탠드·랜턴) — 치운 등을
+       그것으로 돌려주면 다시 놓을 수 있고, 그때부터는 격자 가구다.
+       이게 없으면 등은 「지우면 사라지는 유일한 물건」이 된다. */
+    editToStorage(u.ref && u.ref.kind === 'lantern' ? TILE.LANTERN : TILE.FLOORLAMP, W.grid);
+    snapshotWorld(); save();
+    bus.emit('world:rebuilt', W);
+  } else if (u.kind === 'top'){
+    W.tops = (W.tops || []).filter(p => p !== u.ref);
+    editToStorage(u.tile, W.grid);
+    snapshotWorld(); save();
+    bus.emit('world:rebuilt', W);
+  } else if (u.kind === 'rug'){
+    W.rugs = (W.rugs || []).filter(r => r !== u.ref);
+    snapshotWorld(); save();
+    bus.emit('world:rebuilt', W);
+  } else if (u.kind === 'decor'){
+    W.wallDecor = (W.wallDecor || []).filter(d => d !== u.ref);
+    snapshotWorld(); save();
+    bus.emit('world:rebuilt', W);
+  } else {
+    const g = Uint8Array.from(W.grid);
+    const span = u.span || 1;
+    for (let i = 0; i < span; i++){
+      const idx = u.y * W.W + (u.x + i);
+      g[idx] = TILE.FLOOR;
+      if (W.rot) delete W.rot[idx];
+    }
+    W.grid = g;
+    editToStorage(u.tile, g);   // 치운 것은 **창고로** 간다 (아래)
+    snapshotWorld();
+    buildWorld();        // 격자에서 시설·책상·결재함 재유도 (옮기기와 같은 길)
+    save();
+  }
+  EDIT.sel = null;
+  editRefresh();
   return true;
 }
 
@@ -369,6 +605,32 @@ function editHover(t){
 /* 돌리기 한 번. 못 돌리는 물건을 여기서 설명한다 —
    아무 일도 안 일어나는 키는 고장 난 키와 구분이 안 된다.
    (「도트에서는 회전이 안 보인다」 경고가 여기 있었다. 도트판을 지워서 같이 지웠다.) */
+/* ── 한 칸 민다 ──
+   화살표 넷이 이걸 부른다(키보드의 ←↑→↓ 와 폰의 화살표 단추). 돌리기와 다른 점:
+   **밀고 나서도 손에 들고 있다.** 한 칸씩 맞춰 가는 조작이라 매번 다시 집게 하면
+   그건 미는 게 아니라 옮기기를 네 번 하는 것이다. 그래서 선택을 자리와 함께 옮긴다. */
+function editNudge(dx, dy){
+  if (!EDIT.on || !EDIT.sel) return false;
+  const u = EDIT.sel;
+  const tx = u.x + dx, ty = u.y + dy;
+  const res = editApply(u, tx, ty);
+  if (res === true){
+    try { sfx.add(); } catch (e) {}
+    /* 옮긴 자리를 그대로 든다. 러그·벽 장식도 좌표가 같은 이름이라 한 줄로 끝난다. */
+    EDIT.sel = { ...u, x: tx, y: ty };
+    keepSel = true;
+    editRefresh();
+    return true;
+  }
+  try { sfx.err(); } catch (e) {}
+  /* 벽에 대고 미는 것은 사고가 아니다 — 말없이 안 움직인다.
+     길을 막는 것만 말해 준다(그건 사람이 이유를 알아야 하는 거절이다). */
+  if (res === 'block' && typeof toast === 'function')
+    toast(L({ ko:'거기 두면 길이 막힌다냥.', en:'That would block the way.',
+              ja:'そこに置くと道がふさがるにゃ。' }));
+  return false;
+}
+
 function doRotate(dir){
   if (!EDIT.on) return;
   if (!EDIT.sel){
@@ -399,7 +661,22 @@ function toggleEdit(force){
       ja:'見学中は模様替えできません。自分のオフィスに戻ってからどうぞ。' }));
     return;
   }
+  const was = EDIT.on;
   EDIT.on = force != null ? force : !EDIT.on;
+  /* ── 배치 중에는 **카메라를 세운다** ──
+     평소 카메라는 고양이를 한 마리씩 돌아가며 따라간다(render3d 의 FOLLOW).
+     그 상태로 배치를 하면 놓을 자리를 겨누는 동안 화면이 저 혼자 움직인다 —
+     화살표로 한 칸씩 미는 조작에서는 특히 못 쓴다.
+     끄고, 나갈 때 원래대로 돌려놓는다. */
+  if (EDIT.on !== was && typeof R3 !== 'undefined' && R3 && R3.followOn){
+    if (EDIT.on){
+      EDIT.follow0 = R3.following ? R3.following() : null;
+      R3.followOn(false);
+    } else if (EDIT.follow0){
+      R3.followOn(true);
+      EDIT.follow0 = null;
+    }
+  }
   /* 배치 모드에 들어가면 R 이 손잡이가 된다. 결재함 입력칸에 커서가 있으면
      그 R 이 서류 제목에 박히므로 여기서 손을 떼게 한다. */
   if (EDIT.on){
@@ -410,7 +687,7 @@ function toggleEdit(force){
     if (typeof setCol === 'function' && $('#app').classList.contains('tabbar')) setCol('stage');
   }
   EDIT.sel = null;
-  if (EDIT.on) bus.emit('edit:on');   // 첫 출근 안내가 이 걸음을 기다린다 (js/tutor.js)
+  if (EDIT.on) bus.emit('edit:on');   // 켜졌다는 신호. 첫 출근 안내가 쓰던 것 — 지금은 안 듣는다
   $('#viewport').classList.toggle('editmode', EDIT.on);
   $('#btnEdit').classList.toggle('on', EDIT.on);
   editRefresh();
@@ -429,10 +706,21 @@ function editInit(){
        러그가 잡히고, 또 누르면 해제된다. 러그는 바닥에 까는 것이라 책상 밑에도
        깔리는데, 위의 가구가 늘 먼저 잡히면 그 러그는 영영 못 옮긴다. */
     const onSel = EDIT.sel && EDIT.sel.x === t.x && EDIT.sel.y === t.y;
-    const u = unitAt(t.x, t.y, (onSel && (EDIT.sel.kind === 'furn' || EDIT.sel.kind === 'desk')) ? 'rug' : null);
+    /* 같은 칸을 다시 누르면 **한 겹 아래로** 내려간다: 얹힌 소품 → 그 밑의 가구 → 러그.
+       위에서 아래로 한 겹씩 가는 것이 손이 닿는 순서다. */
+    const deeper = !onSel ? null
+      : EDIT.sel.kind === 'top' ? 'under'
+      : (EDIT.sel.kind === 'furn' || EDIT.sel.kind === 'desk') ? 'rug' : null;
+    const u = unitAt(t.x, t.y, deeper);
 
     if (u && sameUnit(u, EDIT.sel)){ EDIT.sel = null; editRefresh(); return; }   // 다시 클릭 = 해제
-    if (u){ EDIT.sel = u; sfx.add(); editRefresh(); return; }                    // 유닛 클릭 = 선택
+    /* **고른 것이 있으면 초점이 안 넘어간다.** 예전에는 가구가 있는 칸을 누르면 그리로
+       선택이 옮겨 갔다 — 옮길 자리를 고르다가 그 자리에 뭐가 있으면, 옮기려던 물건을
+       놓친 채 엉뚱한 물건을 든 채로 서 있게 된다. 손에 든 것을 내려놓는(✓ 또는 Esc)
+       것은 사람이 정한다.
+       예외 하나: **같은 칸**을 다시 누르면 그 밑의 러그로 내려간다(위 주석). */
+    if (u && onSel){ EDIT.sel = u; sfx.add(); editRefresh(); return; }
+    if (u && !EDIT.sel){ EDIT.sel = u; sfx.add(); editRefresh(); return; }       // 빈손일 때만 집는다
     if (!EDIT.sel) return;                                                       // 빈 칸 클릭 = 이동 시도
 
     const wasRug = EDIT.sel.kind === 'rug';
@@ -456,7 +744,13 @@ function editInit(){
                 ja:'そこに置くと道がふさがるにゃ。猫が通れない。' }));
     } else {
       sfx.err();
-      toast(L({ ko:'거기엔 놓을 수 없다.', en:'Can’t place it there.', ja:'そこには置けない。' }));
+      /* 「놓을 수 없다」보다 **왜**가 낫다. 대개는 그 칸에 이미 뭐가 있는 것이다 —
+         선택이 안 넘어가게 바꾼 뒤로는 이 말이 더 자주 나온다. */
+      const taken = !!unitAt(t.x, t.y);
+      toast(taken
+        ? L({ ko:'거기엔 이미 다른 가구가 있다.', en:'Something is already there.',
+              ja:'そこにはもう別の家具がある。' })
+        : L({ ko:'거기엔 놓을 수 없다.', en:'Can’t place it there.', ja:'そこには置けない。' }));
     }
     editRefresh();
   });
@@ -492,7 +786,10 @@ function editInit(){
       else toggleEdit(false);
       return;
     }
-    if (e.key === 'r' || e.key === 'R'){ doRotate(e.shiftKey ? -1 : 1); e.preventDefault(); }
+    if (e.key === 'r' || e.key === 'R'){ doRotate(e.shiftKey ? -1 : 1); e.preventDefault(); return; }
+    /* 화살표 넷 — 고른 것을 한 칸 민다. 폰의 화살표 단추도 이 키를 보낸다(js/cozy.js). */
+    const NUD = { ArrowLeft:[-1,0], ArrowRight:[1,0], ArrowUp:[0,-1], ArrowDown:[0,1] };
+    if (NUD[e.key] && EDIT.sel){ editNudge(NUD[e.key][0], NUD[e.key][1]); e.preventDefault(); }
   });
 
   // 사무실 이전 등으로 월드가 다시 만들어지면 선택 좌표가 낡는다.

@@ -23,7 +23,9 @@
 
 import * as THREE from './vendor/three.module.min.js';
 import { build, PRESETS } from './sculpt.js';
-import { furMaterial, EYE_BY_STATE } from './facepaint.js';
+import { furMaterial, EYE_BY_STATE, FACE_NONE, normFaceObj, faceKey,
+         makePaint, adoptPaint, markKey } from './facepaint.js';
+export { markKey, faceKey };
 import * as GEAR from './gear.js';
 import { collapse } from './merge.js';
 import * as EERIE from './eerie.js';
@@ -151,6 +153,44 @@ function walkGeom(i){
 let walkWarmed = false;
 
 /* ============================================================
+   앞발 까딱 — 상자를 뜯는 장면 (js/three/parcel.js)
+
+   택배 뜯는 컷신은 **앉아서 앞발로 상자를 두드리는** 그림이 필요하다. 걸음과 같은
+   방식으로 만든다: `legStep` 으로 **앞발 끝만** 옮긴 앉은 자세를 몇 장 깎아 두고
+   돌려 쓴다. 관절이 없으므로 이게 이 조형에서 「움직이는 앞발」의 전부다.
+
+   걸음과 다른 점 둘:
+     · **앞발만** 옮긴다. 뒷다리는 앉은 자세 그대로 접혀 있어야 엉덩이가 안 뜬다.
+     · **좌우를 안 뒤집는다**(mirrorX 를 안 쓴다). 두 앞발이 번갈아 올라가는 것이
+       이 장면의 전부라 좌우가 다른 것이 요점이다.
+
+   세 장이면 된다. 다섯 장을 깎아 봐야 상자 앞에서 0.4초 동안 지나가고,
+   한 장에 60ms 씩 드는 깎기다(그래서 컷신이 시작할 때 미리 깎는다 — warmTap). */
+const TAP_N = 3;
+const tapGeoms = [];
+/* [앞으로, 위로]. 오른발이 올라가면 왼발은 내려와 상자에 얹혀 있다.
+
+   **높이가 관건이다.** 앉은 고양이의 앞발은 의자 높이(0.47)에 있고 상자는 책상 위
+   (0.65~0.90)에 있어서, 조금만 들면 발이 책상 아래에서 허우적거린다 — 처음에 0.17 로
+   두고 찍었더니 딱 그 그림이었다. 어깨 높이(0.42)까지 들어야 상자에 닿는다. */
+const TAP_STEP = [
+  { FR:[0.26, 0.40], FL:[0.18, 0.16] },
+  { FR:[0.22, 0.28], FL:[0.22, 0.28] },
+  { FR:[0.18, 0.16], FL:[0.26, 0.40] },
+];
+function tapGeom(i){
+  let g = tapGeoms[i];
+  if (g) return g;
+  const r = build({ ...POSE.sit, res: RES, pads: false, legStep: TAP_STEP[i] });
+  budget.ms += r.ms;
+  tapGeoms[i] = g = r.geometry;
+  return g;
+}
+/* 컷신이 시작할 때 부른다. 첫 프레임에 세 장을 깎으면 그 프레임이 180ms 튄다 —
+   컷신은 카메라가 움직이는 중이라 그 한 번이 제일 잘 보인다. */
+export function warmTap(){ for (let i = 0; i < TAP_N; i++) tapGeom(i); }
+
+/* ============================================================
    꼬리 · 귀 — TODO 39
 
    ── 왜 꼬리부터인가 ──
@@ -234,7 +274,7 @@ function warmExtras(){
 
 export function sculptActor(opt = {}){
   const stand = poseOf('stand');
-  const mat = furMaterial({ fur: opt.fur ?? 0xE8A657 });
+  const mat = furMaterial({ fur: opt.fur ?? 0xE8A657, marks: opt.marks });
   mat.userData.setAnchor(stand.anchor);
 
   const mesh = new THREE.Mesh(stand.geometry, mat);
@@ -251,6 +291,9 @@ export function sculptActor(opt = {}){
   root.add(gearRoot);
   let gearKey = '', equipNow = null;
 
+  /* 고정 표정 { e, m }. e 가 -1 이면 눈은 지금까지 그대로 — 상태가 정한다. */
+  let faceFix = normFaceObj(opt.face);
+
   let t = Math.random() * 6, state = 'idle', pose = 'stand';
   let yaw = 0, wantYaw = 0;
   /* 걸음의 위상과 지금 걸린 장면. 위상은 마리마다 다르게 시작한다 —
@@ -260,6 +303,8 @@ export function sculptActor(opt = {}){
      다시 모여서, 몇 초에 한 번씩 스무 마리가 같이 꼬리를 흔드는 순간이 온다. */
   let tailT = Math.random() * 9, tailP = 2.7 + Math.random() * 1.9;
   let earUntil = -1;                  // 귀를 튕기고 돌아올 시각(t 기준). 음수면 안 튕기는 중
+  /* 앞발 까딱의 위상. null 이면 안 두드리는 중이다(평소). 컷신만 켠다. */
+  let tap = null;
   let shape = '';                     // 지금 걸린 지오메트리의 이름. 바뀔 때만 갈아 끼운다
 
   /* 이번 프레임에 어떤 장면이 걸려야 하는가 — **한 군데서만 정한다.**
@@ -267,7 +312,13 @@ export function sculptActor(opt = {}){
      그건 「가끔 꼬리가 안 흔들리는 고양이」로 나타난다. */
   function applyShape(){
     let key, geom;
-    if (state === 'walk'){
+    /* 두드리는 중이면 **그게 이긴다.** 컷신이 켠 것이고, 그 몇 초 동안은 꼬리도 귀도
+       그 위에 얹힐 자리가 아니다(앉은 자세 한 장을 통째로 갈아 끼우는 방식이라
+       섞을 수가 없다). 끄면 다음 프레임에 저절로 평소 장면으로 돌아간다. */
+    if (tap != null){
+      const i = Math.min(TAP_N - 1, Math.floor((tap - Math.floor(tap)) * TAP_N));
+      frame = -1; key = 'k' + i; geom = tapGeom(i);
+    } else if (state === 'walk'){
       const p = gait - Math.floor(gait);
       const i = Math.min(GAIT_N - 1, Math.floor(p * GAIT_N));
       frame = i; key = 'w' + i; geom = walkGeom(i);
@@ -323,8 +374,10 @@ export function sculptActor(opt = {}){
          이제 그 되돌리기는 applyShape 하나가 맡는다: 상태가 바뀌었으니 다음 프레임에
          저절로 꼬리 장면으로 갈아 끼워진다. */
       applyShape();
-      /* 표정 — k8 이 정한 상태 연동. 다시 깎지 않는다, 숫자 하나다. */
-      mat.userData.set('eyeMode', EYE_BY_STATE[s] ?? 0);
+      /* 표정 — k8 이 정한 상태 연동. 다시 깎지 않는다, 숫자 하나다.
+         **고정 표정을 골랐으면 그게 이긴다** — 고른 얼굴이 상태마다 뒤집히면
+         그건 고른 것이 아니다. */
+      applyFace();
     },
 
     /* 귀를 한 번 튕긴다. **주기가 아니라 사건이다** — 상시로 돌리면 스무 마리의 귀가
@@ -340,6 +393,16 @@ export function sculptActor(opt = {}){
        거리를 그대로 쌓으면 그래도 총량은 맞는다. 순간이동(월드 재구성·의자 위로
        올려놓기)은 한 걸음보다 클 수 없게 잘라 낸다. */
     setStep(d){ gait += Math.min(0.35, d) / STRIDE; },
+
+    /* 앞발로 두드린다. 0~1 의 위상을 주면 그 장면이 걸리고, null 이면 그만둔다.
+       위상은 부르는 쪽이 돌린다 — 컷신의 시계와 고양이의 시계가 따로 놀면
+       카메라가 멈춘 순간에도 발만 계속 움직인다. */
+    setTap(phase){
+      const v = (phase == null) ? null : phase;
+      if (v === tap) return;
+      tap = v;
+      applyShape();
+    },
 
     /* equip 은 { head, neck, paw }. 매 프레임 불려도 되게 열쇠로 걸러 낸다 */
     setGear(equip){
@@ -358,6 +421,16 @@ export function sculptActor(opt = {}){
     shape(){ return shape; },          // 지금 걸린 지오메트리의 이름 (검사가 읽는다 — TODO 39)
     setFur(hex){ mat.userData.set('fur', hex); },
     setTint(hex){ mat.userData.set('tint', hex); },
+    /* 무늬 — 자세가 바뀌어도 다시 안 넣어도 된다. 좌표가 오브젝트 공간이고
+       앵커는 setState 가 자세마다 다시 넣으므로, 몸을 갈아 끼워도 무늬는 몸에 붙어 있다. */
+    setMarks(list){ mat.userData.setMarks(list || []); },
+    /* 표정 — { e, m }. e 가 -1 이면 눈이 상태 연동으로 돌아간다. */
+    setFace(v){
+      const f = normFaceObj(v);
+      if (f.e === faceFix.e && f.m === faceFix.m) return;
+      faceFix = f;
+      applyFace();
+    },
 
     update(dt){
       t += dt;
@@ -401,7 +474,14 @@ export function sculptActor(opt = {}){
       }
     },
   };
+  /* 눈과 입을 한 군데서 정한다. 두 군데서 각자 쓰면 「입만 안 바뀌는 표정」이 생긴다. */
+  function applyFace(){
+    mat.userData.set('eyeMode', faceFix.e >= 0 ? faceFix.e : (EYE_BY_STATE[state] ?? 0));
+    mat.userData.set('mouthMode', faceFix.m);
+  }
+
   api.setState('idle');
+  applyFace();
   return api;
 }
 
@@ -411,6 +491,7 @@ export function sculptActor(opt = {}){
 let pr = null, ps = null, pc = null, pmesh = null, pmat = null, pgear = null;
 const pCache = new Map();
 
+
 export function sculptPortrait(furHex, size = 96, equip = null, opt = {}){
   /* opt.eyeMode  0 뜬 눈 · 1 웃는 눈 · 2 감은 눈(목록의 기본)
      opt.front    참이면 **정면**. 목록·기록증은 3/4 컷이 낫지만 로고는 정면이어야 한다 —
@@ -418,11 +499,23 @@ export function sculptPortrait(furHex, size = 96, equip = null, opt = {}){
      opt.pose     'stand'(기본) · 'sit' · 'loaf'. POSE 표에 이미 있는 것을 고르는 것이다.
                   **로딩 화면**이 이 손잡이를 열게 했다 — 앉아서 3/4 로 본 컷이 필요하다
                   (tools/bake-loading-cat.js). 기존 호출은 한 줄도 안 바뀐다. */
-  const eyeMode = opt.eyeMode == null ? 2 : opt.eyeMode;
+  /* 고정 표정을 고른 냥은 목록에서도 그 얼굴이어야 한다 — 화면과 다르면 딴 고양이다.
+     부르는 쪽이 눈을 못 박은 경우(로고·택배 컷신·사원증)는 그쪽이 이긴다: 그건 초상이
+     아니라 그림을 굽는 자리라 표정이 연출의 일부다. */
+  const fix = normFaceObj(opt.face);
+  const eyeMode = opt.eyeMode != null ? opt.eyeMode : (fix.e >= 0 ? fix.e : 2);
+  const mouthMode = fix.m;
   const front = !!opt.front;
   const pose = POSE[opt.pose] ? opt.pose : 'stand';
   const ek = equip ? [equip.head, equip.neck, equip.paw].join('|') : '';
-  const key = furHex + '@' + size + '@' + ek + '@' + eyeMode + (front ? '@f' : '') + '@' + pose;
+  /* 무늬도 열쇠에 들어간다 — 안 넣으면 무늬를 찍어도 목록의 얼굴이 안 바뀐다
+     (털색만 열쇠였을 때 계약서에서 고른 색이 화면에 안 오던 것과 같은 종류다). */
+  const mk = markKey(opt.marks);
+  /* opt.frame 'head' — 얼굴만 잡는다. 표정을 고르는 자리(꾸미기 창)가 이걸 쓴다:
+     34px 짜리 전신 컷에서는 눈이 10px 이라 「방긋」과 「시무룩」이 같은 그림이다. */
+  const head = opt.frame === 'head';
+  const key = furHex + '@' + size + '@' + ek + '@' + eyeMode + '@' + mouthMode
+            + (front ? '@f' : '') + (head ? '@h' : '') + '@' + pose + '@' + mk;
   const hit = pCache.get(key);
   if (hit) return hit;
 
@@ -471,11 +564,13 @@ export function sculptPortrait(furHex, size = 96, equip = null, opt = {}){
     ps.add(pgear);
   }
   pmat.userData.set('fur', furHex);
+  pmat.userData.setMarks(opt.marks || []);
   /* 목록에서는 **감은 눈**(2)이 기본이다. 웃는 눈(^ ^)은 놀고 있다는 뜻이라 근무 중인
      직원 목록에 줄지어 있으면 뜻이 어긋나고, 작게 줄이면 획 두 개가 눈썹처럼 보인다.
      감은 눈은 한 획이라 34px 에서도 안 뭉개진다.
      인자로 열어 둔 이유는 **로고**다 — 로고는 눈이 보여야 고양이로 읽힌다(tools/bake-logo.js). */
   pmat.userData.set('eyeMode', eyeMode);
+  pmat.userData.set('mouthMode', mouthMode);
   /* 자세를 갈아 끼운다. 지오메트리는 poseOf 가 캐시해 두고 전부가 나눠 쓰므로
      참조 하나 바꾸는 값이다(사무실의 고양이가 자세를 바꾸는 것과 같은 방식). */
   {
@@ -493,7 +588,18 @@ export function sculptPortrait(furHex, size = 96, equip = null, opt = {}){
      그쪽 표에서 같이 읽는다). */
   const inner = EERIE.ON ? Math.max(24, Math.round(size / EERIE.PORTRAIT.px)) : size;
   pr.setSize(inner, inner, false);
-  if (front){
+  if (head){
+    /* 머리 앵커를 그대로 쓴다 — 자세마다 머리가 옮겨 다니므로 값을 박아 두면
+       앉은 고양이의 얼굴 컷이 가슴을 찍는다(장비가 같은 자리에서 이미 밟은 실수다). */
+    const pg2 = poseOf(pose);
+    const sc = pg2.scale, an = pg2.anchor;
+    const hy = an.head[1] * sc, hz = an.head[2] * sc, hr = an.headR[0] * sc;
+    /* 귀 끝이 프레임 밖으로 나가면 고양이가 아니라 얼룩이 된다 — 6.2 가 귀가
+       겨우 들어오는 거리다(귀 끝은 머리 중심에서 1.5·hr 위). 과녁을 조금 올려
+       그 여유를 위쪽에 몰아 준다. */
+    pc.position.set(0, hy + hr * 0.22, hz + hr * 6.2);
+    pc.lookAt(0, hy + hr * 0.18, hz);
+  } else if (front){
     /* 정면. 완전히 눈높이로 맞추면 로우폴리 머리가 납작한 판으로 보이므로
        아주 조금만 위에서 본다 — 코와 턱의 면이 한 겹 남는다. */
     pc.position.set(0, H * 0.66, H * 2.52);
@@ -521,4 +627,184 @@ export function stats(){
   return { ...budget, poses: shared.size,
            walk: walkGeoms.filter(Boolean).length, tail: tailGeoms.size, ear: earGeoms.size,
            geoms: shared.size + walkGeoms.filter(Boolean).length + tailGeoms.size + earGeoms.size };
+}
+
+/* ============================================================
+   무늬 작업대 — 돌려가면서 찍는다  (TODO 73)
+
+   초상(sculptPortrait)은 한 장 굽고 끝이라 돌려 볼 수가 없다. 여기서는 같은 조형·같은
+   조명·같은 색보정을 **살아 있는 캔버스**로 띄운다. 목록의 얼굴과 나란히 놓았을 때
+   같은 사진이어야 하므로, 조명은 EERIE.PORTRAIT 를, 색은 gradePixels 를 그대로 쓴다.
+
+   ── 왜 매 프레임 안 도는가 ──
+   고양이는 여기서 숨도 안 쉰다. 만지지 않으면 화면이 안 바뀌므로 rAF 로 돌릴 이유가
+   없고, 폰에서 커스터마이징 창을 열어 두는 시간이 짧지도 않다. **바뀔 때만 그린다.**
+
+   ── 돌리는 축이 둘로 갈려 있다 ──
+   좌우는 **모델**을 돌리고 위아래는 **카메라**를 올린다. 둘 다 카메라로 하면 뒤통수를
+   볼 때 빛이 등 뒤로 가서 새까매지고, 둘 다 모델로 하면 고양이가 앞으로 고꾸라진다.
+   ============================================================ */
+export function sculptStudio(opt = {}){
+  const P = EERIE.PORTRAIT;
+  let rnd = null;
+  try {
+    rnd = new THREE.WebGLRenderer({ antialias: !EERIE.ON, alpha: true, preserveDrawingBuffer: true });
+  } catch(e){ return null; }
+  rnd.setPixelRatio(1);
+  rnd.setClearAlpha(0);
+
+  const scene = new THREE.Scene();
+  if (EERIE.ON){
+    scene.add(new THREE.HemisphereLight(P.hemi[0], P.hemi[1], P.hemi[2]));
+    const key = new THREE.DirectionalLight(P.key[0], P.key[1]);
+    key.position.set(...P.key[2]);
+    const fill = new THREE.DirectionalLight(P.fill[0], P.fill[1]);
+    fill.position.set(...P.fill[2]);
+    scene.add(key, fill);
+  } else {
+    scene.add(new THREE.HemisphereLight(0xFFFFFF, 0xC6C3BF, 1.25));
+    const sun = new THREE.DirectionalLight(0xFFFBF4, 1.7);
+    sun.position.set(-2, 3.4, 3);
+    scene.add(sun);
+  }
+
+  const g = poseOf('stand');
+  const sFix = normFaceObj(opt.face);
+  const mat = furMaterial({ fur: opt.fur ?? 0xE8A657,
+                            /* 작업대에는 상태가 없다 — 「그때그때」면 뜬 눈으로 보여 준다 */
+                            eyeMode: sFix.e >= 0 ? sFix.e : 0,
+                            mouthMode: sFix.m });
+  /* 작업대만 **자기 판**을 든다 — 손을 따라 텍셀이 바뀌는 중이라 캐시를 못 쓴다.
+     한 획이 끝나면 그 판을 그대로 캐시에 넘겨(adoptPaint) 초상 쪽이 다시 안 그리게 한다. */
+  const paint = makePaint();
+  for (const st of (opt.marks || [])) paint.draw(st);
+  mat.userData.setPaintTex(paint.tex);
+  mat.userData.setAnchor(g.anchor);
+  const mesh = new THREE.Mesh(g.geometry, mat);
+  mesh.scale.setScalar(g.scale);
+  const turn = new THREE.Group();          // 좌우 — 모델이 돈다
+  turn.add(mesh);
+  scene.add(turn);
+
+  const cam = new THREE.PerspectiveCamera(24, 1, 0.05, 20);
+  const TGT = new THREE.Vector3(0, H * 0.44, 0);
+  const DIST = H * 3.05;
+  const YAW0 = -0.62, PITCH0 = 0.20;
+  let yaw = YAW0, pitch = PITCH0;
+
+  /* 화면 캔버스는 2D 다. WebGL 캔버스는 **작게** 그려서 여기에 정수배로 늘려 얹는다 —
+     목록의 초상이 구워지는 그 길과 같아야 한 화면에서 두 그림체가 안 싸운다. */
+  const view = document.createElement('canvas');
+  const vctx = view.getContext('2d');
+  const tmp = document.createElement('canvas');
+  const tctx = tmp.getContext('2d', { willReadFrequently: true });
+  let W = 0, Hh = 0, iw = 0, ih = 0, dead = false;
+
+  function place(){
+    cam.position.set(0, TGT.y + DIST * Math.sin(pitch), DIST * Math.cos(pitch));
+    cam.lookAt(TGT);
+    turn.rotation.y = yaw;
+  }
+
+  function draw(){
+    if (dead || !W || !Hh) return;
+    place();
+    rnd.render(scene, cam);
+    if (!vctx) return;
+    vctx.clearRect(0, 0, view.width, view.height);
+    vctx.imageSmoothingEnabled = false;
+    if (EERIE.ON && tctx){
+      tctx.clearRect(0, 0, iw, ih);
+      tctx.imageSmoothingEnabled = false;
+      tctx.drawImage(rnd.domElement, 0, 0, iw, ih);
+      try {
+        const img = tctx.getImageData(0, 0, iw, ih);
+        EERIE.gradePixels(img.data, iw, ih);
+        tctx.putImageData(img, 0, 0);
+      } catch(e){}
+      vctx.drawImage(tmp, 0, 0, view.width, view.height);
+    } else {
+      vctx.drawImage(rnd.domElement, 0, 0, view.width, view.height);
+    }
+  }
+
+  function resize(w, h){
+    W = Math.max(80, Math.round(w)); Hh = Math.max(60, Math.round(h));
+    /* 굽는 해상도는 초상과 같은 나누기(1.9). 여기만 곱게 그리면 이 고양이만 매끈해서
+       오히려 튄다 — 각진 게 이 게임의 그림체다. */
+    iw = EERIE.ON ? Math.max(64, Math.round(W / P.px)) : W;
+    ih = EERIE.ON ? Math.max(48, Math.round(Hh / P.px)) : Hh;
+    rnd.setSize(iw, ih, false);
+    tmp.width = iw; tmp.height = ih;
+    view.width = W; view.height = Hh;
+    view.style.width = '100%'; view.style.height = '100%';
+    cam.aspect = W / Hh;
+    cam.updateProjectionMatrix();
+    draw();
+  }
+
+  /* 화면의 한 점이 몸의 어느 방향인가. 못 맞히면 null — 빈 곳을 눌렀다는 뜻이다.
+     돌려주는 것은 **오브젝트 공간의 방향**이라 자세가 바뀌어도 그대로 쓸 수 있다. */
+  const ray = new THREE.Raycaster();
+  const ndc = new THREE.Vector2();
+  const anc = g.anchor;
+  function pick(px, py){
+    if (!W || !Hh) return null;
+    ndc.set((px / W) * 2 - 1, -(py / Hh) * 2 + 1);
+    place();
+    turn.updateMatrixWorld(true);
+    ray.setFromCamera(ndc, cam);
+    const hit = ray.intersectObject(mesh, false)[0];
+    if (!hit) return null;
+    const p = mesh.worldToLocal(hit.point.clone());
+    const b = anc.body || [0, 0.45, 0], r = anc.bodyR || [0.35, 0.45, 0.55];
+    const v = new THREE.Vector3((p.x - b[0]) / r[0], (p.y - b[1]) / r[1], (p.z - b[2]) / r[2]);
+    if (!v.lengthSq()) return null;
+    v.normalize();
+    return [+v.x.toFixed(3), +v.y.toFixed(3), +v.z.toFixed(3)];
+  }
+
+  return {
+    canvas: view,
+    resize,
+    draw,
+    setFur(hex){ mat.userData.set('fur', hex); draw(); },
+    /* 그리는 중 — 획 한 토막. 방향 둘과 굵기·색만 오면 된다 */
+    seg(a, b, r, ink, erase){ paint.seg(a, b, r, ink, erase); draw(); },
+    /* 다 지우고 목록대로 다시 그린다 (되돌리기·불러오기) */
+    setMarks(list){
+      paint.buf.fill(0);
+      for (const st of (list || [])) paint.draw(st);
+      paint.tex.needsUpdate = true;
+      draw();
+    },
+    snapshot(){ return paint.snapshot(); },
+    restore(snap){ paint.restore(snap); draw(); },
+    /* 지금 판을 캐시에 넘긴다 — 초상이 같은 그림을 처음부터 다시 안 그린다 */
+    adopt(key){ return adoptPaint(key, paint.buf); },
+    /* 표정 — 작업대에서는 **고른 그대로** 보여 준다. 「그때그때」면 뜬 눈이다:
+       여기는 상태가 없는 자리라 무엇으로든 하나를 그려야 한다. */
+    setFace(v){
+      const f = normFaceObj(v);
+      mat.userData.set('eyeMode', f.e >= 0 ? f.e : 0);
+      mat.userData.set('mouthMode', f.m);
+      draw();
+    },
+    /* 손가락이 끈 만큼 돌린다. 위아래는 눕히거나 뒤집지 않게 잘라 둔다 —
+       배를 볼 수는 있어야 하지만(양말·앞가슴) 뒤집힌 고양이는 조작 실수로 읽힌다. */
+    spin(dx, dy){
+      yaw += dx * 0.011;
+      pitch = Math.max(-0.35, Math.min(0.95, pitch + dy * 0.008));
+      draw();
+    },
+    reset(){ yaw = YAW0; pitch = PITCH0; draw(); },
+    pick,
+    dispose(){
+      dead = true;
+      try { rnd.dispose(); rnd.forceContextLoss(); } catch(e){}
+      paint.dispose();
+      mat.dispose();
+      rnd = null;
+    },
+  };
 }

@@ -715,28 +715,85 @@ function alleySet(dead){
   pole.rotation.y = 0.22;
   add(pole);
 
-  /* 공중전화 — 고양이 키에 맞춰 낮게 달려 있다.
-     자판기·가로등과 같은 쪽에 세우면 카메라에서 겹쳐서 자판기 위에 얹힌 것처럼 보인다.
-     그래서 전단(왼쪽 앞)과 대각으로, 왼쪽 뒤에 세운다 — 자판기 빛이 뒤에서 받쳐준다. */
+  /* 공중전화 부스 — 밤의 골목에서 **초록으로 빛나는 부스 하나.**
+     어두운 틀(기둥 넷·지붕) 안에 초록 공중전화가 서 있고, 전화기가 스스로 빛나서
+     그 초록이 디딤돌까지 고인다 — 골목 전체가 차가운 남색이라 이 초록 웅덩이
+     하나가 장면의 주인공이 된다(가로등의 주황과 마주 보는 색).
+     전화기는 옛 초록 공중전화의 그 모양이다: 세로 몸통, **가로로 눕는 수화기**,
+     아이보리 다이얼. 수화기는 통화 장에서 step() 이 들어 올린다.
+     자판기·가로등과 같은 쪽에 세우면 카메라에서 겹치므로 전단(왼쪽 앞)과 대각,
+     왼쪽 뒤에 세운다. */
+  const PH = { frame:0x111518, step:0x7E8681, step2:0x6A716B,
+               body:0x2FA648, panel:0x14602C, hs:0x1B5A31, cup:0x134022,
+               dial:0xDFF0DC, dark:0x0E2A18 };
   const phone = new THREE.Group();
-  phone.add(pipe(0.08, 0.1, 1.1, C.metal, 0, 0.55, 0));
-  phone.add(LP.box(0.46, 0.62, 0.26, 0x24382F, 0, 0.9, 0));
-  phone.add(LP.box(0.56, 0.10, 0.4, 0x1B2B24, 0, 1.24, 0.04));     // 비 가림
-  phone.add(LP.box(0.50, 0.05, 0.28, C.rust, 0, 0.58, 0));         // 아래 띠
-  const keys = LP.box(0.2, 0.24, 0.03, 0x86A8B4, 0.06, 0.88, 0.14);
-  keys.material = LP.matGlow(0x86A8B4, 0.22);
-  keys.userData.dynamic = true;
-  phone.add(keys);
-  /* 전용 광원이 키패드 코앞(0.36)에 있어서 판이 통째로 하얗게 탔다.
-     빛은 부스를 비추라고 있는 것이지 키패드를 태우라고 있는 게 아니다 — 뒤로 물린다. */
-  const pk = new THREE.PointLight(0x8FB2BE, 0.9, 1.8, 2);
-  pk.position.set(0.06, 1.0, 0.62);
-  phone.add(pk);
-  const handset = LP.box(0.1, 0.34, 0.1, 0x1C2019, -0.15, 0.92, 0.14);
-  handset.userData.dynamic = true;             // step() 에서 움직인다 — 합치면 굳는다
+  /* 디딤돌 둘 — 밝은 콘크리트. 초록 빛이 고이는 자리라 일부러 밝은 돌이다 */
+  phone.add(LP.box(0.84, 0.07, 0.62, PH.step,  0, 0.035, 0.05));
+  phone.add(LP.box(0.62, 0.07, 0.44, PH.step2, 0, 0.105, 0.02));
+  /* 틀 — 기둥 넷 + 지붕. 빛나는 것들 사이의 검은 뼈대 */
+  [[-0.34, -0.24], [0.34, -0.24], [-0.34, 0.24], [0.34, 0.24]]
+    .forEach(([x, z]) => phone.add(LP.box(0.07, 1.62, 0.07, PH.frame, x, 0.95, z)));
+  phone.add(LP.box(0.88, 0.10, 0.66, PH.frame, 0, 1.80, 0));
+  /* 간판 — 지붕 앞의 흰 판. 글자는 없어도 이 판이 「전화」라고 말한다 */
+  const sign = LP.box(0.46, 0.13, 0.03, 0xE9F2E4, 0, 1.71, 0.33);
+  sign.material = LP.matGlow(0xE9F2E4, 0.55);
+  sign.userData.dynamic = true;
+  phone.add(sign);
+  /* 천장 등 — 부스 안쪽이 스스로 밝다 */
+  const strip = LP.box(0.55, 0.03, 0.36, 0xBFF0C4, 0, 1.70, 0);
+  strip.material = LP.matGlow(0xBFF0C4, 0.9);
+  strip.userData.dynamic = true;
+  phone.add(strip);
+  /* 받침 + 전화기 몸통 — 이 부스의 광원 */
+  phone.add(LP.box(0.30, 0.52, 0.18, PH.frame, 0, 0.36, -0.10));
+  const body = LP.box(0.36, 0.74, 0.26, PH.body, 0, 0.99, -0.08);
+  body.material = LP.matGlow(PH.body, 0.42);
+  body.userData.dynamic = true;
+  phone.add(body);
+  /* 앞판 — 안내판(위) · 다이얼(아래) · 동전 구멍 */
+  const panel = LP.box(0.24, 0.20, 0.02, PH.panel, 0, 1.16, 0.055);
+  panel.material = LP.matGlow(PH.panel, 0.2);
+  panel.userData.dynamic = true;
+  phone.add(panel);
+  const dialG = new THREE.Group();
+  const dialFace = pipe(0.085, 0.085, 0.024, PH.dial);
+  dialFace.material = LP.matGlow(PH.dial, 0.3);
+  dialFace.userData.dynamic = true;
+  dialG.add(dialFace);
+  dialG.add(pipe(0.032, 0.032, 0.03, PH.dark, 0, 0.004, 0));       // 가운데 꼭지
+  for (let i = 0; i < 6; i++){                                     // 손가락 구멍
+    const a = -0.5 + i * 0.62;
+    dialG.add(LP.box(0.02, 0.028, 0.02, PH.dark, Math.cos(a) * 0.06, 0.005, Math.sin(a) * 0.06));
+  }
+  dialG.position.set(0, 0.88, 0.065);
+  dialG.rotation.x = 1.35;                                         // 거의 정면을 본다
+  phone.add(dialG);
+  phone.add(LP.box(0.05, 0.03, 0.02, PH.dark, 0.10, 1.30, 0.06));  // 동전 구멍
+  /* 가로 수화기 — 전화기 머리의 거치대에 눕는다. 통화 장에서 step() 이 들어 올린다.
+     묶음이라 keep 으로 뺀다(merge.js) — 합치면 굳는다. */
+  phone.add(LP.box(0.04, 0.07, 0.11, PH.hs, -0.09, 1.395, -0.07));
+  phone.add(LP.box(0.04, 0.07, 0.11, PH.hs,  0.09, 1.395, -0.07));
+  const handset = new THREE.Group();
+  handset.add(LP.box(0.24, 0.05, 0.07, PH.hs, 0, 0.045, 0));       // 가로대
+  const cupL = LP.box(0.09, 0.12, 0.10, PH.cup, -0.15, 0, 0);      // 귀·입 컵 — 살짝 안으로
+  cupL.rotation.z = 0.26;
+  const cupR = LP.box(0.09, 0.12, 0.10, PH.cup, 0.15, 0, 0);
+  cupR.rotation.z = -0.26;
+  handset.add(cupL, cupR);
+  handset.userData.keep = true;
+  handset.position.set(0, 1.43, -0.07);
+  handset.userData.restY = 1.43;             // step() 이 여기서부터 들어 올린다
   phone.add(handset);
+  /* 꼬인 선 — 몸통 옆으로 흘러내린다 */
+  phone.add(LP.box(0.025, 0.14, 0.025, PH.dark, 0.20, 1.18, -0.03));
+  /* 초록 빛 — 부스 안에서 디딤돌까지 고인다. 이 장면의 웅덩이다.
+     거리를 부스 폭에 맞춰 짧게 끊는다 — 길게 주면 뒷벽까지 초록으로 물들어서
+     웅덩이가 아니라 초록 방이 된다. */
+  const pk = new THREE.PointLight(0x4FE070, 5, 2.5, 2);
+  pk.position.set(0, 1.30, 0.24);
+  phone.add(pk);
   phone.userData.handset = handset;
-  phone.position.set(-2.0, 0, -1.1);
+  phone.position.set(-1.92, 0, -1.1);
   phone.rotation.y = 1.15;
   add(phone);
 
@@ -1580,10 +1637,11 @@ const CH = [
      그래서 붙는 대신 **아래로 기울인다**(target y 가 내려간다): 시선이 탭으로 간다. */
   { id:'flyer', dur:15,   set:'alley',
     from:[-1.01, 0.72, 4.67, -1.70, 1.00, 2.17], to:[-1.25, 0.94, 3.85, -1.73, 0.92, 2.17] },
-  /* 통화는 물건이 아니라 장면이다 — 전화기에 붙으면 초록색 판만 남는다.
-     전화기 전체(기둥까지)와 뒤의 비가 같이 보이는 거리(2.6→2.0)에서 잡는다. */
+  /* 통화는 물건이 아니라 장면이다 — 전화기에 붙으면 초록 판만 남는다.
+     부스 전체(디딤돌·지붕·간판)와 뒤의 비, 그리고 디딤돌에 고인 초록 빛이
+     같이 보이는 거리(2.9→2.2)에서 잡는다. 과녁은 부스의 가슴 높이. */
   { id:'call',  dur:18,   set:'alley',
-    from:[0.37, 0.86, -0.04, -1.96, 0.86, -1.08], to:[-0.17, 0.82, -0.28, -1.98, 0.88, -1.08], fadeOut:1.4 },
+    from:[1.36, 1.14, 0.66, -1.90, 0.94, -1.08], to:[0.65, 1.00, 0.28, -1.92, 0.96, -1.08], fadeOut:1.4 },
   { id:'dark',  dur:7.6,  set:'none', from:[0,1,0, 0,1,-1], to:[0,1,0, 0,1,-1] },
   /* 사무실은 **대각선으로** 잡는다. 정면(x=6에서 z 축을 따라 들어가는 것)이 앞판이었고,
      그때는 방이 좌우 대칭인 상자로 보였다 — 대칭인 방은 어질러져도 어질러져 보이지 않는다.
@@ -1907,9 +1965,12 @@ export function play(opt = {}){
          **빛 하나와 그 밖**에서 온다 — 배경만 내리면 그냥 안 보이는 골목이 된다. */
       alley.userData.lamp.intensity = 26 + Math.sin(st.t * 2.3) * 1.8;
       if (ch.id === 'call'){
+        /* 수화기가 거치대에서 떠올라 기운다 — 가로 수화기라 z 회전이 곧 「들었다」다.
+           제자리 높이는 수화기가 스스로 들고 있다(userData.restY) — 여기 상수를 박아
+           두면 전화기를 고칠 때마다 이 줄이 같이 낡는다. */
         const h = alley.userData.phone.userData.handset;
-        h.position.y = 0.92 + Math.min(0.1, st.chT * 0.06);
-        h.rotation.z = Math.min(0.5, st.chT * 0.3);
+        h.position.y = (h.userData.restY || 0.92) + Math.min(0.09, st.chT * 0.05);
+        h.rotation.z = Math.min(0.35, st.chT * 0.2);
       }
     }
     if (office.visible){

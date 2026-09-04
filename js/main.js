@@ -299,6 +299,12 @@ function bindInput(){
        브라우저에서는 localStorage 를 만지는 것만으로 예외가 난다 — 다른 곳은 전부
        감싸 뒀는데 여기만 맨몸이었다. 저장이 안 되는 브라우저에서도 새로 시작은 돼야 한다. */
     try { localStorage.removeItem(SAVE_KEY); } catch(e){}
+    /* **음악을 먼저 누른다.** 컷신 동안 BGM 을 누르는 문은 playIntro 에 있는데(그쪽이
+       __introAudio 를 세운다), 다시하기는 거기 닿기 전에 buildWorld·renderAll 을 지난다 —
+       그 사이에 사무실 음악이 한 번 올라와서 프롤로그의 비·통화 위에 겹쳤다.
+       여기서 미리 세우면 그 틈이 없다. */
+    window.__introAudio = true;
+    try { music.sync(); } catch(e){}
     S = newGame();
     DOCS.length = 0; NPCS.length = 0; RAID = null;
     DECOR.clearCache();
@@ -428,35 +434,58 @@ function boot(){
   storyInit();     // 가구 조사 · 단서 · 첫 결재 (STORY.md)
   tutorInit();     // 첫 출근 안내
 
-  if (!S.intro){
-    startIntro();                   // 프롤로그 → 총무의 편지 → 근로계약서
-  } else if (isNew){
-    firstLog();
-    setTimeout(showHelp, 450);
-  } else {
-    pushLog(L({
-      ko:'출근했습니다. 고양이들이 기지개를 켭니다.',
-      en:'Clocked in. The cats are stretching.',
-      ja:'出勤しました。猫たちが伸びをしています。',
-    }), '');
-    setTimeout(() => reportReturn(off, true), 500);
-  }
+  /* ── 시작화면이 먼저다 ──
+     탭이 오기 전에는 아무것도 시작하지 않는다 — 프롤로그도, 출근 보고도. 브라우저가
+     첫 입력 전에는 소리를 못 내므로 그 문을 여기서 받는 것이기도 하다(js/title.js).
+     그 파일이 없으면 기다리지 않고 그대로 간다. */
+  const afterTitle = () => {
+    if (!S.intro){
+      startIntro();                 // 프롤로그 → 총무의 편지 → 근로계약서
+    } else if (isNew){
+      firstLog();
+      setTimeout(showHelp, 450);
+    } else {
+      pushLog(L({
+        ko:'출근했습니다. 고양이들이 기지개를 켭니다.',
+        en:'Clocked in. The cats are stretching.',
+        ja:'出勤しました。猫たちが伸びをしています。',
+      }), '');
+      setTimeout(() => reportReturn(off, true), 500);
+    }
+  };
+  if (window.CCTitle) window.CCTitle.wait().then(afterTitle);
+  else afterTitle();
 
   /* 옛 저장에 CD 플레이어를 끼워 넣었으면 그렇다고 말한다(sim.js ensureJuke).
      가구가 말없이 하나 늘어나면 그건 선물이 아니라 못 보고 지나가는 것이다. */
-  if (newJuke) setTimeout(() => pushLog(L({
+  /* 「문 옆에 있습니다」는 폰에서 거짓이다 — 거기서는 음악이 오른쪽 세로 열에 있다.
+     안내가 없는 것보다 틀린 안내가 나쁘므로 판에 따라 가리키는 곳을 바꾼다. */
+  const inRail = () => { const a = $('#app'); return a && a.classList.contains('tabbar'); };
+  if (newJuke) setTimeout(() => pushLog(inRail() ? L({
+    ko:'총무가 <b>CD 플레이어</b>를 들여놓았습니다. 오른쪽 <b>음악</b> 단추로 틀 곡을 고릅니다.',
+    en:'Admin brought in a <b>CD player</b>. Pick the music from the <b>music</b> button on the right.',
+    ja:'総務が<b>CDプレーヤー</b>を入れました。右の<b>音楽</b>ボタンで曲を選べます。',
+  }) : L({
     ko:'총무가 <b>CD 플레이어</b>를 들여놓았습니다. 문 옆에 있습니다 — 누르면 틀 곡을 고릅니다.',
     en:'Admin brought in a <b>CD player</b>. It is by the door — click it to pick the music.',
     ja:'総務が<b>CDプレーヤー</b>を入れました。ドアの横にあります——押すと曲を選べます。',
   }), 'good'), 1200);
   /* 달력도 같다. 벽에 걸린 그림 하나가 조작 대상이 된 것이므로, 말 안 해 주면
      아무도 그게 눌린다는 걸 모른다 (world.js ensureCal). */
-  if (newCal) setTimeout(() => pushLog(L({
+  if (newCal) setTimeout(() => pushLog(inRail() ? L({
+    ko:'<b>달력</b>이 열렸습니다 — 오른쪽 달력 단추로 지난 날의 결과를 보고, 앞날에 미리 적어 두고, 기한을 겁니다.',
+    en:'The <b>calendar</b> is open — use the calendar button on the right for past days, days ahead and deadlines.',
+    ja:'<b>カレンダー</b>が開きました——右のカレンダーボタンで過去の日、先の日、期限。',
+  }) : L({
     ko:'벽에 걸린 <b>달력</b>이 이제 눌립니다 — 지난 날의 결과를 보고, 앞날에 미리 적어 두고, 기한을 겁니다.',
     en:'The <b>calendar</b> on the wall is now clickable — past days, days ahead, and deadlines.',
     ja:'壁の<b>カレンダー</b>が押せるようになりました——過去の日、先の日、そして期限。',
   }), 'good'), 1800);
-  if (newBoard) setTimeout(() => pushLog(L({
+  if (newBoard) setTimeout(() => pushLog(inRail() ? L({
+    ko:'<b>제휴 게시판</b>이 열렸습니다 — 오른쪽 게시판 단추로 다른 지점의 오늘 결재함을 구경할 수 있습니다.',
+    en:'The <b>branch board</b> is open — use the board button on the right to look in on another branch.',
+    ja:'<b>提携掲示板</b>が開きました——右の掲示板ボタンでほかの支店をのぞけます。',
+  }) : L({
     ko:'벽에 <b>제휴 게시판</b>이 붙었습니다 — 다른 지점의 오늘 결재함을 구경할 수 있습니다.',
     en:'A <b>branch board</b> went up on the wall — look in on another branch’s inbox.',
     ja:'壁に<b>提携掲示板</b>が付きました——ほかの支店の決裁箱をのぞけます。',
@@ -497,7 +526,11 @@ function firstLog(){
   }), 'big');
   /* 음악이 툴바에서 사무실로 옮겨 갔다(CD 플레이어). 아무도 안 알려주면 그건 없는 기능이다 —
      사규에 적어 두긴 했지만 사규는 안 읽힌다는 게 첫 출근 안내를 만든 이유였다. */
-  pushLog(L({
+  pushLog($('#app') && $('#app').classList.contains('tabbar') ? L({
+    ko:'오른쪽 <b>음악</b> 단추로 틀 곡을 고릅니다.',
+    en:'Pick the music from the <b>music</b> button on the right.',
+    ja:'右の<b>音楽</b>ボタンで曲を選べます。',
+  }) : L({
     ko:'문 옆에 <b>CD 플레이어</b>가 있습니다. 누르면 틀 곡을 고릅니다.',
     en:'There is a <b>CD player</b> by the door. Click it to pick the music.',
     ja:'ドアの横に<b>CDプレーヤー</b>があります。押すと曲を選べます。',
@@ -508,6 +541,7 @@ function firstLog(){
    opening.js 가 편지 장면에서 이 문을 열고 music.sync() 를 부른다. */
 async function playIntro(opt = {}){
   window.__introAudio = true;
+  try { music.sync(); } catch(e){}      // 이미 울리고 있으면 여기서 눌린다
   /* 기다리는 동안은 검은 화면이다. 사무실 UI 를 잠깐 보여주고 컷신으로 덮으면
      스포일러이자 깜빡임이다. #app 을 숨기지 않고 투명하게만 두는 이유는,
      display:none 이면 뷰포트 크기가 0 이 되어 3D 캔버스가 헛돈다는 것. */

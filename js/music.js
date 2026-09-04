@@ -73,12 +73,31 @@ const TRACKS = [
            en:'Someone still learning the recorder. Lung capacity and embarrassment are both in the algorithm.',
            ja:'リコーダーを練習中の誰か。肺活量も恥ずかしさもアルゴリズムです。' }) },
   { id:'yt', em:'▶️', yt:true,
-    n: L({ ko:'유튜브',        en:'YouTube',           ja:'YouTube' }),
-    d: L({ ko:'링크를 넣으면 그게 배경음악이 됩니다. 플레이리스트도 됩니다.',
-           en:'Paste a link and it becomes the background music. Playlists work too.',
-           ja:'リンクを入れればそれが BGM になります。プレイリストも可。' }) },
+    n: L({ ko:'노동요',        en:'Work Tunes',        ja:'労働歌' }),
+    d: L({ ko:'유튜브 링크를 넣으면 노동요로 들을 수 있습니다. 플레이리스트도 됩니다.',
+           en:'Paste a YouTube link and it plays as your work tunes. Playlists work too.',
+           ja:'YouTubeのリンクを入れれば労働歌として流せます。プレイリストも可。' }) },
 ];
-const trackOf = id => TRACKS.find(t => t.id === id) || TRACKS[0];
+/* ── 앱에서는 「노동요」(유튜브)를 아예 안 내놓는다 ──
+   유튜브 API 약관은 **영상이 안 보이는 오디오 재생**과 **200×200 보다 작은 플레이어**를
+   금지한다. 이 기능은 정확히 그 둘을 한다(1px 로 숨기고 소리만 쓴다 — 아래 유튜브 절).
+   웹에서는 그래도 되지만, 스토어에 올린 앱이 남의 약관을 어기면 애플이 반려하고
+   유튜브는 접근을 끊는다. 끊기면 이미 받은 사람 화면에서 기능이 죽는다.
+
+   **웹에는 그대로 두고 앱에서만 뺀다.** 배포 파일은 한 벌이라(dist/android 를 PWA 와
+   앱 껍데기가 같이 쓴다) 빌드로 가를 수 없다 — 실행하는 자리에서 가른다. */
+const NATIVE_APP = (() => {
+  try {
+    const c = window.Capacitor;
+    if (!c) return false;
+    if (typeof c.isNativePlatform === 'function') return !!c.isNativePlatform();
+    return !!(c.getPlatform && c.getPlatform() !== 'web');
+  } catch (e){ return false; }
+})();
+const LIST = NATIVE_APP ? TRACKS.filter(t => !t.yt) : TRACKS;
+/* **목록에서 뺀 것으로는 되돌아오지 않는다.** 웹에서 노동요를 틀어 두고 앱으로 옮기면
+   저장에는 `cur:'yt'` 가 남아 있는데, 그걸 그대로 집으면 앱에서 유튜브가 다시 돈다. */
+const trackOf = id => LIST.find(t => t.id === id) || LIST[0];
 
 /* **켜짐 고정.** 설정의 "배경 음악" 스위치를 뺐다 — 끄는 자리는 CD 플레이어의
    음량 0(전체 음소거)이고, 같은 일을 하는 스위치가 두 군데 있는 게 원래 문제였다.
@@ -113,8 +132,10 @@ const music = (() => {
     if (typeof m.yt !== 'string') m.yt = '';
     return m;
   }
-  const ownedIds = () => st().owned.filter(id => TRACKS.some(t => t.id === id));
-  const has = id => st().owned.includes(id) || (id === 'yt' && !!st().yt);
+  const ownedIds = () => st().owned.filter(id => LIST.some(t => t.id === id));
+  const has = id => (id === 'yt')
+    ? (!NATIVE_APP && !!st().yt)          // 앱에서는 가진 적이 없는 것으로 친다
+    : st().owned.includes(id);
 
   /* 이 배포본에 음원이 **실제로 실렸는가.** 묶는 쪽이 안 실은 파일을 이름으로 적어 준다
      (assets.js 의 ASSETS_ABSENT · tools/pack-single.js).
@@ -794,7 +815,9 @@ const music = (() => {
   return {
     init, sync, setPref, pref: () => musicPref, playing,
     /* 쥬크박스 — juke.js(화면)와 story.js(줍기)가 쓴다 */
-    tracks: () => TRACKS, track: trackOf, owned: ownedIds, has,
+    tracks: () => LIST, track: trackOf, owned: ownedIds, has,
+    /* 화면이 「이 판에서 노동요를 파는가」를 물을 자리 (js/juke.js) */
+    ytAllowed: () => !NATIVE_APP,
     now: () => wantTrack(), curId: () => st().cur, mode: () => st().mode,
     shipped,                                     // juke.js 가 목록에서 걸러 낸다
     play, next, grant, buy, setMode, setYT, ytStatus, ytWarm, volumeChanged, kick,

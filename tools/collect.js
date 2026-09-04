@@ -60,6 +60,16 @@ const FILES = [
       ? fs.readdirSync(ROOT + 'assets/tones').filter(f => f.endsWith('.jpg'))
           .map(f => 'assets/tones/' + f).sort()
       : []),
+  /* 로딩 화면의 그 고양이. 택배를 뜯는 장면이 이 그림을 쓴다(js/gacha.js gaOpening) —
+     로고의 고양이와 같은 고양이인데 **앉은 몸 전체**라, 상자 뒤에 앉혀도 어깨가 있다.
+     (style.css 에도 데이터URL 로 한 벌 박혀 있지만 그건 로딩 화면 전용이다 — LOADCAT 구간.) */
+  'assets/loading-cat.png',
+  /* 지점 간판 — 계약서 다음의 지점 등록에서 고르고, 시작화면에 뜬다(TODO 59).
+     목록(js/logolist.js)은 위의 JS 통째 담기에 이미 들어 있다. */
+  ...(fs.existsSync(ROOT + 'assets/logos')
+      ? fs.readdirSync(ROOT + 'assets/logos').filter(f => f.endsWith('.png'))
+          .map(f => 'assets/logos/' + f).sort()
+      : []),
 ];
 for (const rel of FILES){
   if (!fs.existsSync(ROOT + rel)) throw new Error('빠진 파일: ' + rel);
