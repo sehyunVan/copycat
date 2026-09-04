@@ -66,6 +66,48 @@ const litLabel = on => on
   ? L({ ko:'불이 켜져 있습니다', en:'The lights are on', ja:'灯りがついています' })
   : L({ ko:'문이 닫혀 있습니다', en:'The door is closed', ja:'ドアが閉まっています' });
 
+/* ---------- 저쪽 결재함의 **날짜** ----------
+   남의 자료는 그 사람이 게임을 켰을 때만 올라온다. 그런데 화면은 「오늘 저쪽 결재함」
+   이라고 못박아 두었어서, 사흘 전에 마지막으로 켠 사람의 목록이 **오늘 것처럼** 보였다.
+   자료에는 그날(snap.day)이 실려 있었는데 화면이 안 읽고 있었을 뿐이다.
+
+   오늘이면 「오늘」, 아니면 며칠 전인지 적는다 — 남의 근황을 실제보다 새것으로
+   보여주지 않는 것이 이 기능의 정직함이다. */
+function inboxAge(day){
+  if (!day) return null;
+  const today = bizKey();
+  if (day === today) return 0;
+  /* 날짜 키(YYYY-MM-DD)를 날로 센다. 문자열 비교가 아니라 진짜 날 수여야
+     월이 바뀌는 자리에서도 맞는다. */
+  const d = Math.round((keyToDate(today) - keyToDate(day)) / 86400000);
+  return d > 0 ? d : 0;
+}
+/* 저쪽이 **나에게** 두고 간 인사. 여태 인사는 내 저장에만 남아서, 보내는 쪽만 있고
+   받는 쪽이 없었다 — 그건 인사가 아니라 혼잣말이다. 서버가 붙으면서 받는 쪽이 생겼고,
+   그게 이 기능이 실제로 파는 것이라 보낼 칸보다 **위에** 둔다. */
+function gotHTML(id){
+  const g = (typeof FRIENDS.got === 'function' ? FRIENDS.got() : {})[id];
+  if (!g) return '';
+  return `<div class="jukesec">${L({
+      ko:'오늘 다녀갔습니다', en:'They stopped by today', ja:'今日、来ていきました' })}</div>
+    <div class="okbox">🐟 ${g.note
+      ? `“${esc(g.note)}”`
+      : L({ ko:'멸치 한 마리를 두고 갔습니다.', en:'Left you an anchovy.', ja:'いりこを一匹置いていきました。' })}</div>`;
+}
+
+function inboxHead(snap){
+  const n = inboxAge(snap.day);
+  const label = !n
+    ? L({ ko:'오늘 저쪽 결재함', en:'Their inbox today', ja:'今日の決裁箱' })
+    : n === 1
+      ? L({ ko:'어제 저쪽 결재함', en:'Their inbox yesterday', ja:'昨日の決裁箱' })
+      : L({ ko:`${n}일 전 저쪽 결재함`, en:`Their inbox, ${n} days ago`, ja:`${n}日前の決裁箱` });
+  return `<div class="jukesec">${label}</div>` + (n ? `<div class="hint">${L({
+    ko:'그 뒤로 사무실을 안 열었습니다 — 켜면 그때 다시 올라옵니다.',
+    en:'They haven’t opened the office since — it refreshes when they do.',
+    ja:'それ以来オフィスを開いていません——開けばまた上がってきます。' })}</div>` : '');
+}
+
 /* 미리보기 띠 — 흉내를 진짜처럼 보여주지 않기 위한 한 줄. 서버가 붙으면 저절로 사라진다. */
 const boardNote = () => FRIENDS.source() === 'mock'
   ? `<div class="prebadge">${L({
@@ -75,13 +117,10 @@ const boardNote = () => FRIENDS.source() === 'mock'
   : '';
 
 function showBoard(){
-  bus.emit('board:open');     // 첫 출근 안내가 이 걸음을 기다린다 (js/tutor.js)
+  bus.emit('board:open');     // 열렸다는 신호. 첫 출근 안내가 쓰던 것 — 지금은 안 듣는다
   const mo = modal(`
     <div class="mhead"><div class="q">📌 ${L({ ko:'제휴 게시판', en:'BRANCH BOARD', ja:'提携掲示板' })}</div>
-      <h3>${L({ ko:'다른 지점을 구경합니다', en:'Look in on another branch', ja:'ほかの支店をのぞく' })}</h3>
-      <p>${L({ ko:'오늘 그쪽 결재함과 사무실 도면을 볼 수 있습니다. 점수는 없습니다.',
-               en:'Their inbox for today and the floor plan. No scores.',
-               ja:'今日の決裁箱とオフィスの図面が見えます。点数はありません。' })}</p></div>
+      <h3>${L({ ko:'다른 지점을 구경합니다', en:'Look in on another branch', ja:'ほかの支店をのぞく' })}</h3></div>
     <div class="mbody" id="boardBody"></div>
     <div class="mfoot"><button class="okbtn" data-close>${L({ ko:'닫기', en:'Close', ja:'閉じる' })}</button></div>`);
   const body = mo.veil.querySelector('#boardBody');
@@ -97,17 +136,43 @@ function showBoard(){
         <img class="shot ${shots[i] ? 'photo' : ''}" src="${shots[i] || branchPlanURL(FRIENDS.snapshot(f.id), 7)}" alt="">
         <b>${esc(f.name)}</b>
         <span class="where">${esc(f.room)}</span>
-        <span class="lit-l">${f.working ? '●' : '○'} ${litLabel(f.working)}</span>
+        <span class="lit-l">${f.working ? '●' : '○'} ${f.working ? litLabel(true)
+          : (f.ago || litLabel(false))}</span>
         ${f.reacted ? `<span class="sent">🐟 ${L({ ko:'오늘 인사함', en:'greeted today', ja:'今日あいさつ済み' })}</span>` : ''}
       </button>`).join('');
-    body.innerHTML = boardNote() + `<div class="polas">${rows}</div>
-      <div class="jukesec">${L({ ko:'내 지점 코드', en:'My branch code', ja:'自分の支店コード' })}</div>
+    const live = FRIENDS.source() === 'server';
+    /* ── 받은 요청 ──
+       코드를 아는 것만으로 서로 보이던 것을 고쳤다(2026-09-03). 이제 코드를 넣으면
+       **요청**이 가고, 받은 쪽이 수락해야 걸린다. 그래서 이 줄이 목록보다 위에 있다 —
+       기다리는 사람이 있는데 아래에 두면 그건 안 보이는 것과 같다. */
+    const reqs = live ? FRIENDS.reqs() : [];
+    const reqRows = reqs.length ? `<div class="jukesec">${L({
+        ko:`받은 요청 ${reqs.length}건`, en:`${reqs.length} pending`, ja:`届いた申請 ${reqs.length}件` })}</div>`
+      + reqs.map(r => `<div class="card reqrow"><div class="crow">
+          <span class="em">🏢</span>
+          <div class="info"><b>${esc(r.name)}</b><span>${L({
+            ko:'지점을 묶자고 합니다', en:'wants to link branches', ja:'支店をつなごうと言っています' })}</span></div>
+          <button class="buy" data-yes="${r.id}">${L({ ko:'수락', en:'Accept', ja:'承認' })}</button>
+          <button class="buy alt" data-no="${r.id}">${L({ ko:'거절', en:'Decline', ja:'拒否' })}</button>
+        </div></div>`).join('') : '';
+    body.innerHTML = boardNote() + reqRows
+      + (rows ? `<div class="polas">${rows}</div>` : (live ? `<div class="empty">${L({
+          ko:'아직 묶인 지점이 없습니다. 코드를 주고받으면 여기에 걸립니다.',
+          en:'No branches linked yet. Trade codes and they show up here.',
+          ja:'まだつながった支店がありません。コードを交換するとここに並びます。' })}</div>` : ''))
+      + `<div class="jukesec">${L({ ko:'내 지점 코드', en:'My branch code', ja:'自分の支店コード' })}</div>
       <div class="codebox"><code>${FRIENDS.code()}</code>
-        <button class="buy alt" id="brCopy">${L({ ko:'복사', en:'Copy', ja:'コピー' })}</button></div>
-      <div class="hint">${L({
-        ko:'이 코드를 주고받아 지점을 묶는 건 서버가 온 뒤입니다. 코드 형식은 그때도 이대로입니다.',
-        en:'Trading codes to link branches comes with the server. The format will stay exactly this.',
-        ja:'コードを交換して支店をつなぐのはサーバーが来てからです。形式はそのままです。' })}</div>`;
+        <button class="buy alt" id="brCopy">${L({ ko:'복사', en:'Copy', ja:'コピー' })}</button></div>`
+      + (live
+        /* 서버가 붙었으므로 **코드를 받는 칸**이 생긴다. 여기가 「친구 추가」다 —
+           이름으로 찾는 길은 두지 않는다(남을 검색할 수 있으면 그건 다른 물건이다). */
+        ? `<div class="codebox"><input id="brCode" maxlength="9" autocomplete="off"
+             placeholder="${L({ ko:'받은 코드', en:'Their code', ja:'もらったコード' })}">
+             <button class="buy" id="brAdd">${L({ ko:'묶기', en:'Link', ja:'つなぐ' })}</button></div>`
+        : `<div class="hint">${L({
+             ko:'이 코드를 주고받아 지점을 묶는 건 서버가 온 뒤입니다. 코드 형식은 그때도 이대로입니다.',
+             en:'Trading codes to link branches comes with the server. The format will stay exactly this.',
+             ja:'コードを交換して支店をつなぐのはサーバーが来てからです。形式はそのままです。' })}</div>`);
     wire();
   };
   function wire(){
@@ -121,8 +186,51 @@ function showBoard(){
       sfx.add();
       toast(L({ ko:`코드 ${t} 를 복사했습니다.`, en:`Copied ${t}.`, ja:`コード ${t} をコピーしました。` }));
     };
+    /* 코드로 묶기. 실패한 이유를 **그대로 말해 준다** — 조용히 아무 일도 안 하면
+       그건 고장으로 읽힌다(견본책에서 배운 것과 같은 규칙). */
+    const ad = body.querySelector('#brAdd'), inp = body.querySelector('#brCode');
+    if (ad && inp) ad.onclick = async () => {
+      ad.disabled = true;
+      const r = await FRIENDS.add(inp.value);
+      ad.disabled = false;
+      if (r.ok){
+        sfx.buy(); inp.value = '';
+        /* 저쪽이 이미 나에게 보내 뒀으면 그 자리에서 걸린다(linked). 아니면 요청만 간다 —
+           그 차이를 말해 주지 않으면 「눌렀는데 목록에 없다」가 된다.
+           `!== false` 인 이유: 수락 절차가 없던 시절의 서버는 이 칸을 안 보낸다(그때는
+           넣는 즉시 걸렸다). 칸이 없으면 걸린 것으로 읽어야 옛 서버에서도 안 틀린다. */
+        toast(r.linked !== false
+          ? L({ ko:`${r.name} 지점과 묶었습니다.`, en:`Linked with ${r.name}.`, ja:`${r.name}支店とつながりました。` })
+          : L({ ko:`${r.name} 지점에 요청을 보냈습니다. 저쪽이 수락하면 걸립니다.`,
+                en:`Request sent to ${r.name}. It links when they accept.`,
+                ja:`${r.name}支店に申請しました。相手が承認するとつながります。` }));
+        draw();
+        return;
+      }
+      sfx.err();
+      toast(r.why === 'form' ? L({ ko:'코드 형식이 아닙니다 (예: ACDE-FGHJ)', en:'That isn’t a code (e.g. ACDE-FGHJ)', ja:'コードの形式ではありません（例: ACDE-FGHJ）' })
+          : r.why === 'self' ? L({ ko:'내 코드입니다.', en:'That’s your own code.', ja:'自分のコードです。' })
+          : r.why === 'already' ? L({ ko:'이미 묶인 지점입니다.', en:'Already linked.', ja:'すでにつながっています。' })
+          : r.why === 'blocked' ? L({ ko:'차단해 둔 지점입니다.', en:'You blocked that branch.', ja:'ブロックした支店です。' })
+          : r.why === 'offline' ? L({ ko:'서버에 연결되지 않았습니다.', en:'Not connected.', ja:'サーバーにつながっていません。' })
+          : L({ ko:'그런 코드의 지점이 없습니다.', en:'No branch with that code.', ja:'そのコードの支店はありません。' }));
+    };
+    /* 수락 · 거절 */
+    body.querySelectorAll('[data-yes]').forEach(b => b.onclick = async () => {
+      b.disabled = true;
+      const r = await FRIENDS.accept(b.dataset.yes);
+      if (r && r.ok){ sfx.buy(); draw(); } else { sfx.err(); b.disabled = false; }
+    });
+    body.querySelectorAll('[data-no]').forEach(b => b.onclick = async () => {
+      b.disabled = true;
+      const r = await FRIENDS.reject(b.dataset.no);
+      if (r && r.ok){ sfx.add(); draw(); } else { sfx.err(); b.disabled = false; }
+    });
   }
   draw();
+  /* 서버 자료는 **뒤늦게** 온다(받아 놓고 쓰는 구조 — js/friends.js). 오면 다시 그린다:
+     처음 한 판은 흉내거나 지난번 목록이고, 그걸 그대로 두면 남의 어제를 보여주게 된다. */
+  try { FRIENDS.sync().then(ok => { if (ok && mo.veil.isConnected) draw(); }); } catch(e){}
   return mo;
 }
 
@@ -162,12 +270,13 @@ function showBranch(id){
         ko:'들어가면 <b>끌어서 돌려 볼 수 있습니다.</b> 그 사이에도 내 사무실은 그대로 돌아갑니다.',
         en:'Inside you can <b>drag to look around.</b> Your own office keeps running meanwhile.',
         ja:'入ると<b>ドラッグで見回せます。</b>その間も自分のオフィスは動き続けます。' })}</div>
-      <div class="jukesec">${L({ ko:'오늘 저쪽 결재함', en:'Their inbox today', ja:'今日の決裁箱' })}</div>
+      ${inboxHead(snap)}
       ${snap.todos.length
         ? snap.todos.map(t => `<div class="calrow ${t.done ? 'done' : ''}">${mark(t)}
             <span class="tx">${esc(t.text)}</span></div>`).join('')
         : `<div class="hint">${L({ ko:'아직 아무것도 올라오지 않았습니다.',
               en:'Nothing on it yet.', ja:'まだ何も上がっていません。' })}</div>`}
+      ${gotHTML(id)}
       <div class="jukesec">${L({ ko:'인사', en:'Say hello', ja:'あいさつ' })}</div>
       ${sent
         ? `<div class="okbox">${L({
@@ -182,7 +291,19 @@ function showBranch(id){
       <div class="hint">${L({
         ko:'🐟 는 인사고 멸치가 아닙니다 — 저쪽 벌이는 1도 변하지 않습니다. 하루에 한 번.',
         en:'The 🐟 is a greeting, not currency — their earnings do not change at all. Once a day.',
-        ja:'🐟 はあいさつでお金ではありません——相手の稼ぎは1も変わりません。1日1回。' })}</div>`;
+        ja:'🐟 はあいさつでお金ではありません——相手の稼ぎは1も変わりません。1日1回。' })}</div>`
+      /* 끊기와 차단 — **맨 아래, 조용히.** 자주 쓸 것이 아니고, 위에 두면 남의 사무실을
+         보러 온 화면이 관리 화면이 된다. 차단은 되돌리기가 번거로우므로 한 번 묻는다. */
+      + (FRIENDS.source() === 'server' ? `
+      <div class="jukesec">${L({ ko:'이 지점과', en:'This branch', ja:'この支店と' })}</div>
+      <div class="codebox">
+        <button class="buy alt" id="brDrop">${L({ ko:'끊기', en:'Unlink', ja:'解除' })}</button>
+        <button class="buy alt" id="brBlock">${L({ ko:'차단', en:'Block', ja:'ブロック' })}</button>
+      </div>
+      <div class="hint">${L({
+        ko:'끊으면 서로의 목록에서 빠집니다. 차단하면 그 지점은 다시 코드를 넣어도 못 겁니다.',
+        en:'Unlinking removes you from each other’s lists. Blocking also stops them re-adding you by code.',
+        ja:'解除すると互いの一覧から外れます。ブロックするとコードを入れても再びつなげません。' })}</div>` : '');
     wire();
   };
   function wire(){
@@ -202,6 +323,27 @@ function showBranch(id){
                   ja:`${snap.name}にいりこを1匹置いてきました。` }));
       } else sfx.err();
       draw();
+    };
+    const dp = body.querySelector('#brDrop');
+    if (dp) dp.onclick = async () => {
+      dp.disabled = true;
+      await FRIENDS.drop(id);
+      sfx.add();
+      toast(L({ ko:'끊었습니다.', en:'Unlinked.', ja:'解除しました。' }));
+      mo.close(); showBoard();
+    };
+    const bl = body.querySelector('#brBlock');
+    if (bl) bl.onclick = async () => {
+      /* 되돌리기가 번거로운 조작이라 한 번 묻는다 — 이 게임에서 확인을 받는 것은
+         「처음부터 다시 시작」과 여기뿐이다. */
+      if (!confirm(L({ ko:`${snap.name} 지점을 차단할까요? 다시 걸 수 없게 됩니다.`,
+                       en:`Block ${snap.name}? They won’t be able to link again.`,
+                       ja:`${snap.name}をブロックしますか？再びつなげなくなります。` }))) return;
+      bl.disabled = true;
+      await FRIENDS.block(id);
+      sfx.err();
+      toast(L({ ko:'차단했습니다.', en:'Blocked.', ja:'ブロックしました。' }));
+      mo.close(); showBoard();
     };
   }
   mo.veil.querySelector('#brBack').onclick = () => { mo.close(); showBoard(); };
