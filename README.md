@@ -393,6 +393,44 @@ were *alone* in — unusable for a game whose job is to sit through the workday 
 So the texture stayed and only the values moved warm. Both passes and what they taught are
 in [`spike/README.md`](spike/README.md), section "6축 — 분위기".
 
+**There are many lamps, and they are on all day.** On 2026-08-28 the light sources went
+from two kinds (ceiling, desk) to seven: floor lamps (torchiere and paper globe), string
+lights, wall sconces (bowl and glass tube), lanterns, and candles. A cosy room is not a
+*bright* room but a room with *many* lights — that is what the reference taught — so what
+grew is not brightness but **the number of places light pools** (bright clusters in the
+night frame went from 15 to 31). Placement is read off the grid: string lights on the
+longest unbroken wall run, sconces on empty wall cells every three tiles, floor lamps in
+**dead corners** where two or more neighbours are blocked. No randomness, so the same
+office always has the lamps in the same spots.
+
+They are also **decoupled from the time of day.** Lamp strength used to follow the
+time-of-day table directly, which left them effectively off during daylight (the mid-day
+row is 0.34) — and in a room you keep beside you, half a day with no lamps on is not
+lighting. The new fixtures move only between 1.00 and 1.18 across the day and their colour
+does not change at all: an incandescent bulb's filament is the same colour whether or not
+the sun is up. Desk lamps got a floor value too.
+
+**The colour is amber orange.** The bulbs (`0xFFA83A`), the tint in the shadows and the
+mid-tones were all warmed together, so even in the morning the room reads as a place with
+the lamps on rather than as faded beige. Night is the one exception: there, warm pools sit
+in navy shadow, and that contrast is the whole point of the late-shift frame.
+
+**The four door markers (💿📅📌📕) were left untouched.** Those are not lighting but a
+signal that something is pressable (see "furniture that does something" below): thumbnail
+sized, saturated orange, deliberately time-invariant. The new fixtures are broad and pale
+amber, doing a different job on screen — mixing the two would kill the signal.
+
+**Twenty-five kinds of furniture are for sale** (2026-09-01). Below the supplies list sits
+a grid catalogue in five groups — work (drawers, file cabinet, meeting chair), storage
+(lockers, cabinet, open shelving, book rack, paper tray, box, bin), decor (small/large
+plants, floor lamp, candles, lantern, pen holder), lounge (1- and 2-seat sofas, low table,
+lounge chair, bean bag, café table and chair) and wall (curtains, sticky notes).
+
+Each cell shows the piece actually rendered in 3D, not an icon. All twenty-five share one
+effect — **office comfort** — which grows with the number of pieces on a diminishing curve
+and stops at +30% output and −15% needs drain. Since every piece is worth the same, which
+furniture you buy stays purely a matter of taste. That is the point of the catalogue.
+
 **The simulation does not change by a single line.** `world.js` procedural generation,
 `sim.js` agents, BFS pathfinding and the save format are untouched. The renderer just
 reads the same grid and draws it differently — the office on screen is the grid
