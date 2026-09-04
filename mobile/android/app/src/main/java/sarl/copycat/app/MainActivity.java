@@ -1,4 +1,4 @@
-package kr.labq.copycat;
+package sarl.copycat.app;
 
 import com.getcapacitor.BridgeActivity;
 

@@ -162,7 +162,13 @@ function build(platform){
 
      **판별을 미디어 쿼리로 두지 않는다.** 7번에서 배운 것: 어느 배치인지는 JS 한 곳이
      정하고 CSS 는 클래스만 본다. 둘이 갈리면 화면을 보고도 원인을 못 찾는다. */
-  const DIST_MARK = '<meta name="copycat-dist" content="mobile">';
+  const DIST_MARK = '<meta name="copycat-dist" content="mobile">'
+    /* **어느 배포본을 보고 있는지** 폰에서 눈으로 알 수 있게 도장을 하나 더 찍는다.
+       고친 것이 안 내려온 것인지 안 고쳐진 것인지를 구별하는 데 이만한 것이 없다 —
+       실제로 「예전 2D 모션이 다시 나온다」의 정체가 캐시였다.
+       시작화면 구석에 작게 뜬다(js/title.js 가 이 값을 읽는다). */
+    + `
+<meta name="copycat-build" content="${VER}">`;
   const head = platform === 'android'
     ? `${DIST_MARK}
 <link rel="manifest" href="./manifest.webmanifest">

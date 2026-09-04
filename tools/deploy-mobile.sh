@@ -62,51 +62,41 @@ mkdir -p "$STAGE/$TOKEN"
 cp -r "$CC/dist/android" "$STAGE/$TOKEN/android"
 cp -r "$CC/dist/iphone"  "$STAGE/$TOKEN/iphone"
 
-# 폰에서 열 첫 화면. 기기를 알아보고 맞는 쪽을 위에 놓는다 —
-# 폰 화면에서 둘 중 뭘 눌러야 하는지 고민하게 만들 이유가 없다.
+# 폰에서 열 첫 화면. **고르게 하지 않는다** — 기기를 알아보고 바로 넘긴다.
+#
+# 전에는 카드 둘(안드로이드·아이폰)을 놓고 맞는 쪽을 위에 뒀다. 그런데 이 주소를 여는
+# 사람은 「어느 배포본인가」를 궁금해하지 않는다 — 게임을 열려고 온다. 화면 하나를
+# 더 만들어서 한 번 더 누르게 할 이유가 없다.
+#
+# 두 배포본은 그대로 있다(.../android/ · .../iphone/). 직접 주소로 들어가면 되고,
+# 홈 화면에 얹은 아이콘도 그 주소를 가리키므로 이 바뀜에 안 흔들린다.
+#
+# `<script>` 로 넘긴다(meta refresh 가 아니라): 기기를 봐야 하고, replace 로 넘겨야
+# 뒤로 가기가 이 빈 화면으로 돌아오지 않는다.
 cat > "$STAGE/$TOKEN/index.html" <<'HTML'
 <!DOCTYPE html><html lang="ko"><head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Copycat — 폰 테스트</title>
+<title>Copycat</title>
 <link rel="icon" href="./android/icon-192.png">
 <style>
-  :root{color-scheme:dark}
-  *{box-sizing:border-box}
-  body{margin:0;min-height:100dvh;display:flex;flex-direction:column;justify-content:center;
-    gap:14px;padding:28px 20px calc(28px + env(safe-area-inset-bottom,0px));
-    background:#171310;color:#EFE4D6;
-    font:15px/1.6 "Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
-    -webkit-user-select:none;user-select:none}
-  h1{margin:0 0 2px;font-size:19px;letter-spacing:-.01em}
-  .sub{margin:0 0 10px;font-size:13px;color:#9C8D7C}
-  a.card{display:block;text-decoration:none;color:inherit;padding:16px 17px;
-    border:2px solid #3B3229;background:#231D18}
-  a.card:active{border-color:#E9A85C}
-  a.card.first{border-color:#E9A85C}
-  a.card b{display:block;font-size:16px;margin-bottom:3px}
-  a.card span{font-size:12.5px;color:#9C8D7C}
-  .foot{font-size:12px;color:#6F6459;margin-top:6px}
-  .foot code{color:#9C8D7C}
-</style></head><body>
-  <div>
-    <h1>Copycat</h1>
-    <p class="sub">폰 테스트 빌드</p>
-  </div>
-  <a class="card" id="a" href="./android/index.html">
-    <b>안드로이드</b><span>열고 → 메뉴에서 <b style="display:inline">앱 설치</b></span></a>
-  <a class="card" id="i" href="./iphone/index.html">
-    <b>아이폰</b><span>열고 → 공유 → <b style="display:inline">홈 화면에 추가</b></span></a>
-  <p class="foot">첫 실행 뒤에는 인터넷 없이 돕니다. 저장은 이 기기에만 남습니다.<br>
-    고친 게 안 보이면 홈 화면 아이콘을 지우고 다시 추가하세요.</p>
+  html,body{height:100%;margin:0;background:#171310;color:#8B7A68;
+    font:13px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
+  /* 넘어가는 사이에 보이는 화면. 대개 한 순간이라 글자 하나면 충분하다 —
+     자바스크립트가 꺼져 있는 사람에게만 이 줄이 오래 남는다. */
+  .w{height:100%;display:flex;align-items:center;justify-content:center;text-align:center;padding:24px}
+  a{color:#E2A25C}
+</style>
+</head><body>
+<div class="w"><div>
+  사무실을 여는 중…
+  <noscript><br><br><a href="./android/index.html">안드로이드</a> ·
+    <a href="./iphone/index.html">아이폰</a></noscript>
+</div></div>
 <script>
-  /* 기기에 맞는 쪽을 위로. 아이폰 사파리에는 설치 프롬프트가 없어서 안내가 다르고,
-     그 둘을 나란히 보여 주면 폰 화면에서 잘못 누르기 쉽다. */
   var ios = /iPad|iPhone|iPod/.test(navigator.userAgent)
     || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  var a = document.getElementById('a'), i = document.getElementById('i');
-  (ios ? i : a).classList.add('first');
-  if (ios) i.parentNode.insertBefore(i, a);
+  location.replace(ios ? './iphone/index.html' : './android/index.html');
 </script>
 </body></html>
 HTML

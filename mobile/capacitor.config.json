@@ -1,5 +1,5 @@
 {
-  "appId": "kr.labq.copycat",
+  "appId": "sarl.copycat.app",
   "appName": "Copycat",
   "webDir": "../dist/android",
   "android": {
