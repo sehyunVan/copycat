@@ -79,7 +79,7 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     dom(){ const el = document.querySelector('#todoList');
       return { rows:[...el.querySelectorAll('.todo')].map(r => ({
         id:r.dataset.id, kid:r.classList.contains('kid'), group:r.classList.contains('group'),
-        chk:!!r.querySelector('.chk'), fold:!!r.querySelector('.fold'),
+        chk:!!r.querySelector('.chk'), fold:!!r.querySelector('.foldi'),
         sub:!!r.querySelector('[data-act="sub"]'), txt:r.querySelector('.txt').textContent.replace(/\s+/g,' ').trim() })) };
     },
   }`);
@@ -100,7 +100,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   const dom1 = JSON.parse(await ev(`(() => { S.todos.forEach(t => t.due = bizKey()); renderTodos();
     return JSON.stringify(__t.dom()); })()`));
   const par = dom1.rows.find(r => r.group), kid = dom1.rows.find(r => r.kid);
-  ok(par && !par.chk && par.fold, '부모에는 체크 칸이 없고 접기 손잡이가 있다', JSON.stringify(par));
+  /* 2026-08-26 에 바뀐 계약이다(ui.js) — 부모의 체크는 「묶음 완료」(completeGroup)이고
+     접기 손잡이는 글줄 앞의 .foldi 다. 도장·보상은 여전히 잎에서만 나온다(아래 검사). */
+  ok(par && par.chk && par.fold, '부모에는 묶음 완료 체크와 접기 손잡이가 있다', JSON.stringify(par));
   ok(kid && !kid.sub, '잎에는 ＋ 가 없다 (손자를 안 만든다)');
   ok(/남은 2건/.test(par.txt), '부모 줄은 보상 대신 남은 수를 적는다', par.txt.slice(0, 40));
 

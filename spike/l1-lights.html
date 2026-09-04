@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>l1 — 조명 기구 한 벌</title>
+<style>
+  html,body{margin:0;background:#0b0d12;overflow:hidden}
+  canvas{display:block}
+  #lab{position:fixed;left:10px;top:8px;font:12px ui-monospace,monospace;color:#cfd6e6;
+       background:#0009;padding:4px 9px;border-radius:5px;border:1px solid #ffffff22}
+</style>
+<script type="importmap">{ "imports": { "three": "../js/three/vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="lab">l1 · 조명 기구</div>
+<script type="module">
+/* l1 — 새 조명 기구 다섯을 벽 앞에 세워 놓고 본다.
+
+   **게임의 진짜 lowpoly.js 를 import 한다**(spike/lib/lowpoly.js 아님). 사무실을
+   통째로 띄우면 부팅에 30초가 걸리고, 기구 하나를 고칠 때마다 그 값을 치를 수 없다.
+   그리고 방 안에서는 기구가 가구에 가려 조형을 판정할 수가 없다 — 밤 스크린샷에서
+   스탠드가 「회색 드럼」으로 보이는데 그게 조형 탓인지 각도 탓인지 못 갈랐다.
+
+   빛은 render3d 의 밤 칸과 같게 맞춘다(COZY_HUE·세기·반경). 조명 기구는 빛 속에서만
+   판정되므로 조명 없이 조형만 보면 아무 뜻이 없다.
+
+     node spike/serve.js &
+     node spike/shot.js l1-lights lights "" 1200 620
+*/
+import * as THREE from 'three';
+import * as LP from '../js/three/lowpoly.js';
+
+/* eerie 팔레트·킷과 같은 값 — 게임에서 보이는 그대로여야 한다 */
+LP.setKit({ prim:'round', bevel:0.055, shading:'smooth', detail:1 });
+LP.setPalette({
+  floor:0xC7BAA7, floorAlt:0xBBAD99, lounge:0xC59B95, wall:0xD7CDBD, wallTrim:0xBFB3A2,
+  wood:0xC79A6C, woodDark:0x9A7350, metal:0x9EA9BA, metalDark:0x73808F,
+  screen:0x4B5661, screenOn:0xBCDCC0, fabric:0x8894B4, fabric2:0xD09284,
+  leaf:0x8DB584, leafDark:0x6D9569, pot:0xC18B71, paper:0xF2ECE0, ink:0x4A423C,
+  catnip:0xA9CF87, glow:0xFFD9A0, sky:0xBDC9D3,
+});
+
+const COZY_HUE = 0xFFD2A0;
+const W = 9, D = 4;
+const cv = document.getElementById('cv');
+const renderer = new THREE.WebGLRenderer({ canvas:cv, antialias:true });
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.04;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0E1424);
+const camera = new THREE.PerspectiveCamera(32, 1, 0.5, 200);
+
+/* 밤 칸(eerie.TIME.night)의 전역광 — 어두워야 웅덩이가 보인다 */
+const hemi = new THREE.HemisphereLight(0x44569C, 0x0E1220, 0.13 * 0.80);
+const sun = new THREE.DirectionalLight(0x5A6EAC, 0.05 * 1.30);
+sun.position.set(W / 2 - 3, 9, D / 2 - 6);
+sun.castShadow = true;
+sun.shadow.mapSize.set(1024, 1024);
+const fill = new THREE.DirectionalLight(0x4A5CA0, 0.07);
+fill.position.set(-6, 5, -5);
+scene.add(hemi, sun, sun.target, fill);
+
+const g = new THREE.Group();
+scene.add(g);
+/* 바닥과 뒷벽 — 웅덩이가 떨어질 면이 있어야 조명을 볼 수 있다 */
+g.add(LP.box(W, 0.1, D, LP.PAL.floor, W / 2, -0.05, D / 2));
+g.add(LP.box(W, 2.6, 0.6, LP.PAL.wall, W / 2, 1.3, -0.3));
+g.add(LP.box(W, 0.13, 0.7, LP.PAL.wallTrim, W / 2, 0.065, -0.28));
+
+const lights = [];
+const bulbOn = (o, i, r) => {
+  o.updateMatrixWorld(true);
+  const wp = o.localToWorld((o.userData.bulb || new THREE.Vector3()).clone());
+  const pl = new THREE.PointLight(COZY_HUE, i, r, 2);
+  pl.position.copy(wp);
+  scene.add(pl);
+  lights.push(pl);
+};
+/* 발광면을 render3d 의 밤 값으로 칠한다(lit × 1.18 × 1.35) */
+const paint = o => o.traverse(m => {
+  if (m.userData && m.userData.lit != null)
+    m.material = LP.matGlow(COZY_HUE, Math.min(1.6, m.userData.lit * 1.18 * 1.35));
+});
+
+/* 1 스탠딩 스탠드(토치에르) */
+const f0 = LP.floorLamp(0); f0.position.set(1.1, 0, 1.5); g.add(f0); paint(f0); bulbOn(f0, 6.6, 4.6);
+/* 2 스탠딩 스탠드(종이 등) */
+const f1 = LP.floorLamp(1); f1.position.set(2.7, 0, 1.5); g.add(f1); paint(f1); bulbOn(f1, 6.6, 4.6);
+/* 3 벽등 둘 */
+const s0 = LP.sconce(0); s0.position.set(4.4, 1.56, 0.01); g.add(s0); paint(s0); bulbOn(s0, 3.8, 2.9);
+const s1 = LP.sconce(1); s1.position.set(5.9, 1.56, 0.01); g.add(s1); paint(s1); bulbOn(s1, 3.8, 2.9);
+/* 4 전구줄 */
+const st = LP.stringLights(6.4, { sag:0.16, gap:0.34 });
+st.position.set(W / 2, 2.12, 0.20); g.add(st); paint(st);
+(st.userData.hooks || []).forEach((h, i) => { if (i % 2 === 0) bulbOn2(st, h, 2.9, 3.2); });
+function bulbOn2(o, local, i, r){
+  o.updateMatrixWorld(true);
+  const pl = new THREE.PointLight(COZY_HUE, i, r, 2);
+  pl.position.copy(o.localToWorld(local.clone()));
+  scene.add(pl);
+}
+/* 5 랜턴 · 6 양초 — 낮은 탁자 위에 */
+g.add(LP.box(1.5, 0.06, 0.7, LP.PAL.wood, 7.4, 0.62, 1.5));
+g.add(LP.box(0.09, 0.62, 0.09, LP.PAL.woodDark, 6.8, 0.31, 1.5));
+g.add(LP.box(0.09, 0.62, 0.09, LP.PAL.woodDark, 8.0, 0.31, 1.5));
+const ln = LP.lantern(); ln.position.set(7.0, 0.65, 1.5); g.add(ln); paint(ln); bulbOn(ln, 2.0, 2.0);
+const cd = LP.candles(3); cd.position.set(7.9, 0.65, 1.5); g.add(cd); paint(cd);
+
+/* 촛불은 떤다 — render3d.tickFlames 와 같은 식 */
+const flames = [];
+cd.traverse(m => { if (m.userData && m.userData.flame) flames.push(m); });
+
+camera.position.set(W / 2 + 4.2, 6.0, 9.6);
+camera.lookAt(W / 2, 0.9, 1.4);
+function fit(){
+  const w = innerWidth, h = innerHeight;
+  renderer.setPixelRatio(1);
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', fit); fit();
+
+let t = 0;
+(function loop(){
+  t += 1 / 60;
+  flames.forEach((f, i) => {
+    const ph = i * 2.39;
+    const k = 0.74 + 0.26 * (0.5 + 0.5 * Math.sin(t * 5.3 + ph)) + 0.10 * Math.sin(t * 11.7 + ph * 1.7);
+    const q = Math.round(k * 8) / 8;
+    if (f.userData.q !== q){
+      f.userData.q = q;
+      f.material = LP.matGlow(COZY_HUE, Math.min(1.6, q * f.userData.lit * 1.3));
+      f.scale.y = 0.92 + q * 0.16;
+    }
+  });
+  renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+})();
+document.getElementById('lab').textContent =
+  'l1 · 토치에르 · 종이등 · 벽등 갓 · 벽등 관 · 전구줄 · 랜턴 · 양초';
+</script>
+</body>
+</html>

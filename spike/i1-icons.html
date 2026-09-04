@@ -1,0 +1,67 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>i1 — 머리 위 아이콘</title>
+<!-- 열두 갈래를 실제 말풍선 크기(22px)와 확대(64px) 두 줄로 늘어놓는다.
+     작게 봐야 판정이 되고(스무 마리가 동시에 뜨는 크기다), 크게 봐야 왜 안 읽히는지 안다.
+     아래 줄은 eerie(어두운) 판 — 게임의 실제 그림체가 그쪽이다.
+     node spike/serve.js  &&  node spike/shot.js i1-icons -->
+<style>
+  body{margin:0;font:13px/1.6 system-ui,'Malgun Gothic',sans-serif;background:#F3EEE6;color:#3A2E28}
+  h2{font-size:12px;letter-spacing:.08em;color:#8B7466;margin:22px 16px 8px}
+  .row{display:flex;flex-wrap:wrap;gap:10px;padding:0 16px}
+  .cell{display:flex;flex-direction:column;align-items:center;gap:6px;width:86px}
+  .name{font-size:10px;color:#8B7466}
+  /* 게임의 .bubble 그대로다 — 그림이 판을 따로 갖지 않는다는 게 이 항목의 결론이라,
+     시안도 같은 판을 써야 판정이 된다(style.css 의 .bubble · .bubble.ico). */
+  .icobub{position:relative;display:inline-flex;align-items:center;justify-content:center;
+    background:#FFFDF8;border:2px solid #3A2E28;box-shadow:2px 2px 0 rgba(0,0,0,.2);
+    padding:2px 7px;line-height:0;color:#3A2E28}
+  .icobub::after{content:'';position:absolute;left:50%;bottom:-7px;margin-left:-4px;
+    width:0;height:0;border:4px solid transparent;border-top-color:#3A2E28}
+  .icobub .ic24{width:12px;height:12px;display:block}
+  /* 물고기의 눈처럼 **바탕색으로 뚫는** 자리. 판이 밝은지 어두운지는 여기서만 안다. */
+  .icobub .icobg{fill:#FFFDF8;stroke:none}   /* 게임에서는 --bub-bg 를 읽는다 */
+  .dark .icobub .icobg{fill:#241E18}
+  .big .icobub{padding:8px 20px;border-width:3px}
+  .big .icobub .ic24{width:38px;height:38px}
+  .dark{background:#1C1712;padding:14px 0 22px}
+  .dark h2{color:#8A7A68}
+  .dark .name{color:#8A7A68}
+  .dark .icobub{background:#241E18;border-color:#57493B;color:#EDE2D4;box-shadow:2px 2px 0 rgba(0,0,0,.45)}
+  .dark .icobub::after{border-top-color:#57493B}
+  /* 스무 마리가 동시에 뜬 화면 흉내 — 겹쳐도 읽히는지가 이 항목의 전부다 */
+  .swarm{position:relative;height:190px;margin:0 16px;background:#CFC3B2;overflow:hidden}
+</style>
+<script src="../js/icons.js"></script>
+
+<h2>실제 크기 (게임의 말풍선 · 아이콘 12px)</h2>
+<div class="row" id="small"></div>
+
+<h2>확대</h2>
+<div class="row big" id="big"></div>
+
+<h2>스무 마리가 동시에</h2>
+<div class="swarm" id="swarm"></div>
+
+<div class="dark">
+  <h2>eerie — 게임의 실제 그림체</h2>
+  <div class="row" id="darkrow"></div>
+</div>
+
+<script>
+  const KINDS = Object.keys(ICON_SVG);
+  const cell = (k, withName) =>
+    `<div class="cell"><div class="icobub">${iconSVG(k)}</div>${withName ? `<div class="name">${k}</div>` : ''}</div>`;
+  small.innerHTML   = KINDS.map(k => cell(k, true)).join('');
+  big.innerHTML     = KINDS.map(k => cell(k, true)).join('');
+  darkrow.innerHTML = KINDS.map(k => cell(k, true)).join('');
+
+  /* 자리는 난수가 아니라 고정 — 찍을 때마다 그림이 달라지면 비교가 안 된다 */
+  let s = 7;
+  const rnd = () => (s = (s * 1103515245 + 12345) % 2147483648) / 2147483648;
+  swarm.innerHTML = Array.from({ length: 20 }, () => {
+    const k = KINDS[Math.floor(rnd() * KINDS.length)];
+    return `<div style="position:absolute;left:${(4 + rnd() * 90).toFixed(1)}%;top:${(6 + rnd() * 76).toFixed(1)}%">
+      <div class="icobub">${iconSVG(k)}</div></div>`;
+  }).join('');
+</script>

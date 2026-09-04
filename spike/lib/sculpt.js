@@ -419,12 +419,11 @@ function relax(pos, quads, times, amount = 0.55){
    build(P) → { geometry, tris, verts, ms, bounds, prims }
    ============================================================ */
 
-export function build(params = {}){
-  const P = { ...FIG, ...params };
-  const t0 = performance.now();
-
-  const prims = skeleton(P);
-
+/* 껍질 뽑기만 따로 떼어 둔다 — **뼈대를 누가 적었는지는 여기서 안 묻는다.**
+   같은 격자·같은 완화·같은 flat 셰이딩을 쓰되 캡슐 목록만 다른 조형이
+   d1(캐릭터 축)에서 필요해졌다. skeleton() 은 이 파일의 고양이 하나를 적는 함수고,
+   이 아래는 캡슐 목록이면 무엇이든 껍질로 만드는 함수다. */
+export function mesh(prims, P){
   /* 경계 상자 — 이음매만큼 부풀린다. 여유가 없으면 껍질이 상자에 잘려 구멍이 난다 */
   const lo = [ Infinity,  Infinity,  Infinity];
   const hi = [-Infinity, -Infinity, -Infinity];
@@ -475,13 +474,27 @@ export function build(params = {}){
   geometry.computeBoundingSphere();
 
   return {
-    geometry, prims, params: P,
+    geometry,
     tris: quads.length * 2,
     verts: pos.length / 3,
     grid: [nx, ny, nz],
     cell,
     /* 뼈대를 겹쳐 그리려면 껍질과 같은 만큼 내려야 한다 */
     dropY: minY, scale: s,
+    msSample, msMesh,
+  };
+}
+
+export function build(params = {}){
+  const P = { ...FIG, ...params };
+  const t0 = performance.now();
+
+  const prims = skeleton(P);
+  const R = mesh(prims, P);
+  const s = R.scale, minY = R.dropY;
+
+  return {
+    ...R, prims, params: P,
     /* 얼굴을 **칠하는** 쪽(facepaint.js)이 읽는 기준점.
        칠은 오브젝트 공간에서 머리를 단위구로 되돌려 놓고 그리므로
        발밑 정렬까지 끝난 최종 좌표의 중심과 반지름이 필요하다. */
@@ -531,7 +544,6 @@ export function build(params = {}){
       };
     })(),
     ms: performance.now() - t0,
-    msSample, msMesh,
   };
 }
 

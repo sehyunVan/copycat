@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>d2 — 실루엣이 감정이다</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="bg"></canvas><canvas id="cv"></canvas><div id="tags"></div></div>
+<script type="module">
+/* d2 — 표정을 안 바꾸고 감정을 말할 수 있는가.
+
+   레퍼런스 두 장은 같은 캐릭터다. 눈도 같고 색도 같다. 다른 건 **실루엣**뿐이다 —
+   한 장은 둥글고 한 장은 찢어져 있다. 그 둘 사이를 잇는 손잡이가 하나 있으면
+   고양이의 기분이 UI 없이 화면에서 읽힌다. 그게 copycat 이 원래 하고 싶던 일이다.
+
+   조형을 매 프레임 다시 깎을 수는 없다(한 마리 60~150 ms). 그래서 catsculpt.js 가
+   걸음을 다루는 방식을 그대로 쓴다 — **몇 장 미리 굽고 갈아 끼운다.**
+   그러면 감정이 지오메트리 교체 한 번이 되고, 드로우콜은 그대로 1 이다.
+
+   배경은 레퍼런스의 하프톤이다. 조형만 놓고 보면 판단이 안 되는 것이 있다 —
+   이 캐릭터는 **검정 실루엣 + 점 구름** 위에서 완성되는 물건이라 그 판까지 깔아야
+   "되는가" 에 답이 된다. */
+
+import * as THREE from 'three';
+import { hud, fmt } from './lib/hud.js';
+import * as CH from './lib/chibi.js';
+import { furMaterial } from './lib/charface.js';
+
+const CREAM = '#F2ECE1', BLUE = '#2A2AE6', INK = 0x1F1D24;
+const N = 9;                       // 구워 두는 장 수. 9면 슬라이더가 안 끊긴다
+
+const CSS = `
+  body{background:${CREAM}}
+  #stage{right:340px !important;background:${CREAM}}
+  #stage canvas{position:absolute;inset:0}
+  #tags{position:absolute;inset:0;pointer-events:none}
+  #tags div{position:absolute;transform:translate(-50%,0);white-space:nowrap;
+    font:10px/1 ui-monospace,monospace;color:#8b857e;letter-spacing:.14em}
+  .hud .name{font-size:14px;color:#fff;margin:2px 0 4px}
+  .hud .note{color:#8f9ab3;line-height:1.5;margin-bottom:10px}
+  .sl{display:grid;grid-template-columns:52px 1fr 44px;align-items:center;gap:6px;padding:2px 0}
+  .sl span{color:#8f9ab3;font-size:11px}
+  .sl b{color:#fff;font-weight:600;font-variant-numeric:tabular-nums;font-size:11px;text-align:right}
+  .sl input{width:100%;accent-color:#4c6ef5;height:14px}
+`;
+document.head.appendChild(Object.assign(document.createElement('style'), { textContent: CSS }));
+
+const H = hud('d2 · 기분');
+H.el.querySelector('h1').insertAdjacentHTML('afterend',
+  `<div class="name">실루엣이 감정이다</div>
+   <div class="note">눈·색·비율은 안 바뀐다. <b>${N}장</b>을 미리 굽고 갈아 끼운다 —
+   기분이 <b style="color:#6ee7a0">지오메트리 교체 한 번</b>이 된다.</div>`);
+
+const stage = document.getElementById('stage');
+const bgCv = document.getElementById('bg');
+const canvas = document.getElementById('cv');
+const tagBox = document.getElementById('tags');
+
+/* ============================================================
+   배경 — 하프톤. 레퍼런스의 절반은 이 점 구름이다.
+   난수를 안 쓰고 해시로 흔든다. 같은 화면이 매번 같게 나와야 그림으로 비교가 된다.
+   ============================================================ */
+function hash(x, y){
+  const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+  return s - Math.floor(s);
+}
+function drawBG(){
+  const w = bgCv.width = stage.clientWidth, h = bgCv.height = stage.clientHeight;
+  const g = bgCv.getContext('2d');
+  g.fillStyle = CREAM; g.fillRect(0, 0, w, h);
+
+  /* 대각선 몇 줄 — 점만 있으면 화면이 안개가 된다. 직선이 있어야 점이 무늬로 읽힌다 */
+  g.strokeStyle = BLUE; g.globalAlpha = 0.16; g.lineWidth = 1;
+  for (let i = -6; i < 14; i++){
+    const x = i * w / 9;
+    g.beginPath(); g.moveTo(x, -20); g.lineTo(x + h * 0.9, h + 20); g.stroke();
+  }
+  g.globalAlpha = 1;
+
+  /* 점 구름 — 가운데(고양이 뒤)에서 짙고 밖으로 갈수록 성글다 */
+  const cx = w * 0.5, cy = h * 0.44, R = Math.min(w, h) * 0.62, step = 7;
+  for (let y = 0; y < h; y += step)
+    for (let x = 0; x < w; x += step){
+      const d = Math.hypot(x - cx, (y - cy) * 1.25) / R;
+      const n = hash(x, y);
+      const k = (1 - d) * 1.15 - n * 0.55;         // 밀도 = 거리 - 흔들림
+      if (k <= 0) continue;
+      const r = Math.min(2.6, k * 3.0);
+      g.fillStyle = n > 0.86 ? '#1A1A22' : BLUE;   // 검정 점 몇 개가 섞여야 인쇄물처럼 보인다
+      g.globalAlpha = Math.min(0.9, 0.25 + k * 0.8);
+      g.beginPath(); g.arc(x + (n - 0.5) * 2, y, r, 0, 6.284); g.fill();
+    }
+  g.globalAlpha = 1;
+}
+
+/* ============================================================
+   판
+   ============================================================ */
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setClearColor(0x000000, 0);
+renderer.setScissorTest(true);
+
+const scene = new THREE.Scene();
+scene.add(new THREE.HemisphereLight(0xFFFFFF, 0xCFC8BC, 1.05));
+const sun = new THREE.DirectionalLight(0xFFFBF4, 1.35);
+sun.position.set(-2.4, 4.6, 3.6);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left:-1.6, right:1.6, top:1.6, bottom:-1.6, near:0.5, far:14 });
+sun.shadow.bias = -0.0012;
+scene.add(sun, sun.target);
+/* 파랑 림 — 검정 실루엣에서 형태를 말해주는 유일한 빛.
+   레퍼런스의 파랑은 배경에만 있는 게 아니라 몸 가장자리에도 얹혀 있다 */
+const rim = new THREE.DirectionalLight(0x6E6EFF, 1.05);
+rim.position.set(3.0, 1.2, -2.4);
+scene.add(rim);
+
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(24, 24),
+  new THREE.ShadowMaterial({ opacity: 0.10 }));
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+/* ============================================================
+   굽기 — N 장. 여기가 이 페이지의 비용이 전부 나오는 자리다.
+   ============================================================ */
+const FRAMES = [];
+let bakeMs = 0, maxTris = 0;
+for (let i = 0; i < N; i++){
+  const m = i / (N - 1);
+  const r = CH.build({ mood: m, res: 52 });
+  bakeMs += r.ms; maxTris = Math.max(maxTris, r.tris);
+  r.geometry.computeBoundingBox();
+  const bb = r.geometry.boundingBox;
+  FRAMES.push({ m, geo: r.geometry, anchor: r.anchor, tris: r.tris,
+                h: bb.max.y,
+                hw: Math.max(-bb.min.x, bb.max.x, -bb.min.z, bb.max.z) });
+}
+H.set('굽기 ' + N + '장', fmt.ms(bakeMs), bakeMs > 1200 ? 'warn' : 'ok');
+H.set('한 장 평균', fmt.ms(bakeMs / N));
+H.set('삼각형 (최대)', maxTris.toLocaleString(), maxTris > 9000 ? 'warn' : 'ok');
+H.set('드로우콜', '1');
+
+/* 얼굴 — 조형이 뾰족해질 때 초승달도 같이 돈다.
+   눈 모양을 바꾸는 게 아니라 **기울기만** 바꾼다. 그래야 한 캐릭터로 읽힌다 */
+const EYE_ROT = [-0.26, -0.86];
+const mat = furMaterial({ fur: INK, eyeMode: 3,
+  eyeGap: 0.62, eyeUp: -0.15, eyeW: 0.340, eyeH: 0.385, mouthR: 0 });
+
+const hero = new THREE.Mesh(FRAMES[0].geo, mat);
+hero.castShadow = true; hero.receiveShadow = true;
+scene.add(hero);
+
+/* 필름 — 구워 둔 장을 그대로 늘어놓는다. 각 칸은 제 재질을 가진다(초승달 기울기가 다르므로) */
+const strip = FRAMES.map((f, i) => {
+  const m = furMaterial({ fur: INK, eyeMode: 3,
+    eyeGap: 0.62, eyeUp: -0.15, eyeW: 0.340, eyeH: 0.385, mouthR: 0,
+    eyeRot: EYE_ROT[0] + (EYE_ROT[1] - EYE_ROT[0]) * f.m });
+  m.userData.setAnchor(f.anchor);
+  const mesh = new THREE.Mesh(f.geo, m);
+  mesh.castShadow = true;
+  mesh.visible = false;
+  scene.add(mesh);
+  return { ...f, mesh };
+});
+
+let mood = 0;
+function setMood(v){
+  mood = Math.max(0, Math.min(1, v));
+  const f = FRAMES[Math.round(mood * (N - 1))];
+  hero.geometry = f.geo;
+  mat.userData.setAnchor(f.anchor);
+  mat.userData.set('eyeRot', EYE_ROT[0] + (EYE_ROT[1] - EYE_ROT[0]) * f.m);
+  H.set('기분', f.m.toFixed(2) + (f.m < 0.2 ? '  둥글다' : f.m > 0.8 ? '  찢어졌다' : ''));
+  H.set('이 장의 삼각형', f.tris.toLocaleString());
+  slider.value = mood;
+  return f;
+}
+
+/* ============================================================
+   그리기 — 위는 크게 한 마리, 아래는 필름
+   ============================================================ */
+const heroCam = new THREE.PerspectiveCamera(22, 1, 0.1, 60);
+const filmCam = new THREE.PerspectiveCamera(22, 1, 0.1, 60);
+
+/* 거리는 화각에서 낸다. 배율을 손으로 맞추면 귀가 잘린다 */
+function aim(cam, f, dir, margin){
+  const t = new THREE.Vector3(0, f.h * 0.50, 0);
+  const tg = Math.tan(cam.fov * Math.PI / 360);
+  const d = Math.max(f.h * 0.5 / tg, f.hw / (tg * cam.aspect)) * margin;
+  cam.position.copy(t).addScaledVector(new THREE.Vector3(...dir).normalize(), d);
+  cam.lookAt(t);
+}
+
+let breathe = 0, playing = true, dir = 1;
+
+function draw(){
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h, false);
+  const filmH = Math.min(210, h * 0.26), heroH = h - filmH;
+
+  /* 히어로 */
+  const f = FRAMES[Math.round(mood * (N - 1))];
+  heroCam.aspect = w / heroH;
+  heroCam.updateProjectionMatrix();
+  aim(heroCam, f, [0, 0.06, 1], 1.34);
+  hero.visible = true;
+  hero.position.y = Math.sin(breathe) * 0.012;
+  renderer.setViewport(0, h - heroH, w, heroH);
+  renderer.setScissor(0, h - heroH, w, heroH);
+  renderer.clear();
+  renderer.render(scene, heroCam);
+  hero.visible = false;
+
+  /* 필름 */
+  const cw = w / N;
+  filmCam.aspect = cw / filmH;
+  filmCam.updateProjectionMatrix();
+  for (let i = 0; i < strip.length; i++){
+    const s = strip[i];
+    aim(filmCam, s, [0, 0.05, 1], 1.30);
+    s.mesh.visible = true;
+    renderer.setViewport(cw * i, 0, cw, filmH);
+    renderer.setScissor(cw * i, 0, cw, filmH);
+    renderer.render(scene, filmCam);
+    s.mesh.visible = false;
+  }
+  hero.visible = true;
+}
+
+function frame(){
+  breathe += 0.03;
+  if (playing){
+    let v = mood + dir * 0.006;
+    if (v >= 1){ v = 1; dir = -1; } else if (v <= 0){ v = 0; dir = 1; }
+    if (Math.round(v * (N - 1)) !== Math.round(mood * (N - 1))) setMood(v); else mood = v;
+  }
+  draw();
+  requestAnimationFrame(frame);
+}
+
+/* ---------- 손잡이 ---------- */
+const slBox = document.createElement('div');
+H.el.querySelector('#btns').before(slBox);
+slBox.innerHTML = `<div class="sl"><span>기분</span>
+  <input id="mood" type="range" min="0" max="1" step="0.01" value="0"><b id="mv">0.00</b></div>`;
+const slider = slBox.querySelector('#mood'), mv = slBox.querySelector('#mv');
+slider.oninput = () => { playing = false; setMood(+slider.value); mv.textContent = (+slider.value).toFixed(2); };
+
+H.btn('흔들기', () => (playing = !playing), true);
+H.btn('무늬', b => {
+  const on = bgCv.style.display !== 'none';
+  bgCv.style.display = on ? 'none' : 'block';
+  return !on;
+});
+
+function layout(){
+  drawBG();
+  const w = stage.clientWidth, h = stage.clientHeight;
+  const filmH = Math.min(210, h * 0.26), cw = w / N;
+  tagBox.innerHTML = '';
+  FRAMES.forEach((f, i) => {
+    const el = document.createElement('div');
+    el.textContent = f.m.toFixed(2);
+    el.style.left = (cw * (i + 0.5)) + 'px';
+    el.style.top = (h - 14) + 'px';
+    tagBox.appendChild(el);
+  });
+}
+addEventListener('resize', layout);
+
+const Q = new URLSearchParams(location.search);
+if (Q.has('hud')){
+  H.el.style.display = 'none';
+  stage.style.setProperty('right', '0', 'important');
+}
+if (Q.has('mood')){ playing = false; }
+layout();
+setMood(Q.has('mood') ? +Q.get('mood') : 0);
+if (Q.has('mood')) mv.textContent = (+Q.get('mood')).toFixed(2);
+frame();
+
+H.ok('굽기는 부팅에 한 번. 기분은 그 뒤로 공짜다');
+</script>
+</body>
+</html>

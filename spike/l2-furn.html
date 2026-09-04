@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>l2 — 가구 카탈로그</title>
+<style>
+  html,body{margin:0;background:#1a1712;overflow:hidden}
+  canvas{display:block}
+</style>
+<script type="importmap">{ "imports": { "three": "../js/three/vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<script type="module">
+/* l2 — 카탈로그 가구를 격자에 늘어놓고 본다.
+
+   l1-lights.html 과 같은 자리다: **게임의 진짜 lowpoly.js 를 import 한다.**
+   가구는 사무실 안에서 서로 가리므로 조형을 판정할 수가 없고, 무엇보다
+   레퍼런스 한 장이 「목록」이라 목록으로 놓고 봐야 같은 것을 비교한다.
+
+   카메라 각도는 게임과 같다(az 0.72 · el 0.56 언저리). 그래야 여기서 괜찮은 것이
+   방에서도 괜찮다 — 정면에서 보면 다 멀쩡해 보인다는 게 이 화면의 요점이다.
+
+     node spike/serve.js &
+     SHOT_W=1600 SHOT_H=900 node spike/shot.js l2-furn v1
+*/
+import * as THREE from 'three';
+import * as LP from '../js/three/lowpoly.js';
+
+LP.setKit({ prim:'round', bevel:0.055, shading:'smooth', detail:1 });
+LP.setPalette({
+  floor:0xC7BAA7, floorAlt:0xBBAD99, lounge:0xC59B95, wall:0xD7CDBD, wallTrim:0xBFB3A2,
+  wood:0xC79A6C, woodDark:0x9A7350, metal:0x9EA9BA, metalDark:0x73808F,
+  screen:0x4B5661, screenOn:0xBCDCC0, fabric:0x8894B4, fabric2:0xD09284,
+  leaf:0x8DB584, leafDark:0x6D9569, pot:0xC18B71, paper:0xF2ECE0, ink:0x4A423C,
+  catnip:0xA9CF87, glow:0xFFB65C, sky:0xBDC9D3,
+});
+
+/* 목록 — 레퍼런스의 다섯 분류 순서 그대로. 벽에 거는 것은 wall:true */
+const ROWS = [
+  ['업무', [
+    ['사무용 책상', () => LP.desk()], ['의자', () => LP.chair()],
+    ['서랍장', () => LP.drawerUnit()], ['책장', () => LP.shelf()],
+    ['파일 캐비닛', () => LP.fileCabinet()], ['회의용 테이블', () => LP.meetingTable()],
+    ['회의용 의자', () => LP.meetChair()],
+    ['화이트보드', () => LP.whiteboard(1.4), 1], ['게시판', () => LP.corkBoard(0.86), 1],
+  ]],
+  ['수납', [
+    ['락커', () => LP.locker()], ['수납장', () => LP.cabinet()],
+    ['오픈 선반', () => LP.openShelf()], ['책꽂이', () => LP.bookRack()],
+    ['서류 트레이', () => LP.paperTray()], ['박스', () => LP.cardboard(true)],
+    ['휴지통', () => LP.trashBin()],
+  ]],
+  ['데코', [
+    ['화분(소)', () => LP.plantSm()], ['화분(중)', () => LP.plant()],
+    ['화분(대)', () => LP.plantLg()], ['액자', () => LP.wallArt(0.5, 0.4), 1],
+    ['시계', () => LP.wallClock(), 1], ['스탠드 조명', () => LP.floorLamp(0)],
+    ['탁상 조명', () => LP.lamp()], ['캔들', () => LP.candles(3)],
+    ['포스터', () => LP.poster(1), 1],
+  ]],
+  ['휴식', [
+    ['소파(1인)', () => LP.sofa1()], ['소파(2인)', () => LP.sofa2()],
+    ['테이블', () => LP.lowTable()], ['안락 의자', () => LP.loungeChair()],
+    ['빈백', () => LP.beanBag()], ['카페 테이블', () => LP.cafeTable()],
+    ['카페 의자', () => LP.cafeChair()], ['정수기', () => LP.cooler()],
+    ['커피머신', () => LP.coffee()],
+  ]],
+  ['바닥/벽', [
+    ['러그', () => LP.rug(1.2, 0.9)], ['블라인드', () => LP.windowUnit(1.1, 0.9), 1],
+    ['커튼', () => LP.curtain(1.2, 1.0), 1], ['벽 선반', () => LP.wallShelf(0.9), 1],
+    ['벽 장식 액자', () => LP.wallArt(0.7, 0.5, undefined, 2), 1],
+    ['스티커 메모', () => LP.stickyMemo(1), 1], ['코르크 보드', () => LP.corkBoard(0.7), 1],
+    ['펜 홀더', () => LP.penHolder()], ['랜턴', () => LP.lantern()],
+  ]],
+];
+
+const cv = document.getElementById('cv');
+const renderer = new THREE.WebGLRenderer({ canvas:cv, antialias:true });
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.06;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1712);
+const camera = new THREE.PerspectiveCamera(28, 1, 0.5, 400);
+
+scene.add(new THREE.HemisphereLight(0xFFE8CC, 0x6B5A46, 1.15));
+const sun = new THREE.DirectionalLight(0xFFF0DC, 1.35);
+sun.position.set(9, 14, 7); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+const fill = new THREE.DirectionalLight(0xD8C8B8, 0.35);
+fill.position.set(-8, 6, -6);
+scene.add(sun, sun.target, fill);
+
+/* 한 칸 1.9 유닛. 가구 제일 큰 것(2칸 책상)이 2.0 이라 조금 겹치지만,
+   목록에서는 겹치는 게 오히려 크기 비교가 된다. */
+const GAP = 2.1, ROWGAP = 4.4;
+const g = new THREE.Group();
+/* 줄이 화면에서 **가로로** 눕게 통째로 돌린다. 안 돌리면 목록이 대각선으로 흘러서
+   같은 줄의 끝과 끝이 화면 반대편에 있다 — 카메라 오른쪽 벡터가 (sinAZ,0,−cosAZ) 라
+   거기에 +x 를 맞추는 각이 π/2−AZ 다. 가구도 같이 돌아가지만 그건 오히려 맞다:
+   게임에서 보는 3/4 각도와 같은 면을 보게 된다. */
+g.rotation.y = Math.PI / 2 - 0.72;
+scene.add(g);
+let maxCols = 0;
+ROWS.forEach((r, ri) => { maxCols = Math.max(maxCols, r[1].length); });
+
+ROWS.forEach(([label, items], ri) => {
+  const z = ri * ROWGAP;
+  /* 줄마다 바닥판 — 물건이 떠 있는지 보려면 딛는 면이 있어야 한다 */
+  const wide = maxCols * GAP + 1.2, cx = (maxCols - 1) * GAP / 2;
+  g.add(LP.box(wide, 0.08, 2.4, ri % 2 ? LP.PAL.floorAlt : LP.PAL.floor, cx, -0.04, z));
+  /* 줄마다 **뒷벽**. 벽에 거는 물건은 벽이 없으면 허공에 뜬 판이라 조형을 못 본다 —
+     처음엔 벽 없이 y 만 올렸다가 그 물건들이 옆줄 위에 떠 있는 그림이 나왔다. */
+  g.add(LP.box(wide, 1.75, 0.24, LP.PAL.wall, cx, 0.875, z - 1.32));
+  g.add(LP.box(wide, 0.13, 0.32, LP.PAL.wallTrim, cx, 0.065, z - 1.30));
+  items.forEach(([name, make, wall], i) => {
+    const o = make();
+    o.position.set(i * GAP, wall ? 1.15 : 0, wall ? z - 1.18 : z + 0.45);
+    g.add(o);
+  });
+});
+
+const W = (maxCols - 1) * GAP, D = (ROWS.length - 1) * ROWGAP;
+const mid = new THREE.Vector3(W / 2, 0.6, D / 2);
+sun.target.position.copy(mid);
+Object.assign(sun.shadow.camera, { left:-W, right:W, top:D + 6, bottom:-D - 6, near:0.5, far:80 });
+sun.shadow.camera.updateProjectionMatrix();
+
+/* **직교 카메라다.** 원근으로 찍으면 줄 끝의 가구가 기울어져서 옆줄과 비교가 안 된다 —
+   목록의 요점은 크기와 실루엣 비교이고, 그러려면 같은 각도로 봐야 한다.
+   각도는 게임과 같은 방향(az 0.72)이되 고도만 올려 잡았다. */
+const AZ = 0.72, EL = 0.66;
+const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 400);
+const dir = new THREE.Vector3(
+  Math.cos(AZ) * Math.cos(EL), Math.sin(EL), Math.sin(AZ) * Math.cos(EL));
+
+function fit(){
+  const w = innerWidth, h = innerHeight;
+  renderer.setPixelRatio(1);
+  renderer.setSize(w, h, false);
+  /* 씬을 카메라 좌표계로 돌려놓고 화면에 담기는 상자를 잰다 —
+     각도를 바꿔도 프레이밍을 손으로 다시 맞출 일이 없다. */
+  cam.position.copy(mid).addScaledVector(dir, 120);
+  cam.lookAt(mid);
+  cam.updateMatrixWorld(true);
+  const inv = new THREE.Matrix4().copy(cam.matrixWorld).invert();
+  const box = new THREE.Box3();
+  const v = new THREE.Vector3();
+  g.updateMatrixWorld(true);
+  g.traverse(o => {
+    if (!o.isMesh) return;
+    const bb = o.geometry.boundingBox || (o.geometry.computeBoundingBox(), o.geometry.boundingBox);
+    for (let i = 0; i < 8; i++){
+      v.set(i & 1 ? bb.max.x : bb.min.x, i & 2 ? bb.max.y : bb.min.y, i & 4 ? bb.max.z : bb.min.z);
+      box.expandByPoint(v.applyMatrix4(o.matrixWorld).applyMatrix4(inv));
+    }
+  });
+  const bw = (box.max.x - box.min.x) * 0.52 + 0.6;
+  const bh = (box.max.y - box.min.y) * 0.52 + 0.6;
+  const s = Math.max(bw / (w / h), bh);
+  cam.left = -s * (w / h); cam.right = s * (w / h);
+  cam.top = s; cam.bottom = -s;
+  /* 담은 상자의 한가운데로 시선을 옮긴다 — 안 하면 목록이 한쪽으로 쏠린다 */
+  const cx = (box.min.x + box.max.x) / 2, cy = (box.min.y + box.max.y) / 2;
+  cam.position.addScaledVector(new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 0), cx);
+  cam.position.addScaledVector(new THREE.Vector3().setFromMatrixColumn(cam.matrixWorld, 1), cy);
+  cam.updateMatrixWorld(true);
+  cam.updateProjectionMatrix();
+  renderer.render(scene, cam);
+}
+addEventListener('resize', fit);
+fit();
+requestAnimationFrame(fit);
+</script>
+</body>
+</html>

@@ -82,9 +82,12 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await boot('http://localhost:8123/index.html?3d=1&debug=1');
   const has = await ev(`(() => { $('#btnSettings').click();
     return JSON.stringify({ 버튼: [...document.querySelectorAll('.veil [data-sky]')].map(b => b.dataset.sky),
-      켜진것: [...document.querySelectorAll('.veil [data-sky].on')].map(b => b.dataset.sky) }); })()`);
+      켜진것: [...document.querySelectorAll('.veil [data-sky].on')].map(b => b.dataset.sky),
+      표: new Set(SKY_PICKS.map(p => p[0]).filter(Boolean)).size }); })()`);
   const H = JSON.parse(has);
-  ok(H.버튼.length === 5, '버튼 다섯 (시계·아침·낮·저녁·밤)', H.버튼.join('/'));
+  /* 하늘이 다섯 단계로 늘어나면서(SKY_AT) 고르개도 여섯이 됐다 — 「시계」 + 단계 다섯.
+     수를 손으로 적어 두면 표가 늘 때마다 여기가 먼저 거짓말을 하므로 표에서 읽는다. */
+  ok(H.버튼.length === H.표 + 1, `버튼 ${H.표 + 1} (시계 + 단계 ${H.표})`, H.버튼.join('/'));
   ok(H.켜진것.join() === '', '처음엔 「시계」가 켜져 있다', JSON.stringify(H.켜진것));
 
   const seen = {};
@@ -92,10 +95,19 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     await ev(`document.querySelector('.veil [data-sky="${id}"]').click()`);
     await sleep(700);
     const t = await tone();
-    const info = await ev(`JSON.stringify({ 고정:skyForced(), 자락:R3.skyInfo().색, 세기:R3.skyInfo().세기 })`);
+    const info = await ev(`JSON.stringify({ 고정:skyForced(), 하늘:R3.skyInfo().sky, 등수:R3.skyInfo().등수 })`);
     seen[id] = t;
     const I = JSON.parse(info);
-    ok(I.고정 === id, `${id} — 고정되고 자락 색이 따라온다`, `${I.자락} 세기 ${I.세기} · 화면 rgb(${t})`);
+    /* 고정이 걸렸다(skyForced)는 것과 **렌더러가 그 하늘을 그렸다**(skyInfo().sky)는
+       다른 말이다. 예전엔 앞만 봤는데 그러면 시뮬레이터만 돌고 화면은 안 따라오는
+       경우가 통과한다. 둘을 같이 본다.
+
+       skyInfo().sky 는 표식이라 "a|b|섞임|필름" 이다. 고정은 양 끝이 같은 단계고
+       섞임이 0 이므로 앞 두 칸만 본다 — 필름 칸까지 적어 두면 후처리를 껐다 켤 때
+       여기가 이유 없이 깨진다. */
+    ok(I.고정 === id && I.하늘.startsWith(id + '|' + id + '|0'),
+       `${id} — 고정되고 렌더러까지 따라온다`,
+       `하늘 ${I.하늘} · 천장등 ${I.등수} · 화면 rgb(${t})`);
     const p = await send('Page.captureScreenshot', { format:'png', clip:{ x:0, y:0, width:1280, height:760, scale:1 } });
     fs.writeFileSync(OUT + 'skydbg-' + id + '.png', Buffer.from(p.data, 'base64'));
   }

@@ -1,6 +1,13 @@
 /* 제휴 게시판 — 남의 사무실을 구경하는 틀.  node spike/serve.js 먼저.
 
-   **서버는 아직 없다.** 그래서 여기서 재는 것은 통신이 아니라 **틀과 선**이다:
+   **서버를 일부러 막고 돈다**(Network.setBlockedURLs). 여기서 재는 것은 통신이 아니라
+   **틀과 선**이고, 그건 흉내 자료 위에서 본다 — 서버가 붙은 뒤로 진짜 목록(비어 있다)이
+   와서 이 검사가 떨어졌었다. 서버로 도는 한 바퀴는 `verify-journey.js` 가 본다.
+   덤으로 **서버가 없을 때도 게임이 도는가**가 여기서 확인된다.
+
+   화면은 데스크톱(1400×900)으로 본다 — 여기서만 진짜 마우스를 쓰기 때문이다(회전).
+   그래서 시작 화면과 폰 전용 조작을 먼저 걷어낸다. 안 걷으면 그것들이 마우스를
+   가로채고, 카메라가 고장 난 것처럼 보인다:
 
      · 벽에 게시판이 걸려 있고(옛 저장에도), 눌러서 열린다
      · 지점 목록에서 실시간으로 움직이는 값은 「불이 켜져 있나」 하나다
@@ -13,7 +20,9 @@
    만드는 화면은 한 줄만 새어도 이 게임이 파는 것(같이 있다는 신호)을 뒤집는다.
 */
 const fs = require('fs'), path = require('path'), { spawn } = require('child_process');
-const PORT = 9650;
+/* 포트를 실행마다 다르게 잡는다 — 앞 실행의 크롬이 아직 안 죽었을 때 같은 포트를
+   다시 잡으면 남의 브라우저에 붙거나 아예 못 뜬다(연속으로 돌리면 실제로 그랬다). */
+const PORT = 9600 + (process.pid % 90);
 const BASE = process.env.COPYCAT_BASE || 'http://localhost:8123';
 const CHROME = ['C:/Program Files/Google/Chrome/Application/chrome.exe',
   'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
@@ -27,11 +36,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   const chrome = spawn(CHROME, ['--headless=new','--hide-scrollbars','--mute-audio',
     '--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader',
     '--remote-debugging-port=' + PORT, '--user-data-dir=' + dir, 'about:blank'], { stdio:'ignore' });
-  let page; for (let i = 0; i < 80 && !page; i++){
+  let page; for (let i = 0; i < 160 && !page; i++){
     try { page = (await (await fetch(`http://127.0.0.1:${PORT}/json/list`)).json()).find(t => t.type === 'page'); } catch{}
     if (!page) await sleep(250);
   }
-  if (!page) throw new Error('크롬이 안 뜬다');
+  if (!page) throw new Error(`크롬이 ${PORT} 에서 안 떴다 — 남은 크롬을 닫고 다시`);
   const ws = new WebSocket(page.webSocketDebuggerUrl); let id = 0; const pend = new Map();
   const errs = [];
   const send = (m, p = {}) => new Promise(r => { const i = ++id; pend.set(i, r); ws.send(JSON.stringify({ id:i, method:m, params:p })); });
@@ -42,6 +51,13 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   });
   await new Promise(r => ws.addEventListener('open', r));
   await send('Page.enable'); await send('Runtime.enable');
+  /* **서버를 막고 본다.** 이 검사가 재는 것은 통신이 아니라 틀과 선이고, 그 틀은
+     흉내 자료(MOCK) 위에서 그려진다 — 서버가 붙으면 진짜 목록(비어 있다)이 와서
+     `f1` 같은 흉내 지점이 사라지고, 검사는 제품이 아니라 **서버가 생겼다는 사실**
+     때문에 떨어진다(2026-09-02 백엔드 이후 실제로 그랬다).
+     막아 두면 겸사겸사 **서버 없이도 게임이 도는가**를 같이 보게 된다. */
+  await send('Network.enable');
+  await send('Network.setBlockedURLs', { urls: ['*supabase*', '*jsdelivr*'] });
   const ev = async e => (await send('Runtime.evaluate', { expression:e, returnByValue:true, awaitPromise:true })).result?.value;
 
   let fail = 0;
@@ -60,6 +76,11 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await ev(`(() => { const g=document.querySelector('#cnGo'); if (g) g.click(); })()`);
   await sleep(2400);
   await ev(`(() => { const b=document.querySelector('.coach [data-tut="skip"]'); if (b) b.click();
+    /* 시작 화면(2026-09-02 추가)은 z-index 9999 로 **화면을 통째로 덮는다.** JS 로 부르는
+       것은 그래도 되지만 마우스 이벤트는 거기서 막힌다 — 이 검사에서 유일하게 진짜
+       마우스를 쓰는 곳이 아래 드래그라, 이걸 안 걷으면 그것만 조용히 떨어진다. */
+    const t=document.querySelector('#cctitle'); if (t) t.remove();
+    document.body.classList.remove('titleon');
     document.querySelectorAll('.veil,.coach,.coachring').forEach(e=>e.remove()); })()`);
   await sleep(1500);
 
@@ -224,13 +245,36 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
   /* 끌어서 돌려 본다 — 카메라가 실제로 움직여야 「구경」이다 */
   const camA = JSON.parse(await ev(`JSON.stringify(R3.debug().cam)`));
-  await send('Input.dispatchMouseEvent', { type:'mousePressed', x:900, y:500, button:'right', clickCount:1, buttons:2 });
+  /* 끌 자리를 **찾아서** 잡는다. 좌표를 박아 두면 그 위에 단추 하나가 생기는 날
+     회전이 안 되는 것처럼 보인다 — 실제로 그랬다(폰 스킨의 화살표가 데스크톱에서
+     스타일 없이 떠 있었다). 캔버스가 실제로 잡히는 점을 고른다. */
+  const spot = await ev(`(() => {
+    for (const p of [[900,500],[700,340],[1080,620],[520,300],[900,260],[1150,380]]) {
+      const e = document.elementFromPoint(p[0], p[1]);
+      if (e && e.tagName === 'CANVAS') return { x:p[0], y:p[1] };
+    }
+    return null; })()`);
+  if (!spot) console.log('  캔버스가 잡히는 자리를 못 찾았다 — 무엇이 무대를 덮고 있다');
+  const DX = spot ? spot.x : 900, DY = spot ? spot.y : 500;
+  await send('Input.dispatchMouseEvent', { type:'mousePressed', x:DX, y:DY, button:'right', clickCount:1, buttons:2 });
   for (let i = 1; i <= 6; i++)
-    await send('Input.dispatchMouseEvent', { type:'mouseMoved', x:900 - i*16, y:500, button:'right', buttons:2 });
-  await send('Input.dispatchMouseEvent', { type:'mouseReleased', x:804, y:500, button:'right', buttons:0 });
+    await send('Input.dispatchMouseEvent', { type:'mouseMoved', x:DX - i*16, y:DY, button:'right', buttons:2 });
+  await send('Input.dispatchMouseEvent', { type:'mouseReleased', x:DX-96, y:DY, button:'right', buttons:0 });
   await sleep(400);
   const camB = JSON.parse(await ev(`JSON.stringify(R3.debug().cam)`));
-  ok(Math.abs(camB.az - camA.az) > 0.05, '오른쪽 드래그로 저쪽 방이 돌아간다',
+  /* 안 돌았으면 **무엇이 가로막고 있었는지** 같이 적는다. 좌표 위에 캔버스가 아니라
+     다른 것이 있으면 그건 카메라 고장이 아니라 덮개 이야기다. */
+  const over = await ev(`(() => { const e = document.elementFromPoint(${DX}, ${DY});
+    if (!e) return 'null';
+    /* className 은 SVG 에서 객체다 — 그냥 쓰면 [object Object] 가 찍혀서
+       진단이 진단을 못 한다. */
+    const nm = n => { const c = typeof n.className === 'string' ? n.className
+                        : (n.className && n.className.baseVal) || '';
+      return n.tagName + (n.id ? '#' + n.id : '') + (c ? '.' + c : ''); };
+    const chain = []; for (let n = e; n && chain.length < 5; n = n.parentElement) chain.push(nm(n));
+    return chain.join(' < '); })()`).catch(()=>'?');
+  ok(Math.abs(camB.az - camA.az) > 0.05,
+     '오른쪽 드래그로 저쪽 방이 돌아간다  [커서 밑: ' + over + ']',
      `az ${camA.az} → ${camB.az}`);
 
   /* 남의 방에서는 조사도 배치도 없다 */
@@ -269,30 +313,18 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     return JSON.stringify({ ids: d.cats ? d.cats.map(c => c.id.slice(0,2)) : [] }); })()`));
   ok(!stillMine.ids.some(x => x === 'v-'), '사진을 찍은 뒤 무대는 내 사무실로 돌아와 있다');
 
-  /* ---------- 3D 가 없는 화면 ----------
-     단일 파일 배포본(file://)과 WebGL 없는 기계에서는 방을 세울 수 없다. 그 화면에서
-     「구경하기」가 눌리기만 하고 아무 일도 없으면 그건 버튼이 거짓말을 하는 것이다.
-     도면이 그 자리를 지키고, 들어가려 하면 그렇다고 말해야 한다. */
-  console.log('\n── 3D 가 없는 화면 (?3d=0 · 단일 파일 배포본의 길) ──');
-  await send('Page.navigate', { url: BASE + '/index.html?3d=0' });
-  await sleep(9000);
-  await ev(`(() => { document.querySelectorAll('.veil,.coach,.coachring').forEach(e=>e.remove()); })()`);
-  await sleep(600);
-  const flat = JSON.parse(await ev(`(() => {
-    const shot = branchPhoto(FRIENDS.snapshot('f1'), 260, 168);
-    const entered = visitStart('f1');
-    return JSON.stringify({ is3d: is3d(), shot, entered, visiting: visiting(),
-      band: !!document.querySelector('#visitBar'), toast: !!document.querySelector('.toast') });
-  })()`));
-  ok(flat.is3d === false, '3D 가 꺼진 화면이다');
-  ok(flat.shot === null, '사진은 못 찍는다 — 게시판은 도면으로 돌아간다');
-  ok(flat.entered === false && flat.visiting === false && !flat.band,
-     '들어가지지 않는다 (반쯤 들어간 상태가 안 생긴다)');
-  ok(flat.toast === true, '왜 안 되는지 말해 준다');
-  const plan = await ev(`(() => { showBoard(); const im = document.querySelector('.pola img.shot');
-    const src = im ? im.src.slice(0, 22) : ''; const cls = im ? im.className : '';
-    document.querySelectorAll('.veil').forEach(v => v.remove()); return src + '|' + cls; })()`);
-  ok(plan.startsWith('data:image/png') && !/photo/.test(plan), '게시판 카드에 도면이 대신 붙는다', plan);
+  /* ---------- 「3D 가 없는 화면」은 걷어냈다 ----------
+     여기 다섯 항목이 있었다: `?3d=0` 으로 열어 도면이 사진을 대신하는가, 구경하기가
+     눌리기만 하지 않고 「왜 안 되는지」를 말하는가.
+
+     그 길이 **제품에서 없어졌다.** 떨어질 도트판이 사라진 2026-08-24 에 `?3d=0` 도
+     같이 지웠다(js/render3d.js autostart 주석). 그 뒤로 이 다섯은 없는 기능을 붙잡고
+     빨간 채로 남았고, 헤드리스에서 WebGL 이 우연히 죽는 판에서는 **우연히 통과**하기도
+     했다 — 늘 빨갛거나 우연히 초록인 검사는 아무도 안 읽는다.
+
+     WebGL 이 없는 기계에서 무엇이 보이는가는 여전히 볼 값어치가 있다. 다만 그건
+     `?3d=0` 이 아니라 **컨텍스트를 못 만드는 상황**을 만들어야 하는 다른 검사다. */
+
 
   console.log('\n오류: ' + (errs.length ? errs.slice(0, 4).join(' | ') : '없음'));
   if (errs.length) fail++;

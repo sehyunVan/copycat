@@ -43,6 +43,11 @@ const BASE = 'http://localhost:8123/dist/';
   const boot = async url => {
     await send('Page.navigate', { url });
     await sleep(11000);
+    /* 시작화면을 먼저 넘긴다(js/title.js). 이걸 안 누르면 게임이 시작되지 않는데,
+       화면 뒤에서 #app 은 이미 있으므로 **검사는 통과해 버린다** — 그래서 여기서
+       실제로 누른다. 없으면 아무 일도 안 한다. */
+    await ev(`(() => { const t = document.getElementById('cctitle'); if (t) t.click(); })()`);
+    await sleep(1400);
     await ev(`(() => { if (window.CCOpen && CCOpen.playing()) CCOpen.jump('letter'); })()`);
     await sleep(1100);
     await ev(`(() => { const b=document.querySelector('#oLetterGo'); if (b) b.click(); })()`);

@@ -55,19 +55,25 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 '
     + '(KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1' });
 
-  /* ── 첫 화면 ── */
+  /* ── 첫 화면 ──
+     고르는 판을 없앴다(2026-09-01). 이제 여기서 재는 것은 「두 카드가 있나」가 아니라
+     **「고르게 하지 않고 바로 넘어가나」** 다 — 그게 이 화면의 주장 전부다. */
   await send('Page.navigate', { url: BASE + '/' });
-  await sleep(3500);
+  await sleep(5000);
+    /* 시작화면을 먼저 넘긴다(js/title.js). 이걸 안 누르면 게임이 시작되지 않는데,
+       화면 뒤에서 #app 은 이미 있으므로 **검사는 통과해 버린다** — 그래서 실제로 누른다. */
+    await ev(`(() => { const t = document.getElementById('cctitle'); if (t) t.click(); })()`);
+    await sleep(1400);
   const land = await ev(`JSON.stringify({
-    제목: document.title, https: location.protocol,
-    카드: [...document.querySelectorAll('a.card')].map(a => a.querySelector('b').textContent),
-    첫칸: document.querySelector('a.card').querySelector('b').textContent,
-    링크: [...document.querySelectorAll('a.card')].map(a => a.getAttribute('href')) })`);
+    https: location.protocol, 주소: location.pathname,
+    고르는칸: document.querySelectorAll('a.card').length,
+    앱: !!document.getElementById('app') })`);
   const LD = JSON.parse(land);
   console.log('── 첫 화면 ──');
   ok(LD.https === 'https:', 'HTTPS 로 뜬다', LD.https);
-  ok(LD.카드.length === 2, '두 빌드가 다 있다', LD.카드.join(' / '));
-  ok(LD.첫칸 === '아이폰', '기기에 맞는 쪽이 위에 온다 (지금은 iOS 로 흉내)', LD.첫칸);
+  ok(LD.고르는칸 === 0, '고르는 판이 없다');
+  ok(/\/iphone\/index\.html$/.test(LD.주소), '기기에 맞는 쪽으로 바로 넘어간다 (지금은 iOS 로 흉내)', LD.주소);
+  ok(LD.앱, '넘어간 자리에 게임이 있다');
 
   /* 게임 화면은 안드로이드 UA 로 본다 — 게임 자체는 UA 를 안 보지만,
      설치 프롬프트 조건(beforeinstallprompt)은 크롬에서만 뜬다. */

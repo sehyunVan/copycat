@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>d1 — 동물에서 캐릭터로 · 사다리</title>
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<div id="stage"><canvas id="cv"></canvas><div id="cols"></div><div id="vrows"></div></div>
+<script type="module">
+/* d1 — 지금의 고양이를 **캐릭터로** 만들 수 있는가.
+
+   m1 은 "참조 피규어를 코드로 다시 만들 수 있는가" 였고, 답은 예였다.
+   그래서 지금 사무실에 서 있는 것은 **짐승**이다. 네 발이고, 옆에서 봐야 완성되고,
+   이목구비가 작다. 그건 피규어의 규칙을 그대로 지킨 결과다.
+
+   이번 레퍼런스는 정반대에 있다 — 정면에서 완성되고, 머리가 전부고, 눈이 주인공이다.
+   조형을 통째로 갈아엎는 대신 **한 계단에 한 가지만** 바꿔 여섯 칸을 세운다.
+   그래야 "무엇이 캐릭터를 만들었는가" 가 눈으로 보인다.
+
+   세 줄로 찍는 이유: 정면만 보면 다 예쁘다. 이 게임의 고양이는 걸어 다니고
+   3/4 과 옆이 화면의 대부분이다. 캐릭터화의 청구서는 거기서 나온다. */
+
+import * as THREE from 'three';
+import { hud, fmt } from './lib/hud.js';
+import * as SC from './lib/sculpt.js';
+import * as CH from './lib/chibi.js';
+import { furMaterial } from './lib/charface.js';
+
+const CSS = `
+  #stage{right:340px !important;background:#D8D5D0}
+  #cols,#vrows{position:absolute;inset:0;pointer-events:none}
+  #cols>div{position:absolute;transform:translate(-50%,0);text-align:center;white-space:nowrap}
+  #cols .n{font:600 13px/1.3 ui-sans-serif,system-ui,sans-serif;color:#2e2b28;letter-spacing:.02em}
+  #cols .d{font:10px/1.4 ui-monospace,monospace;color:#7d7873;margin-top:2px}
+  #cols .i{font:10px/1 ui-monospace,monospace;color:#b0a9a1;margin-bottom:3px}
+  #vrows div{position:absolute;font:10px/1 ui-monospace,monospace;color:#8b857e;letter-spacing:.16em}
+  .hud .name{font-size:14px;color:#fff;margin:2px 0 4px}
+  .hud .note{color:#8f9ab3;line-height:1.5;margin-bottom:10px}
+`;
+document.head.appendChild(Object.assign(document.createElement('style'), { textContent: CSS }));
+
+const H = hud('d1 · 캐릭터');
+H.el.querySelector('h1').insertAdjacentHTML('afterend',
+  `<div class="name">동물에서 캐릭터로</div>
+   <div class="note">한 계단에 한 가지만 바꾼다. 계단 <b>5</b>는 조형이 하나도 안 바뀐다 —
+   <b style="color:#6ee7a0">칠만</b> 바뀐다.</div>`);
+
+const stage = document.getElementById('stage');
+const canvas = document.getElementById('cv');
+const colBox = document.getElementById('cols');
+const rowBox = document.getElementById('vrows');   // hud 가 #rows 를 이미 쓴다
+
+/* ---------- 판 ---------- */
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.setClearColor(0xD8D5D0, 1);
+renderer.setScissorTest(true);
+
+const scene = new THREE.Scene();
+scene.add(new THREE.HemisphereLight(0xFFFFFF, 0xC6C3BF, 1.20));
+const sun = new THREE.DirectionalLight(0xFFFBF4, 1.75);
+sun.position.set(-3.0, 5.0, 4.0);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left:-2, right:2, top:2, bottom:-2, near:0.5, far:16 });
+sun.shadow.bias = -0.0012;
+scene.add(sun, sun.target);
+/* 림 — 레퍼런스의 파랑이 여기서 나온다. 검정 털에서는 이 빛만 형태를 말해준다 */
+const rim = new THREE.DirectionalLight(0x8CA8FF, 0.55);
+rim.position.set(3.4, 1.6, -2.8);
+scene.add(rim);
+
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(40, 40),
+  new THREE.ShadowMaterial({ opacity: 0.16 }));
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+/* ---------- 사다리 ----------
+   1·2 는 지금 게임에 있는 것(sculpt.js), 3~6 이 새 뼈대(chibi.js).
+   눈 크기는 조형과 **따로** 걷는다 — 5 에서 그것만 바뀐다. */
+const FIGURE_EYE = {                      // 지금 게임의 얼굴 (facepaint.js 기본값)
+  eyeMode: 0, eyeGap: 0.68, eyeUp: -0.15, eyeW: 0.115, eyeH: 0.140,
+  mouthR: 0.072, mouthUp: -0.50 };
+const CHAR_EYE = {                        // 레퍼런스의 얼굴
+  eyeMode: 3, eyeGap: 0.62, eyeUp: -0.15, eyeW: 0.340, eyeH: 0.385, mouthR: 0 };
+
+const STEPS = [
+  { n:'지금',   d:'네 발 · 짐승',        src:'sculpt', p:{},                    face:FIGURE_EYE },
+  { n:'머리',   d:'머리만 키운다',        src:'sculpt', p:SC.PRESETS['치비'],    face:FIGURE_EYE },
+  { n:'세움',   d:'두 발 · 팔이 있다',    src:'chibi',  p:CH.STEPS['세움'],      face:FIGURE_EYE },
+  { n:'지움',   d:'다리를 지운다',        src:'chibi',  p:CH.STEPS['지움'],      face:FIGURE_EYE },
+  { n:'눈',     d:'조형 그대로 · 칠만',   src:'chibi',  p:CH.STEPS['지움'],      face:CHAR_EYE },
+  { n:'뾰족',   d:'실루엣이 감정이다',    src:'chibi',  p:CH.STEPS['뾰족'],      face:CHAR_EYE },
+];
+
+/* 여섯을 나란히 세우지 않는다 — **같은 자리에 겹쳐 놓고 한 마리씩 보인다.**
+   줄지어 세우면 옆 컷에서 카메라가 줄을 따라 보게 되어 여섯이 겹쳐 나온다.
+   조명·그림자·프레이밍이 칸마다 완전히 같아지는 건 덤이다. */
+const CLAY = 0xE2DCD2, INK = 0x2C2A33;
+let furHex = CLAY;
+
+const silhouette = new THREE.MeshBasicMaterial({ color: 0x1E1C22 });
+let showSil = false;
+
+const cells = [];
+for (let i = 0; i < STEPS.length; i++){
+  const S = STEPS[i];
+  const mat = furMaterial({ ...S.face, fur: furHex });
+  const g = new THREE.Group();
+  g.visible = false;
+  scene.add(g);
+  cells.push({ ...S, mat, group: g, mesh: null, built: null });
+}
+
+function rebuild(){
+  let tris = 0, ms = 0;
+  for (const c of cells){
+    const r = c.src === 'sculpt' ? SC.build({ ...c.p, res: 40 }) : CH.build(c.p);
+    c.built = r;
+    c.mat.userData.setAnchor(r.anchor);
+    if (c.mesh){ c.group.remove(c.mesh); c.mesh.geometry.dispose(); }
+    c.mesh = new THREE.Mesh(r.geometry, showSil ? silhouette : c.mat);
+    c.mesh.castShadow = true;
+    c.mesh.receiveShadow = true;
+    c.group.add(c.mesh);
+    tris += r.tris; ms += r.ms;
+
+    /* **등신** — 키가 머리 몇 개인가. 캐릭터 디자인이 늘 쓰는 자 그대로다.
+       "머리 비중 %" 로도 재 봤는데 네 발이든 두 발이든 66~74% 로 뭉쳐서
+       아무것도 구별을 못 했다. 머리를 자로 삼아야 사다리가 숫자로 보인다 */
+    r.geometry.computeBoundingBox();
+    const bb = r.geometry.boundingBox;
+    const h = bb.max.y;
+    c.h = h;
+    /* 잘리는 건 키가 아니라 폭이었다(넓적한 머리 + 세로로 긴 칸).
+       그래서 눈대중 배율을 버리고 화각에서 거리를 계산한다 — fitDist */
+    c.hw = Math.max(-bb.min.x, bb.max.x, -bb.min.z, bb.max.z);
+    c.heads = h / (r.anchor.headR[1] * 2);
+    /* **앞뒤/키** — 짐승과 캐릭터를 실제로 가르는 자.
+       등신만으로는 안 갈린다: 네 발 고양이도 머리가 크고, 정면에서 보면 캐릭터처럼 보인다.
+       다른 건 몸이 **어느 축으로 뻗는가**다. 짐승은 Z(앞뒤)로 뻗고 캐릭터는 Y(위)로 선다.
+       이 값이 1 근처면 옆에서 봐야 완성되는 물건이고, 0.5 면 정면에서 완성되는 물건이다 */
+    c.depth = (bb.max.z - bb.min.z) / h;
+  }
+  H.set('깎기 6칸', fmt.ms(ms), ms > 500 ? 'warn' : 'ok');
+  H.set('삼각형 합', tris.toLocaleString());
+  H.set('한 마리 평균', Math.round(tris / cells.length).toLocaleString(),
+    tris / cells.length > 9000 ? 'warn' : 'ok');
+  for (const c of cells)
+    H.set('앞뒤/키 · ' + c.n, c.depth.toFixed(2) + '   (' + c.heads.toFixed(1) + '등신)',
+      c.depth < 0.62 ? 'ok' : c.depth > 0.85 ? 'warn' : '');
+}
+rebuild();
+
+/* ---------- 세 줄 ----------
+   앞은 캐릭터가 이기는 컷이고, 옆은 캐릭터가 값을 치르는 컷이다. */
+const VIEWS = [
+  { name:'앞',  dir:[0, 0.09, 1] },
+  { name:'3/4', dir:[0.80, 0.36, 0.92] },
+  { name:'옆',  dir:[1, 0.10, 0.03] },
+];
+for (const v of VIEWS){
+  v.cam = new THREE.PerspectiveCamera(24, 1, 0.1, 80);
+  v.el = document.createElement('div');
+  v.el.textContent = v.name;
+  rowBox.appendChild(v.el);
+}
+STEPS.forEach((s, i) => {
+  const el = document.createElement('div');
+  el.innerHTML = `<div class="i">${i + 1}</div><div class="n">${s.n}</div><div class="d">${s.d}</div>`;
+  colBox.appendChild(el);
+  cells[i].label = el;
+});
+
+function layout(){
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h, false);
+  const cw = w / STEPS.length, top = 52, ch = (h - top) / VIEWS.length;
+  VIEWS.forEach((v, r) => {
+    v.rect = [0, h - top - (r + 1) * ch, w, ch];     // 줄 전체를 한 번에 잡고
+    v.cellW = cw; v.top = top + r * ch; v.h = ch;
+    v.cam.aspect = cw / ch;
+    v.cam.updateProjectionMatrix();
+    v.el.style.left = '8px';
+    v.el.style.top = (top + r * ch + 10) + 'px';
+  });
+  cells.forEach((c, i) => {
+    c.label.style.left = (cw * (i + 0.5)) + 'px';
+    c.label.style.top = '10px';
+  });
+}
+addEventListener('resize', layout);
+layout();
+
+/* 화각·칸 비율·물건 크기에서 거리를 낸다. 배율을 손으로 맞추면
+   칸이 세로로 길 때마다 넓적한 머리가 잘린다 — 두 번 당했다. */
+function fitDist(cam, h, hw, margin = 1.25){
+  const t = Math.tan(cam.fov * Math.PI / 360);
+  return Math.max(h * 0.5 / t, hw / (t * cam.aspect)) * margin;
+}
+
+let spin = 0, spinning = false;
+
+function draw(){
+  const w = stage.clientWidth, h = stage.clientHeight;
+  const top = 52, ch = (h - top) / VIEWS.length, cw = w / STEPS.length;
+
+  for (let r = 0; r < VIEWS.length; r++){
+    const v = VIEWS[r];
+    for (let i = 0; i < cells.length; i++){
+      const c = cells[i];
+      /* 칸마다 다시 잡는다 — 키가 다른 것들을 같은 크기로 놓아야 비교가 된다 */
+      const target = new THREE.Vector3(0, c.h * 0.50, 0);
+      const d = new THREE.Vector3(...v.dir).normalize();
+      v.cam.position.copy(target).addScaledVector(d, fitDist(v.cam, c.h, c.hw, 1.30));
+      v.cam.lookAt(target);
+      const rect = [cw * i, h - top - (r + 1) * ch, cw, ch];
+      renderer.setViewport(...rect);
+      renderer.setScissor(...rect);
+      c.group.visible = true;
+      renderer.render(scene, v.cam);
+      c.group.visible = false;
+    }
+  }
+}
+
+function frame(){
+  if (spinning){
+    spin += 0.010;
+    for (const c of cells) c.group.rotation.y = spin;
+  }
+  draw();
+  requestAnimationFrame(frame);
+}
+frame();
+
+/* ---------- 손잡이 ----------
+   그림으로 남기는 건 헤드리스가 하므로(shot-char.js) 같은 상태를 주소로도 열 수 있어야 한다 */
+function setFur(hex){
+  furHex = hex;
+  for (const c of cells) c.mat.userData.set('fur', hex);
+  const bg = hex === INK ? 0xF2ECE1 : 0xD8D5D0;
+  renderer.setClearColor(bg, 1);
+  stage.style.background = '#' + bg.toString(16).padStart(6, '0');
+  return hex === INK;
+}
+function setSil(on){
+  showSil = on;
+  for (const c of cells) c.mesh.material = on ? silhouette : c.mat;
+  return on;
+}
+H.btn('검정 (레퍼런스 색)', () => setFur(furHex === CLAY ? INK : CLAY));
+H.btn('실루엣', () => setSil(!showSil));
+H.btn('전부 초승달', b => {
+  const on = b.dataset.on !== '1';
+  b.dataset.on = on ? '1' : '0';
+  for (const c of cells)
+    for (const [k, v] of Object.entries(on ? CHAR_EYE : { ...FIGURE_EYE }))
+      c.mat.userData.set(k, v);
+  return on;
+});
+H.btn('회전', () => {
+  spinning = !spinning;
+  if (!spinning){ spin = 0; for (const c of cells) c.group.rotation.y = 0; }
+  return spinning;
+});
+
+const Q = new URLSearchParams(location.search);
+if (Q.has('ink')) setFur(INK);
+if (Q.has('sil')) setSil(true);
+if (Q.has('hud')){                                   // 계기판을 빼고 판만 남긴다
+  H.el.style.display = 'none';
+  stage.style.setProperty('right', '0', 'important');
+  layout();
+}
+
+H.log('사다리 6칸 · 뷰 3줄');
+H.ok('계단 5 는 지오메트리가 계단 4 와 같은 것이다');
+</script>
+</body>
+</html>
