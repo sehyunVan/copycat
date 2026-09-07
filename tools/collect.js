@@ -64,6 +64,13 @@ const FILES = [
      로고의 고양이와 같은 고양이인데 **앉은 몸 전체**라, 상자 뒤에 앉혀도 어깨가 있다.
      (style.css 에도 데이터URL 로 한 벌 박혀 있지만 그건 로딩 화면 전용이다 — LOADCAT 구간.) */
   'assets/loading-cat.png',
+  /* 도트 글꼴(Galmuri11 · SIL OFL — assets/font/LICENSE.txt). style.css 의 @font-face 가
+     이걸 읽는다. 빠지면 배포본만 시스템 글꼴로 떠서 **배포본에서만 다른 게임**이 된다.
+     폴더째 싣는다 — 굵기를 하나 더 넣을 때 여기 이름을 적으러 오지 않게. */
+  ...(fs.existsSync(ROOT + 'assets/font')
+      ? fs.readdirSync(ROOT + 'assets/font').filter(f => f.endsWith('.woff2'))
+          .map(f => 'assets/font/' + f).sort()
+      : []),
   /* 지점 간판 — 계약서 다음의 지점 등록에서 고르고, 시작화면에 뜬다(TODO 59).
      목록(js/logolist.js)은 위의 JS 통째 담기에 이미 들어 있다. */
   ...(fs.existsSync(ROOT + 'assets/logos')

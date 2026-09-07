@@ -90,6 +90,14 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   if (!up){ console.log('게임이 안 섰다'); chrome.kill(); process.exit(1); }
   await clear(); await sleep(2200);
 
+  /* **띠는 늦게 온다.** 한 번 지우고 찍기 직전에 또 지워도, 그 사이(150ms)에 새로 뜨면
+     그대로 사진에 남는다 — 실제로 첫 장에 「홈 화면에 설치」가 걸려 나왔다.
+     그래서 지우는 대신 **다시 못 뜨게** 지켜본다: 붙는 순간 떼는 감시자 하나. */
+  await ev(`(() => { new MutationObserver(() => {
+      const b = document.querySelector('#pwaBar'); if (b) b.remove();
+      document.querySelectorAll('.toast').forEach(x => x.remove());
+    }).observe(document.body, { childList: true }); return 1 })()`).catch(() => {});
+
   console.log(`아이폰 6.9" ${W*SCALE}×${H*SCALE}`);
 
   /* 1) 사무실 — 첫인상. 이 게임이 무엇인지 한 장으로 말하는 자리다. */

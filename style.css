@@ -2083,9 +2083,21 @@ body.eerie #app.tabbar .stagefoot{left:12px;right:auto;top:122px;bottom:auto;hei
   padding:7px 13px;gap:14px;z-index:6;flex-direction:row;align-items:center}
 body.eerie #app.tabbar .stagefoot .kv{background:none;border:0;padding:0;font-size:11.5px;color:var(--ui-glassink)}
 
+/* ── 왼쪽 아래 쌓는 자리 (js/cozy.js 의 stagestack) ──
+   택배 단추와 사건 카드가 여기 세로로 선다. **자리를 숫자로 정하지 않는다** — 카드가
+   커지면 단추가 그만큼 밀려 올라가고, 카드가 없으면 단추가 내려온다. 전에는 단추를
+   바닥에서 94px(= 두 줄짜리 카드 높이 + 여백) 로 박아 뒀는데, 수사 카드가 그보다
+   높아서 서로 겹쳤다.
+   상자는 클릭을 안 먹는다 — 방(3D)을 덮으면 고양이를 못 누른다. 자식만 켠다. */
+body.eerie #app.tabbar .stagestack{position:fixed;left:12px;right:12px;
+  bottom:calc(var(--navh) + var(--safeb) + 10px);z-index:6;
+  display:flex;flex-direction:column;align-items:flex-start;gap:10px;
+  pointer-events:none}
+body.eerie #app.tabbar .stagestack > *{pointer-events:auto}
+
 /* ── 사건 카드 — 버튼 바로 위 (채움은 skin.js) ── */
-body.eerie #app.tabbar .stagecard.show{display:block;position:fixed;left:12px;right:12px;
-  bottom:calc(var(--navh) + var(--safeb) + 10px);z-index:6;border-radius:18px;
+body.eerie #app.tabbar .stagecard.show{display:block;position:static;width:100%;
+  border-radius:18px;
   background:var(--ui-paper);box-shadow:var(--ui-lift);padding:12px 14px}
 body.eerie #app.tabbar .stagecard .crow{display:flex;gap:11px;align-items:flex-start}
 body.eerie #app.tabbar .stagecard .em{flex:0 0 auto;width:40px;height:40px;border-radius:12px;
@@ -2742,8 +2754,7 @@ body.eerie #app.tabbar .edithud [data-k="esc"]{color:var(--ui-soft)}
 
    94px 는 그 카드의 높이(73)와 사이 여백을 더한 값이다. 카드는 두 줄짜리 고정 판이라
    이 값이 흔들리지 않는다 — 카드가 세 줄이 되는 날이 오면 여기도 같이 봐야 한다. */
-body.eerie #app.tabbar .parcelbtn{position:fixed;left:12px;z-index:8;display:none;
-  bottom:calc(var(--navh) + var(--safeb) + 94px);
+body.eerie #app.tabbar .parcelbtn{position:relative;z-index:1;display:none;
   width:52px;padding:8px 4px 7px;border:0;border-radius:14px;
   flex-direction:column;align-items:center;gap:3px;
   background:var(--ui-glass);color:var(--ui-glassink);
@@ -3271,3 +3282,113 @@ body.eerie.cozyskin .modal .legalcard{background:#FFF8F6;border:0;
 /* (가챠 공과 가챠 페이지 CSS 가 여기 있었다 — 2026-09-02 에 가챠를 내리면서 같이
    걷었다. js/gacha.js 는 남아 있고, TODO 57 택배 뽑기가 그 화면을 다시 쓸 때
    이 자리에 새로 쓴다. 파일 끝에 블록을 붙이지 말 것 — 두 번 통째로 날아간 자리다.) */
+
+/* ============================================================
+   도트 판 — 글꼴과 그 글꼴이 안 뭉개지게 하는 규칙들.
+
+   2026-09-06 에 게임 안으로 들어왔다. 그 전에는 밖에서 꽂아 보는 시안이었고
+   (spike/ui/pixel — 왜 이렇게 만들었는지가 거기 README 에 있다), "둘로 갈지 말고
+   하나로" 가 되면서 여기로 왔다.
+
+   아이콘은 CSS 로 못 바꾼다 — js/dot.js 가 게임의 SVG 를 16×16 격자로 다시 굽는다.
+
+   ── 왜 Galmuri 인가 ──
+   한글 도트 글꼴 중에 웹폰트로 배포되고 OFL(자유)인 것이 사실상 이것뿐이다.
+   11px 판으로 그려져 있고 라틴·한글·기호가 한 벌이라 UI 하나를 통째로 덮는다.
+   (assets/font/LICENSE.txt — SIL OFL 1.1)
+
+   ── 11 의 배수 ──
+   비트맵 글꼴은 **그려진 크기에서만 도트가 도트다.** 11px 짜리를 13px 로 쓰면
+   브라우저가 늘리면서 획이 흐려지고, 그러면 도트체를 쓴 이유가 사라진다.
+   그래서 js/dot.js 가 모든 font-size 를 11 의 배수로 스냅한다. 여기서는 그 크기에서
+   글이 안 붙도록 줄 간격과 자간만 잡는다.
+   ============================================================ */
+
+@font-face { font-family:'Galmuri11'; src:url('assets/font/Galmuri11.woff2') format('woff2');
+             font-weight:400; font-display:block; }
+@font-face { font-family:'Galmuri11'; src:url('assets/font/Galmuri11-Bold.woff2') format('woff2');
+             font-weight:700 900; font-display:block; }
+
+/* 글꼴은 **전부** 갈아 끼운다. 한 군데라도 남으면 그 줄만 다른 세상이 된다.
+   svg·canvas 는 안 건드린다(글자가 아니다). */
+html, body, body.eerie,
+body *:not(svg):not(svg *) {
+  font-family:'Galmuri11', 'Malgun Gothic', monospace !important;
+  /* 도트는 안티에일리어싱이 적일 뿐이다 — 흐리면 격자가 안 보인다 */
+  -webkit-font-smoothing:none; font-smooth:never;
+  text-rendering:geometricPrecision;
+  letter-spacing:0 !important;
+}
+
+/* 도트 글꼴은 글자꼴이 꽉 차서 줄이 붙으면 답답하다. 줄 간격만 조금 연다.
+   (11px 글에 16px 줄 = 도트 다섯 칸 여백) */
+body.eerie #app, body #app { line-height:1.45; }
+
+/* 굵게는 **가짜 굵게(합성)** 를 막는다. 합성 굵게는 획을 반 픽셀 옆으로 겹쳐 그려서
+   도트가 두 겹으로 번진다 — 도트 글꼴에서 제일 흔한 사고다. */
+b, strong, .kv b, .stat b, button { font-synthesis:none; }
+
+/* 작은 칸의 이름표는 **보통 굵기**로. 배치·달력·게시판·음악과 하단 다섯(사무실·결재함·
+   직원·비품·사보)이다.
+   도트 글꼴의 굵은 획은 11px 에서 한 픽셀이 아니라 두 픽셀이 되는데, 글자 폭은 그대로라
+   자모 사이의 흰 칸이 먹힌다 — 「결재함」의 ㄹ·ㅎ 이 먼저 뭉갠다. 큰 글씨(제목·값)는
+   그 여유가 있어서 굵게 두는 게 맞고, 작은 이름표만 보통 굵기로 되돌린다. */
+body.eerie #app.tabbar #colTabs button, body.eerie #app.tabbar #colTabs button *,
+body.eerie #app.tabbar .doorrail button, body.eerie #app.tabbar .doorrail button *,
+body.eerie #app.tabbar .decobtn, body.eerie #app.tabbar .decobtn *,
+#colTabs button b, .doorrail button b, .decobtn b {
+  font-weight:400 !important;
+}
+
+/* 그림도 도트 쪽으로. 로고·고양이 그림은 늘려 그릴 때 흐려지는데,
+   pixelated 면 늘려도 네모가 커질 뿐이다. */
+img, .logoimg, .catface img { image-rendering:pixelated; }
+
+/* skin.js 가 다시 구운 아이콘. 격자를 그대로 보여 주려면 스무딩을 꺼야 한다. */
+svg[data-dot] { shape-rendering:crispEdges; }
+
+/* 문장 속 이모지를 대신하는 칸(skin.js 의 inlinePass). 원래 글자는 이 안에 숨어 있다 —
+   게임이 「🐟40」을 textContent 로 읽기 때문이다. */
+/* 이모지를 대신하는 칸. **글자와 붙지 않게 오른쪽에 한 칸 띄운다** —
+   "멸치320" 처럼 아이콘 바로 뒤에 숫자가 오는 자리가 많은데(값 표시), 도트 아이콘은
+   가장자리까지 꽉 차 있어서 여백이 0 이면 숫자와 겹쳐 보인다. 이모지에는 원래 글자 자체에
+   여백이 들어 있었다 — 그림으로 바꾸면서 그 여백이 사라진 것이다.
+   앞쪽은 0.04em 만 — 문장 첫머리에 오는 경우가 많아 앞을 벌리면 줄이 어긋나 보인다. */
+.dotem { display:inline-block; width:1em; height:1em; vertical-align:-0.14em;
+         margin:0 0.42em 0 0.08em; }
+/* flex 줄 안에서 아이콘과 글자를 한 칸으로 묶는 상자(skin.js 의 inlinePass) */
+.dotline { display:inline; white-space:normal; }
+
+/* ── 그림과 값 사이 ──
+   이모지에는 글자마다 좌우 여백이 **글꼴 안에** 들어 있었다. 도트 그림으로 갈면서 그
+   여백이 사라져서 「멸치21」의 꼬리가 2 에 닿는다(상단바에서 제일 심했다).
+   .dotem 은 내가 만든 칸이라 위에서 여백을 줬지만, **cozy 가 만든 칸들**(.stat .ico ·
+   .kv 의 첫 svg · .emico)은 그 규칙이 안 닿는다 — 여기서 같이 준다.
+   값 옆에 서는 그림만 대상이다. 문 줄(.doorrail)이나 탭 아이콘처럼 **글자가 아래에**
+   붙는 자리는 건드리지 않는다. */
+body.eerie #app.tabbar .stat .ico{margin-right:5px}
+body.eerie #app.tabbar .stagefoot .kv svg{margin-right:4px}
+/* **.emico 전체에 주면 안 된다** — 하단 탭(사무실·결재함…)의 아이콘도 .emico 라서
+   오른쪽 여백이 붙는 순간 가운데 정렬이 그만큼 왼쪽으로 밀린다(실측: 5.88px 밀렸다).
+   글자가 **옆에** 오는 자리는 cozy 가 .lead 를 붙여 둔다 — 거기만 준다. */
+body.eerie #app.tabbar .emico.lead{margin-right:.28em}
+
+/* 크기 규칙이 없는 자리에 그림이 들어오면 SVG 는 기본값(300×150)으로 부푼다 —
+   택배 단추가 그렇게 **빈 칸**이 됐다(그림은 DOM 에 있는데 단추 밖에 있었다).
+   낮은 특이도로 바닥값만 깐다: 크기를 정해 둔 규칙들(.stat .ico svg · .emico svg …)이 이긴다. */
+svg[data-dot]{width:1em;height:1em}
+body.eerie #app.tabbar .card .crow > .em.emico,
+body.eerie #app.tabbar .shopem.emico{margin-right:0}   /* 이건 글자 위/왼쪽에 크게 서는 칸이다 */
+.dotem svg { display:block; width:100%; height:100%; }
+/* .dotem 안에 숨겨 둔 원본 글자. hidden 만으로는 cozy 의 .emico 규칙에 져서 보였다. */
+.dotem [data-icon="raw"] { display:none !important; }
+
+/* 숫자가 자리를 지키게 — 멸치·근무 같은 값이 1 초마다 흔들리면 도트가 더 어지럽다 */
+.stat b, .kv b, #clock b, #clock em { font-variant-numeric:tabular-nums; }
+
+/* DOTLOGO:BEGIN 생성: node tools/logo-dot-embed.js */
+/* 상단바 고양이 — 도트 판. tools/logo.js 가 낸 그림(위 LOGO 블록) 위에 얹는다:
+   그쪽은 그대로 두고 여기서 갈아 끼운다(같은 자리에 두 벌을 쓰지 않는다).
+   pixelated 가 없으면 브라우저가 부드럽게 늘려서 도트가 다시 사라진다. */
+.brand .logo{background-image:url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEgAAABQCAYAAAC6aDOxAAAD0ElEQVR42u2cO27bQBBAfQAHECVRlH/Krw+QX2mnjONrBHaXT5tCuoCsKk0SIW4C5AopAusKll0mZzEcZLhDhUOPZpdcciVkCLyCK/EzT5zZ5UrUxgazbMfdm3/ZiVs5NtZsofEg/SQCKu9QBbE7jA359fUXlMaR9HqACqpPEMd6iKotDhVUsUgjpS/RwGKyGLpdQAX5EiTukGIOUPqTCCWmcP4xoIKaFoQDLUy1UClXHI64CrL8gFWQr0uTCMpEJW1g9bpzFbQagqQDNi3KVowkaLu7ZdgGVJBvQWVTzr3Iug39y543nh9NMTbVVJBnQdxNH4frNIS8nV237lqkVVBZQVwRrlsUGwhzovJxa0oxFcQI8iemmjgeP8e3Ta3CzasKEgTVL0ZKhWaE2U7XFFJNBQmC2A2tU48L2Jc4KVWXv7+smGzaRgU1LqjpYi+151+3FaWCbAVlA6bSgkJjV9y5m2pOjAqyFeQuRiqOoVPOUpQ0UOzsACpIEkRTrHp3HErQcmGYMnRCz7kGqSBag/DFNS/KfIkwguCLhEic5ljISQAVJAlyT7Fm4TuR2wXRFOKQBFUo0v+ZoFApJt3i+ArYFRXkKqipuWlbIaGFsT/fUUGBBNUlxFdKFQWZ7l0FlRTkm6aLbNmUKgwQVZAKchSjgioKojthAj7afwJcnJ8Bc8OqCZqMToDx8D1Aj8MJKgwQVVBZQQwXs6/AzfVljovZGRCq2CIfP7wB5rNpys/vwHj4DugnLWCv270VFVS3oJvrKwPKSddRXGhBmRjDrx/fgN+GhaCOQQU1K+hyNgXmsy+E9IRCicHAT0cnwNX5J8NnANupGFqke/EAUEGugvAAoqDzKUAFYXvVQHcNNHBbsHtHQShmMnoN7HU6ADdAZAeKKkgQJKVaYUBn/WNIP6ljCwpYpBJBECQ++6CChAV3hCdI1ymHB0+Bo/3HwOGLR4BroGxAEiZg+vUVpioV0k/uAHdbA0AF+RaUiWIuVdtL/dXBM+DlwfMcGMDp6BjA9snoOAe24/twO7o/vHnmpy9SHkRtQwQsBDmKUUFVRXUYhBSg7afDt8DYgN0wBw14K9kEZDERIRWFgio/E6qCHEXRE2CFMfT/FkqH7bNA21EKE3CxPQWPh9xrDQDvTxerIMuFu3QxIFyXLv1CKqAAVsRyqAiO2v/hQAVZLjgQ6yebwMMoAqyDMiLuG2wDLBDHKczru+0doPH/6VFBjqKyoXzjxDlC/02PCnJdspva7KYxTTnbgGi3TwN1FaaC1lUQndag3b4s7PZA7VNMBQUR9Af6VS+uh1NNSQAAAABJRU5ErkJggg==");image-rendering:pixelated}
+/* DOTLOGO:END */

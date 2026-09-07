@@ -65,12 +65,14 @@ const fake = await ev(`(async()=>{
     state: () => ({ on:true, why:'', balance:bal, bricks:0, pulls:0, got:[], freeReady:true, rates:null }),
     refresh: async () => true,
     products: async () => ([
-      { product_id:'box_5', boxes:5, label:'상자 5개', sort:1 },
+      { product_id:'box_05', boxes:5, label:'상자 5개', sort:1 },
       { product_id:'box_12', boxes:12, label:'상자 12개', sort:2 },
       { product_id:'box_30', boxes:30, label:'상자 30개', sort:3 } ]),
     open: async () => ({ ok:false }), work: async () => ({ ok:false }),
     history: async () => ([
       { txn_id:'t1', product_id:'box_12', boxes:12, store:'PLAY', created_at:'2026-09-01T00:00:00Z' },
+      /* 옛 코드(box_5)로 산 기록. Play 에서 그 상품을 지웠어도 **산 사람의 내역은 남는다** —
+         화면이 그걸 그대로 그리는지 여기서 지킨다. */
       { txn_id:'t2', product_id:'box_5',  boxes:5,  store:'PLAY', created_at:'2026-08-20T00:00:00Z' } ]),
   };
   window.__pay = () => { bal += 12; };     // 웹훅이 들어온 셈 친다
@@ -91,10 +93,12 @@ ok('**Supabase uid 로** 시작한다', fake.cfg && fake.cfg[2] === 'uid-1234',
 ok('아이폰에서는 appl_ 키를 쓴다', /^appl_/.test(String(fake.cfg && fake.cfg[1])),
    String(fake.cfg && fake.cfg[1]).slice(0, 12));
 
-/* 키가 없는 플랫폼에서는 **상점이 아예 안 뜬다** — 살 수 있는 척하는 칸이 있으면 안 된다. */
+/* 키가 없는 플랫폼에서는 **상점이 아예 안 뜬다** — 살 수 있는 척하는 칸이 있으면 안 된다.
+   전에는 여기에 'android' 를 넣었다(그때는 goog_ 키가 비어 있었다). 2026-09-07 에 키가
+   들어오면서 그 전제가 사라졌다 — **표에 없는 플랫폼**으로 바꾼다. 지키려는 규칙은 그대로다. */
 const noKey = await ev(`(async()=>{
   const p = Capacitor.getPlatform;
-  Capacitor.getPlatform = () => 'android';        // 아직 goog_ 키가 없다
+  Capacitor.getPlatform = () => 'windows';        // KEYS 에 없는 플랫폼
   const before = STORE.state();
   const r = await STORE.boot();
   const st = STORE.state();
@@ -152,9 +156,9 @@ const cancel = await ev(`(async()=>{
   window.__toasts = [];
   const t = window.toast;
   window.toast = m => { window.__toasts.push(String(m)); };
-  const r = await STORE.buy('box_5');
+  const r = await STORE.buy('box_05');
   showGacha();
-  const b = [...document.querySelectorAll('[data-buy]')].find(x => x.dataset.buy === 'box_5');
+  const b = [...document.querySelectorAll('[data-buy]')].find(x => x.dataset.buy === 'box_05');
   b.click();
   await new Promise(r => setTimeout(r, 700));
   const dis = [...document.querySelectorAll('[data-buy]')].map(x => x.disabled);
@@ -174,7 +178,7 @@ const slow = await ev(`(async()=>{
   window.__toasts = [];
   const t = window.toast; window.toast = m => { window.__toasts.push(String(m)); };
   showGacha();
-  const b = [...document.querySelectorAll('[data-buy]')].find(x => x.dataset.buy === 'box_5');
+  const b = [...document.querySelectorAll('[data-buy]')].find(x => x.dataset.buy === 'box_05');
   const before = (document.querySelector('.gatix b')||{}).textContent;
   b.click();
   /* **시계로 기다리지 않는다.** settle 의 초를 여기 또 적으면 둘이 갈리고, 그때 이
@@ -241,7 +245,7 @@ const big = await ev(`(async()=>{
   await new Promise(r=>setTimeout(r,500));
   const boughtAfterNo = window.__log.some(x=>x[0]==='buy');
   /* 작은 것은 안 묻는다 — 전부 물으면 확인이 아니라 방해다 */
-  document.querySelector('[data-buy="box_5"]').click();
+  document.querySelector('[data-buy="box_05"]').click();
   await new Promise(r=>setTimeout(r,700));
   const askedSmall = !!document.querySelector('#pcYes');
   document.querySelectorAll('.veil').forEach(x=>x.remove());

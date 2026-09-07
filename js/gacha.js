@@ -1019,6 +1019,12 @@ function showGacha(){
       if (typeof toast !== 'function') return;
       /* 그만둔 것은 말하지 않는다 — 취소는 사고가 아니다. */
       if (!r.ok && r.why === 'cancel') return;
+      /* 데모 진열(?store=demo)은 **틀만 보는 판**이다. 「결제를 못 마쳤다」로 말하면
+         고장으로 읽히므로 무엇인지 그대로 말한다. */
+      if (!r.ok && r.why === 'demo') return toast(L({
+        ko: '데모 진열입니다 — 값과 칸만 보는 판이라 결제는 안 됩니다.',
+        en: 'Demo shelf — layout only, purchases are off.',
+        ja: 'デモ陳列です — 表示だけで購入はできません。' }));
       if (!r.ok) return toast(L({ ko: '결제를 못 마쳤습니다.',
         en: 'The purchase did not go through.', ja: '購入を完了できませんでした。' }));
       /* **결제는 됐는데 아직 안 들어온** 자리가 있다(영수증이 서버로 가는 몇 초).

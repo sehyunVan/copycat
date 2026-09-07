@@ -33,7 +33,7 @@
      스토어에 상품이 서기 전에 살 수 있는 척하는 칸이 있으면 안 된다. */
   const KEYS = {
     ios:     'appl_nlCqNqQcDSKnUnmLmoAbuUqzbxx',
-    android: '',   // Play 신원 인증이 끝나고 앱을 연결하면 goog_… 를 여기에
+    android: 'goog_viuGAiEsdMBQAvhpOuifBLBLWPu',   // 2026-09-07 — Play 신원 인증·서비스 계정 연결 후 발급
   };
   /* 웹은 여기 없다 — 카피캣은 앱으로만 판다(아래 RC() 가 먼저 걸러 낸다). */
   const keyOf = () => {
@@ -55,6 +55,27 @@
     busy: false,
   };
 
+  /* ---------- 데모 진열 (개발용) ----------
+     `?store=demo` 로 열면 **화면만** 켠다. 웹에는 결제 플러그인이 없어서 상점 칸이
+     아예 안 뜨는데(그게 맞다), 그러면 **틀을 볼 수가 없다** — 값이 몇 자리인지,
+     세 칸이 한 줄에 들어가는지, 도트 글꼴에서 ₩ 가 어떻게 보이는지.
+
+     ── 여기서도 파는 길은 없다 ──
+     `buy()` 가 데모에서는 그 자리에서 돌아선다. 이 파일의 규칙은 그대로다:
+     **게임이 「샀다」고 말해서 잔액이 오르는 길은 한 줄도 없다.**
+
+     값은 예시다. 진짜 값은 스토어가 말하는 문자열이고(priceString), 여기 적은 것은
+     그 자리에 몇 글자가 서는지 보려는 것뿐이다. */
+  const DEMO = (() => {
+    try { return new URLSearchParams(location.search).get('store') === 'demo'; }
+    catch (e){ return false; }
+  })();
+  const DEMO_ITEMS = [
+    { id: 'box_05', boxes: 5,  label: '상자 5개',  price: '₩3,300',  product: null },
+    { id: 'box_12', boxes: 12, label: '상자 12개', price: '₩6,600',  product: null },
+    { id: 'box_30', boxes: 30, label: '상자 30개', price: '₩14,000', product: null },
+  ];
+
   /* Capacitor 가 네이티브 플러그인을 여기에 걸어 둔다. 웹에는 없다 —
      **웹에서는 이 파일이 통째로 잠든다**(카피캣은 앱으로 나간다). */
   const RC = () => {
@@ -69,6 +90,13 @@
   /* 스토어에 물어볼 상품 코드는 **서버 표에서** 온다. 목록이 비면 상점도 안 뜬다 —
      스토어 계정이 서기 전에는 그게 맞는 상태다. */
   async function boot(){
+    /* 데모는 **제일 먼저** 걸린다 — 플러그인도 로그인도 장부도 안 본다.
+       틀을 보려고 켜는 것이라, 그 셋을 갖추라고 요구하면 볼 수가 없다. */
+    if (DEMO){
+      ST.items = DEMO_ITEMS.slice();
+      ST.on = true; ST.why = 'demo';
+      return true;
+    }
     const rc = RC();
     if (!rc) return off('앱에서만 삽니다');
     const u = uid();
@@ -144,6 +172,9 @@
   }
 
   async function buy(id, onLand){
+    /* 데모에서는 **여기서 돌아선다.** 화면을 보려고 켠 것이지 사려고 켠 것이 아니다.
+       'demo' 라는 이유를 돌려주면 화면이 그대로 말해 준다(js/gacha.js). */
+    if (DEMO) return { ok: false, why: 'demo' };
     const rc = RC();
     if (!rc || !ST.on) return { ok: false, why: 'offline' };
     if (ST.busy) return { ok: false, why: 'busy' };
@@ -182,6 +213,11 @@
 
   window.STORE = { state: () => ({ ...ST, items: ST.items.slice() }),
                    contact: () => CONTACT, buy, restore, boot };
+
+  /* 데모 진열은 **여기서 갈린다.** 아래 줄이 웹에서 이 파일을 통째로 재우기 때문에,
+     boot() 안에만 데모를 넣어 두면 그 함수가 아예 안 불린다(처음에 그렇게 만들었다가
+     상점이 안 떠서 찾았다). 플러그인도 로그인도 안 보고 화면만 켠다. */
+  if (DEMO) { boot(); return; }
 
   /* 로그인이 게임보다 늦게 붙는다(js/cloud.js). 웹에서는 첫 판에 플러그인이 없다는 걸
      알고 바로 그만둔다 — 없는 것을 40번 두드리는 건 재시도가 아니라 소음이다. */

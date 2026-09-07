@@ -693,6 +693,10 @@ function beatNews(){
 const ENDING_KEY = 'copycat.ending';
 
 /* 열려 있나 — 이유까지 돌려준다. 왜 열렸는지는 기록에 남길 값어치가 있다. */
+/* 엔딩 문턱은 **28 분기(7년)** 다.
+   한동안 `?ending=N` 으로 낮추는 손잡이를 달아 뒀다(2026-09-07, 엔딩을 확인하려고).
+   배포 전에 걷었다 — 확인이 끝난 손잡이는 남겨 두지 않는다. 다시 볼 일이 있으면
+   콘솔에서 `S.quarter = 27; endingCheck()` 로 충분하다. */
 function endingWhy(){
   if (!S) return null;
   if (foundIds().length >= CLUES.length) return 'clues';

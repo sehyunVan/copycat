@@ -571,6 +571,21 @@ function decide(c){
      길이는 성격과 기력이 정한다: 꾸준냥은 길고, 기운이 없으면 짧다. */
   if ((c.deskT || 0) > focusSpan(c) && wander2(c, 'break')) return;
 
+  /* ── 결재함이 비어 있으면 논다 ──
+     할 일이 하나도 없는데 스무 마리가 책상에 붙어 있으면, 화면은 「지금 할 일이 없다」를
+     말하지 못한다. 사무실이 결재함을 비추게 한다: 올린 게 있으면 자리로, 없으면 놀이로.
+     쉬는 것과 같은 길(wander2)을 쓴다 — 노는 그림을 새로 만들 필요가 없다.
+
+     0.8 인 이유: 1.0 으로 두면 자리에 앉는 일이 아예 없어져서 「퇴근한 사무실」이 된다.
+     다섯에 하나는 그래도 앉아 있어야 일하다 노는 것으로 읽힌다.
+     **수입은 이것 때문에 안 줄어든다** — simTick 의 IDLE_PAYS 를 보라. */
+  if (!taskPool().length){
+    c.task = null;
+    if (Math.random() < 0.8 && wander2(c, 'break')) return;
+  } else {
+    claimTask(c);
+  }
+
   // 기본: 자기 자리에서 일한다
   const seat = c.deskIdx >= 0 ? W.desks[c.deskIdx].seat : null;
   if (seat){
@@ -625,6 +640,72 @@ function wander2(c, why){
   wander(c);
   return (c.act && c.act.s) !== before || c.act.s === 'walk';
 }
+
+/* ---------- 올린 결재를 누가 맡고 있나 ----------
+   결재함에 **대기 중인 것**이 이 사무실의 할 일이다. 목록은 game.js 가 들고 있고
+   (openTodos — 끝나지 않았고 기한이 오늘까지인 것), 여기서는 읽기만 한다.
+   game.js 가 아직 안 떴을 때를 대비해 S.todos 로 내려간다 — 부팅 순서에 기대지 않는다. */
+function taskPool(){
+  try {
+    if (typeof openTodos === 'function') return openTodos();
+  } catch (e) {}
+  return (S.todos || []).filter(t => !t.done);
+}
+const taskOf = c => taskPool().find(t => t.id === c.task) || null;
+
+/* 한 마리에 한 건. **다른 냥이 잡은 것은 피한다** — 셋이 같은 「빨래개기」를 말하면
+   그건 사무실이 아니라 합창이다. 남는 게 없으면 그때만 겹친다(할 일 하나에 여럿). */
+function claimTask(c){
+  if (taskOf(c)) return c.task;
+  const pool = taskPool();
+  if (!pool.length){ c.task = null; return null; }
+  const taken = new Set(S.cats.filter(x => x !== c && x.task).map(x => x.task));
+  const free = pool.filter(t => !taken.has(t.id));
+  const from = free.length ? free : pool;
+  c.task = from[Math.floor(Math.random() * from.length)].id;
+  return c.task;
+}
+/* 결재함의 글은 사람이 쓴 것이라 길이가 제각각이다. 말풍선은 한 줄이라 자른다 —
+   안 자르면 「달 지사 임대 계약서 검토 및 서명」이 사무실을 가로지른다. */
+function taskTitle(s){
+  s = String(s || '').trim().replace(/\s+/g, ' ');
+  return s.length > 12 ? s.slice(0, 11) + '…' : s;
+}
+/* 맡은 일을 말한다. 자물쇠(2.8초)는 sayDoing 과 **같은 것**을 쓴다 —
+   따로 두면 한 마리가 두 목소리로 동시에 말한다. */
+function sayTask(c, pool, force){
+  const t = taskOf(c);
+  if (!t) return false;
+  const now = performance.now();
+  /* 맡는 순간만 자물쇠를 넘는다(force). 그건 혼잣말이 아니라 **사람이 방금 한 일에 대한
+     대답**이라, 하필 2.8초 안이었다는 이유로 삼켜지면 「올렸는데 아무 반응이 없다」가 된다.
+     실측: 첫 판에서 「내가 맡지」가 이 자물쇠에 걸려 한 번도 안 떴다. */
+  if (!force && now - (c._bubble || 0) < 2800) return false;
+  c._bubble = now;
+  const lines = pool || TASK;
+  bus.emit('cat:say', { cat:c, text: lines[Math.floor(Math.random() * lines.length)].replace('{t}', taskTitle(t.text)) });
+  return true;
+}
+
+/* 올리자마자 하나가 그 일을 맡으러 간다. 다음 재판단(4~8초)을 기다리면 「올렸는데
+   아무도 안 움직인다」가 되고, 그 침묵이 이 게임에서 제일 나쁜 것이다(doc:spawn 주석과
+   같은 이유다). 서류를 이미 든 냥과 기력·화장실이 바닥인 냥은 부르지 않는다. */
+bus.on('todo:add', t => {
+  if (!t || t.done) return;
+  let cands = S.cats.filter(c => !c.doc && !c.task && canHandleDocs(c));
+  if (!cands.length) cands = S.cats.filter(c => !c.doc && canHandleDocs(c));
+  if (!cands.length) return;
+  /* 제 자리에서 가까운 냥이 맡는다 — 사무실 반대편에서 걸어오는 것보다 자연스럽다 */
+  const dist = c => {
+    const s = c.deskIdx >= 0 ? W.desks[c.deskIdx].seat : null;
+    return s ? Math.abs(c.x - s.x) + Math.abs(c.y - s.y) : 99;
+  };
+  cands.sort((a, b) => dist(a) - dist(b));
+  const c = cands[0];
+  c.task = t.id;
+  sayTask(c, TASK_TAKE, true);
+  decide(c);          // 할 일이 생겼으니 아래 「논다」 가지를 안 타고 자리로 간다
+});
 
 /* ---------- 말풍선 ---------- */
 function chat(c, kind, chance){
@@ -805,6 +886,16 @@ const RESTORE = { sleep:{ energy:6 }, coffee:{ caffeine:12, energy:2.5 }, litter
                   social2:{ fun:13 } };
 const NEED_SCALE = 0.35;   // 욕구가 닳는 전체 속도. 낮출수록 고양이가 자리를 오래 지킨다.
 
+/* 결재함이 비어서 노는 동안에도 수입은 그대로 들어온다.
+   ── 왜 ──
+   「비면 논다」는 **보이는 것**을 바꾸는 규칙이지 경제를 바꾸는 규칙이 아니다. 책상에
+   앉은 시간만 돈이 되게 두면, 할 일을 안 적는 사람의 수입이 조용히 반토막 난다 —
+   지금 실기기 베타가 그 위에서 돌고 있다. 그래서 노는 동안(use·idle·walk)에도 같은
+   값이 들어온다. **자는 동안은 아니다** — 그건 원래도 돈이 안 됐고, 밤 수입을 이 규칙이
+   올려 버리면 그거야말로 조용한 경제 변경이다.
+   경제까지 결재함에 묶고 싶으면 이 상수를 false 로 둔다. 그 한 줄이 그 결정이다. */
+const IDLE_PAYS = true;
+
 function simTick(dt){
   const p = phaseOf(S.clock);
   S.clock = nowMin();                        // 데스크탑 시계와 동기
@@ -821,6 +912,7 @@ function simTick(dt){
      캣타워(−30%) 하나만도 못하다. 가구는 시설을 대신하지 않는다. */
   const decayMul = shopMul('decay', 1) * (1 - (typeof comfort === 'function' ? comfort() : 0) * 0.5);
   const raidMul = RAID ? 0.4 : 1;            // 압수수색 중에는 일이 손에 안 잡힌다
+  const hasTasks = taskPool().length > 0;    // 결재함에 대기 중인 것이 있나 — 루프 앞에서 한 번만 센다
   let working = 0, income = 0;
 
   /* 누가 누구와 마주 보고 있나. **루프 앞에서** 센다 — 아래에서 회복량이 이걸 보고,
@@ -842,6 +934,10 @@ function simTick(dt){
     if (hasCoffee) c.needs.caffeine -= base * 0.55;
     else c.needs.caffeine = Math.max(c.needs.caffeine, 55);
 
+    /* 할 일이 없어 노는 동안의 수입(위 IDLE_PAYS). 자는 냥은 뺀다. */
+    if (IDLE_PAYS && !hasTasks && (a.s === 'use' || a.s === 'idle' || a.s === 'walk'))
+      income += catRate(c) * PHASE_MUL[p] * raidMul * dt;
+
     // --- 상태별 처리 ---
     if (a.s === 'walk'){
       moveAlong(c, dt);
@@ -851,7 +947,13 @@ function simTick(dt){
       c.deskT = (c.deskT || 0) + dt;      // 얼마나 붙어 있었는가 — decide() 가 이걸 본다
       income += catRate(c) * PHASE_MUL[p] * raidMul * dt;
       if (a.t > 4 + Math.random() * 4){ decide(c); }
-      if (Math.random() < dt * 0.012) chat(c, p === 'night' ? 'night' : 'work');
+      /* 맡은 일이 있으면 그 일을 말한다 — 「빨래개기」 하는 중…
+         맡았을 때보다 자주 뜬다(0.03): 이 줄은 사람이 적은 문장을 되읽는 것이라
+         한 번 보고 마는 것과 이따금 눈에 띄는 것의 차이가 크다. 그래도 2.8초 자물쇠가
+         있어서 겹치지 않고, 맡은 게 없으면 예전 혼잣말 그대로다. */
+      if (Math.random() < dt * (c.task ? 0.03 : 0.012)){
+        if (!sayTask(c)) chat(c, p === 'night' ? 'night' : 'work');
+      }
       if (tr.luck && Math.random() < dt * 0.004){
         const g = Math.round(totalRate() * 14 + 25);
         S.anchovy += g; S.stats.qEarned += g; S.stats.totalEarned += g;

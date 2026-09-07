@@ -226,6 +226,10 @@
      배포본(단일 파일)에서는 tools/pack-single.js 가 인라인한다. -->
 <!-- onerror: 모듈을 못 불러오면(파일로 열었거나 경로가 깨졌거나) 그 사실을 알려야 한다.
      안 그러면 ui.js 가 "3D 가 오는 중" 이라고 믿고 빈 무대를 계속 보여준다. -->
+<!-- 도트 판(2026-09-06). 글꼴은 style.css 가 물고, 이 파일은 **아이콘을 격자로 다시 굽는다.**
+     맨 뒤에 둔다: cozy.js 가 만든 아이콘 위에서 도는 물건이라 그것들이 먼저 있어야 하고,
+     늦게 생기는 것들은 이 파일의 MutationObserver 가 잡는다. -->
+<script src="js/dot.js?v=13"></script>
 <script type="module" src="js/render3d.js?v=13" onerror="window.__r3fail=1"></script>
 <!-- 프롤로그 시네마틱. 같은 lowpoly 키트로 골목과 첫 사무실을 세운다 (STORY.md).
      모듈이라 file:// 소스 트리에서는 안 뜨고, 그때는 컷신 없이 근로계약서로 넘어간다. -->

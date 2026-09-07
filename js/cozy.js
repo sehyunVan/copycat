@@ -389,11 +389,22 @@
   /* (왼쪽 아래에 가챠 공이 떠 있었다 — 가챠를 내리면서 같이 걷었다. 2026-09-02) */
 
   /* ---------- 2. 사건 카드 ---------- */
+  /* ── 왼쪽 아래는 **쌓는 자리**다 ──
+     택배 단추와 이 카드는 둘 다 왼쪽 아래에 산다. 전에는 각자 화면 바닥에서 몇 px 이라고
+     정해 두고(단추는 94px) 서로 안 겹치기를 바랐는데, 그 94 는 **카드가 두 줄일 때의 높이**
+     였다. 수사(혐의) 카드가 뜨면 카드가 더 높아져서 단추를 덮었다.
+
+     그래서 자리를 숫자로 정하지 않는다. 둘을 한 상자에 세로로 넣고 바닥에 붙인다 —
+     카드가 커지면 단추가 그만큼 위로 밀린다. 카드가 없으면 단추가 내려온다.
+     (상자는 클릭을 안 먹는다 — 방을 가리면 안 되므로 pointer-events 는 자식만 켠다.) */
+  const stack = doc.createElement('div');
+  stack.className = 'stagestack';
+  app.appendChild(stack);
+
   const card = doc.createElement('div');
   card.className = 'stagecard';
   card.id = 'stageCard';
-  const foot = $('.stagefoot');
-  if (foot) foot.parentElement.insertBefore(card, foot);
+  stack.appendChild(card);
 
   let lastKey = '';
   function fillCard() {
@@ -904,7 +915,8 @@
   boxBtn.className = 'parcelbtn';
   boxBtn.title = '본사 택배';
   boxBtn.innerHTML = '<span class="em">📦</span><b>택배</b>';
-  app.appendChild(boxBtn);
+  /* 카드 **위**에 선다 — 위 stagestack 의 세로 줄에서 첫 칸이다. */
+  stack.insertBefore(boxBtn, stack.firstChild);
   const doorBadge = () => {
     /* 상자가 있을 때만 점. 없는데 붙으면 그건 알림이 아니라 광고다. */
     const n = (window.GACHA && GACHA.tix) ? GACHA.tix() : 0;

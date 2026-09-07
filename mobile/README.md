@@ -3,7 +3,11 @@
 게임은 여기 없다. `../dist/android` 를 통째로 담는 **Capacitor 껍데기**다 —
 웹 배포본과 앱이 같은 파일이어야 「폰에서만 나는 버그」가 안 생긴다.
 
-    앱 ID     sarl.copycat.app        ← 양쪽 스토어 동일. 올린 뒤에는 못 바꾼다
+ 안드로이드 패키지  copycat.sarl        ← Play 앱 항목이 이 이름을 요구했다(2026-09-07).
+                                        applicationId 만 바꾸고 자바 패키지(namespace)는
+                                        sarl.copycat.app 그대로 뒀다 — AGP 는 둘을 따로 본다.
+    iOS 번들        sarl.copycat.app    ← App Store 쪽은 그대로. 스토어가 다르면 달라도 된다
+                                        올린 뒤에는 양쪽 다 못 바꾼다
     스토어명   Copycat Co.             ← App Store 에서 Copycat 이 이미 쓰이고 있다
     홈 화면명  Copycat                 ← 아이콘 밑은 11~12자에서 잘린다
 
@@ -90,4 +94,4 @@ Xcode 가 처음 열릴 때 패키지를 받으니 잠깐 기다린다.
   `goog_…` / `appl_…` 로 바꾼다 — `js/store.js` 의 `KEY` 한 줄
 
 상품 코드는 **서버 표(`parcel_products`)와 스토어 양쪽에 같은 값**이어야 한다:
-`box_5` · `box_12` · `box_30`. 한 글자만 달라도 결제는 되고 상자는 안 들어온다.
+`box_05` · `box_12` · `box_30`. 한 글자만 달라도 결제는 되고 상자는 안 들어온다.

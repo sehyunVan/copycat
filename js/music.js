@@ -72,13 +72,16 @@ const TRACKS = [
     d: L({ ko:'리코더를 배우는 중인 누군가. 폐활량과 창피함까지 알고리즘입니다.',
            en:'Someone still learning the recorder. Lung capacity and embarrassment are both in the algorithm.',
            ja:'リコーダーを練習中の誰か。肺活量も恥ずかしさもアルゴリズムです。' }) },
-  { id:'yt', em:'▶️', yt:true,
-    n: L({ ko:'노동요',        en:'Work Tunes',        ja:'労働歌' }),
-    d: L({ ko:'유튜브 링크를 넣으면 노동요로 들을 수 있습니다. 플레이리스트도 됩니다.',
-           en:'Paste a YouTube link and it plays as your work tunes. Playlists work too.',
-           ja:'YouTubeのリンクを入れれば労働歌として流せます。プレイリストも可。' }) },
 ];
-/* ── 앱에서는 「노동요」(유튜브)를 아예 안 내놓는다 ──
+/* ── 「노동요」(유튜브)는 **걷어 냈다**(2026-09-07) ──
+   유튜브 API 약관은 **영상이 안 보이는 오디오 재생**과 **200×200 보다 작은 플레이어**를
+   금지한다. 이 기능은 정확히 그 둘을 했다(1px 로 숨기고 소리만 썼다).
+   한동안 「웹에는 두고 앱에서만 뺀다」로 버텼는데, 웹도 남의 약관을 어기는 건 같다 —
+   그래서 곡 목록·재생기·화면을 통째로 들어냈다. 옛 저장에 남은 cur:'yt' 는
+   trackOf 가 첫 곡으로 되돌린다.
+
+   (여기 있던 NATIVE_APP 판별은 이 기능 하나만 쓰던 것이라 같이 걷었다.)
+   ── 옛 머리말 ──
    유튜브 API 약관은 **영상이 안 보이는 오디오 재생**과 **200×200 보다 작은 플레이어**를
    금지한다. 이 기능은 정확히 그 둘을 한다(1px 로 숨기고 소리만 쓴다 — 아래 유튜브 절).
    웹에서는 그래도 되지만, 스토어에 올린 앱이 남의 약관을 어기면 애플이 반려하고
@@ -86,17 +89,9 @@ const TRACKS = [
 
    **웹에는 그대로 두고 앱에서만 뺀다.** 배포 파일은 한 벌이라(dist/android 를 PWA 와
    앱 껍데기가 같이 쓴다) 빌드로 가를 수 없다 — 실행하는 자리에서 가른다. */
-const NATIVE_APP = (() => {
-  try {
-    const c = window.Capacitor;
-    if (!c) return false;
-    if (typeof c.isNativePlatform === 'function') return !!c.isNativePlatform();
-    return !!(c.getPlatform && c.getPlatform() !== 'web');
-  } catch (e){ return false; }
-})();
-const LIST = NATIVE_APP ? TRACKS.filter(t => !t.yt) : TRACKS;
-/* **목록에서 뺀 것으로는 되돌아오지 않는다.** 웹에서 노동요를 틀어 두고 앱으로 옮기면
-   저장에는 `cur:'yt'` 가 남아 있는데, 그걸 그대로 집으면 앱에서 유튜브가 다시 돈다. */
+const LIST = TRACKS;
+/* **목록에 없는 id 로는 되돌아오지 않는다.** 옛 저장에 `cur:'yt'` 가 남아 있어도
+   여기서 첫 곡으로 내려앉는다. */
 const trackOf = id => LIST.find(t => t.id === id) || LIST[0];
 
 /* **켜짐 고정.** 설정의 "배경 음악" 스위치를 뺐다 — 끄는 자리는 CD 플레이어의
@@ -119,23 +114,21 @@ const music = (() => {
   /* ---------- 무엇을 갖고 있고 무엇을 트나 ----------
      저장(S.music)에 산다. 프롤로그 전에는 S 가 아직 없으므로 그때는 기본값으로 답한다 —
      그 시점에도 sync() 는 불리고, 컷신 뒤 편지 장면에서 음악이 켜져야 한다. */
-  const BOOTSTRAP = { owned:['box', 'aquarium'], cur:'aquarium', mode:'loop', yt:'' };
+  const BOOTSTRAP = { owned:['box', 'aquarium'], cur:'aquarium', mode:'loop' };
   function st(){
     if (typeof S === 'undefined' || !S) return BOOTSTRAP;
-    if (!S.music) S.music = { owned:['box', 'aquarium'], cur:'aquarium', mode:'loop', yt:'' };
+    if (!S.music) S.music = { owned:['box', 'aquarium'], cur:'aquarium', mode:'loop' };
     const m = S.music;
     if (!Array.isArray(m.owned) || !m.owned.length) m.owned = ['box', 'aquarium'];
     /* 기본 두 곡은 뺏길 수 없다. 옛 저장에도 없으니 여기서 채운다. */
     for (const id of ['box', 'aquarium']) if (!m.owned.includes(id)) m.owned.push(id);
     if (!m.cur || !trackOf(m.cur)) m.cur = 'aquarium';
     if (!['loop', 'shuffle', 'auto'].includes(m.mode)) m.mode = 'loop';
-    if (typeof m.yt !== 'string') m.yt = '';
+    delete m.yt;      // 노동요를 걷으면서 남은 옛 칸 — 새 저장에는 안 만든다
     return m;
   }
   const ownedIds = () => st().owned.filter(id => LIST.some(t => t.id === id));
-  const has = id => (id === 'yt')
-    ? (!NATIVE_APP && !!st().yt)          // 앱에서는 가진 적이 없는 것으로 친다
-    : st().owned.includes(id);
+  const has = id => st().owned.includes(id);
 
   /* 이 배포본에 음원이 **실제로 실렸는가.** 묶는 쪽이 안 실은 파일을 이름으로 적어 준다
      (assets.js 의 ASSETS_ABSENT · tools/pack-single.js).
@@ -256,230 +249,6 @@ const music = (() => {
     if (volTimer){ clearInterval(volTimer); volTimer = null; }
   }
   function filePlaying(){ return !!(deck && !deck.paused); }
-
-  /* ---------- 유튜브 ----------
-     소리만 쓴다. 화면은 1px 짜리로 숨겨 두는데, display:none 으로 지우면
-     플레이어가 아예 안 도는 브라우저가 있어서 **보이지 않게 밀어 두기만** 한다.
-
-     이 게임은 근무 중에 켜 두는 물건이라 사내망에서 유튜브가 막혀 있을 수 있다.
-     그리고 단일 파일 배포본은 file:// 라 origin 이 null 이다. 둘 다 흔한 경우이므로
-     **실패가 정상 경로**다 — 못 뜨면 조용히 원래 곡으로 돌아가고 한 번만 알린다. */
-  const YT_SRC = 'https://www.youtube.com/iframe_api';
-  let ytPlayer = null, ytLoading = false, ytFailed = false, ytOn = false, ytCur = '';
-  /* 왜 실패했는지. "사내망에서 막혔다"와 "게시자가 퍼가기를 막았다"는 사용자가
-     할 일이 완전히 다르다(포기 / 다른 링크). 하나로 뭉치면 안내가 거짓말이 된다. */
-  let ytWhy = '';
-  /* 목록이 거절당해서 그 안의 영상 하나로 내려앉았다. 한 번만 내려앉는다 —
-     안 그러면 목록↔영상 사이를 오가며 계속 다시 싣는다. */
-  let ytOnlyVid = false;
-  /* 유튜브가 준 마지막 오류 코드. 안내 문구는 사람 말로 하고, 이건 진단용으로 남긴다 —
-     "안 나온다" 를 고치려면 2 인지 150 인지가 전부다. */
-  let ytCode = 0;
-  let ytMaking = false;         // 재생기를 만드는 중 — 두 번 만들면 소리가 두 겹이 된다
-  let ytMuted = false;          // 음소거로 시작했고 아직 소리를 안 켰다
-  let ytSkips = 0;              // 플레이리스트에서 건너뛴 항목 수
-  /* 실패를 듣는 쪽이 둘이다 — 열려 있는 쥬크박스 화면과, 닫혀 있을 때의 토스트.
-     하나짜리 슬롯으로 두면 화면을 한 번 열었다 닫는 순간 토스트가 사라진다. */
-  const ytWatch = [];
-
-  /* 주소에서 목록과 영상을 **둘 다** 뽑는다. 하나만 뽑던 게 문제였다:
-     유튜브에서 재생 중에 주소창을 복사하면 `watch?v=X&list=RD…` 가 나오는데,
-     RD(믹스·자동 목록)는 iframe API 로 실을 수 없다. 목록만 보고 포기하면
-     **틀 수 있는 영상 X 를 두고 무음이 된다** — 그게 "링크를 걸었는데 안 나온다"의
-     제일 그럴듯한 경로다. 둘 다 들고 오면 아래에서 되는 쪽을 고를 수 있다. */
-  function parseYT(url){
-    const s = String(url || '').trim();
-    if (!s) return null;
-    const list = (s.match(/[?&]list=([A-Za-z0-9_-]{12,})/) || [])[1]
-      || (/^(PL|UU|LL|RD|OL|FL)[A-Za-z0-9_-]{10,}$/.test(s) ? s : null);
-    const video = (s.match(/[?&]v=([A-Za-z0-9_-]{11})/) || [])[1]
-      || (s.match(/youtu\.be\/([A-Za-z0-9_-]{11})/) || [])[1]
-      || (s.match(/youtube\.com\/(?:embed|shorts|live)\/([A-Za-z0-9_-]{11})/) || [])[1]
-      || (/^[A-Za-z0-9_-]{11}$/.test(s) ? s : null);
-    if (!list && !video) return null;
-    const p = {};
-    if (list) p.list = list;
-    if (video) p.video = video;
-    return p;
-  }
-
-  /* 믹스·자동 생성 목록(RD…). 유튜브가 즉석에서 만드는 것이라 API 의 loadPlaylist 로는
-     못 싣는다 — 실측: 코드 2 로 거절당한다. 영상이 같이 왔으면 그쪽을 쓴다. */
-  const ytMix = p => !!(p && p.list && /^RD/.test(p.list));
-  /* 이번에 무엇을 실을지. 목록이 우선이지만 믹스는 영상에 양보한다. */
-  function ytPick(p){
-    if (!p) return null;
-    if (p.list && !(ytMix(p) && p.video) && !ytOnlyVid) return { list: p.list };
-    if (p.video) return { video: p.video };
-    return p.list ? { list: p.list } : null;
-  }
-
-  function ytFail(why){
-    ytFailed = true; ytOn = false; ytWhy = why || 'error';
-    ytWatch.forEach(f => { try { f(why); } catch(e){} });
-    /* 유튜브가 안 되면 갖고 있는 곡으로 내려간다. 조용히 무음이 되는 게 제일 나쁘다. */
-    const m = st();
-    if (m.cur === 'yt'){ m.cur = ownedIds().includes('aquarium') ? 'aquarium' : 'box'; }
-    sync();
-  }
-
-  function ytLoad(cb){
-    if (window.YT && window.YT.Player) return cb(true);
-    if (ytFailed) return cb(false);
-    if (!ytLoading){
-      ytLoading = true;
-      try {
-        const s = document.createElement('script');
-        s.src = YT_SRC;
-        s.onerror = () => { ytFailed = true; };
-        document.head.appendChild(s);
-      } catch(e){ ytFailed = true; }
-    }
-    const t0 = performance.now();
-    const iv = setInterval(() => {
-      if (window.YT && window.YT.Player){ clearInterval(iv); cb(true); }
-      else if (ytFailed || performance.now() - t0 > 7000){ clearInterval(iv); ytFailed = true; cb(false); }
-    }, 150);
-  }
-
-  /* 재생기 상자. 소리만 쓰지만 **200×200 보다 작게 만들면 안 된다** —
-     유튜브가 문서로 못 박아 둔 최소 크기고, 그보다 작으면 재생을 거부하거나
-     "플레이어가 너무 작습니다" 로 죽는다. 200×120 이었고, 그게 원인 하나였다.
-
-     그리고 화면 **밖으로 밀지 않는다.** left:-9999px 는 브라우저가 "안 보이는
-     미디어" 로 보고 재생을 늦추거나 멈출 수 있는 자리다. 화면 안에 두고
-     opacity 로 지운다 — 크기와 위치는 진짜고 보이지만 않는다. */
-  function ytBox(){
-    let d = document.getElementById('ytbox');
-    if (d) return d;
-    d = document.createElement('div');
-    d.id = 'ytbox';
-    d.style.cssText = 'position:fixed;left:0;bottom:0;width:200px;height:200px;'
-      + 'opacity:0;pointer-events:none;z-index:0;border:0';
-    document.body.appendChild(d);
-    return d;
-  }
-
-  /* 쥬크박스를 열 때 **스크립트만** 미리 내려받는다. 재생기는 안 만든다.
-     이유: 「걸기」를 누른 뒤에 스크립트를 받으면 그 사이에 클릭 제스처가 식고,
-     그러면 자동재생 정책이 소리를 막는다. 미리 받아 두면 new YT.Player 가
-     누른 손 안에서 바로 만들어져 소리가 그냥 난다. */
-  function ytWarm(){
-    if (window.YT && window.YT.Player) return;
-    if (ytFailed || ytLoading) return;
-    ytLoad(() => {});
-  }
-
-  function ytApply(){
-    if (!ytPlayer) return;
-    const p = ytPick(parseYT(st().yt));
-    if (!p) return;
-    const key = p.list ? 'L' + p.list : 'V' + p.video;
-    try {
-      if (key !== ytCur){
-        ytCur = key; ytSkips = 0;
-        if (p.list) ytPlayer.loadPlaylist({ list: p.list, listType:'playlist', index:0 });
-        else ytPlayer.loadVideoById(p.video);
-        /* 한 곡짜리는 끝나면 멈춘다. 배경음악은 끝나면 안 된다. */
-        if (!p.list && ytPlayer.setLoop) ytPlayer.setLoop(true);
-        /* 섞기·반복은 여기서도 뜻이 있어야 한다 — 모드 버튼을 눌러 놓고
-           유튜브만 순서대로 도는 건 버튼이 거짓말을 하는 것이다. */
-        if (p.list){
-          try { if (ytPlayer.setShuffle) ytPlayer.setShuffle(st().mode === 'shuffle'); } catch(e){}
-          try { if (ytPlayer.setLoop) ytPlayer.setLoop(true); } catch(e){}
-        }
-      } else ytPlayer.playVideo();
-      ytVol();
-    } catch(e){}
-  }
-
-  /* 음소거로 시작해 놓고 **재생이 실제로 시작된 뒤** 소리를 켠다.
-     크롬은 소리 나는 자동재생을 사용자 입력 없이 막지만 음소거 재생은 허용하고,
-     이미 시작된 재생을 나중에 unMute 하는 것은 막지 않는다. 이게
-     "링크를 넣었는데 아무 일도 안 일어난다" 의 진짜 원인이었다. */
-  function ytVol(){
-    if (!ytPlayer) return;
-    const v = Math.round(100 * wantVol());
-    try { ytPlayer.setVolume(v); } catch(e){}
-    if (ytMuted && ytPlayer.unMute){
-      try { ytPlayer.unMute(); ytMuted = false; } catch(e){}
-    }
-    /* 전체 음소거(음량 0)면 다시 눌러 둔다 — setVolume(0) 만으로는
-       모바일 사파리처럼 볼륨을 못 바꾸는 기계에서 소리가 계속 난다. */
-    if (v === 0 && ytPlayer.mute) try { ytPlayer.mute(); } catch(e){}
-  }
-
-  function ytStart(){
-    const p = parseYT(st().yt);
-    if (!p){ ytFail('empty'); return; }
-    ytOn = true;
-    if (ytPlayer){ ytApply(); return; }
-    if (ytMaking) return;
-    ytMaking = true;
-    ytLoad(ok => {
-      if (!ok){ ytMaking = false; ytFail('blocked'); return; }
-      try {
-        ytMuted = true;
-        ytPlayer = new YT.Player(ytBox(), {
-          height:'200', width:'200',
-          /* origin 은 http(s) 일 때만 준다. file:// 에서는 "null" 이 가서 오히려 거절당한다 —
-             어차피 그 환경에서는 안 뜨는 게 정상이고, 거짓 origin 으로 실패 원인만 흐려진다. */
-          playerVars: Object.assign({ autoplay:1, controls:0, disablekb:1, playsinline:1, mute:1 },
-                                    /^https?:$/.test(location.protocol) ? { origin: location.origin } : {}),
-          events: {
-            onReady: () => { ytMaking = false; if (ytOn) ytApply(); else try { ytPlayer.pauseVideo(); } catch(e){} },
-            onError: e => ytError(e && e.data),
-            onStateChange: e => ytState(e && e.data),
-          },
-        });
-      } catch(e){ ytMaking = false; ytFail('error'); }
-    });
-  }
-
-  /* 유튜브 오류 코드. 2 잘못된 인자 · 5 재생기 오류 · 100 없는 영상 ·
-     101/150 **게시자가 퍼가기를 막았다.** 마지막 것이 제일 흔한데 지금까지
-     "사내망에서 막혀 있습니다" 로 안내하고 있었다 — 그 사람은 네트워크를
-     쳐다보며 시간을 버린다. 할 일이 다르면 다르게 말해야 한다. */
-  function ytError(code){
-    ytCode = code || 0;
-    const p = parseYT(st().yt) || {};
-    const onList = !!(ytPick(p) || {}).list;
-    /* 목록 안에서 한 곡이 막힌 것뿐이면 **다음 곡으로 넘어간다.**
-       퍼가기 금지 영상 하나 때문에 목록 전체를 포기할 이유가 없다. */
-    if (onList && (code === 101 || code === 150 || code === 100) && ytSkips < 12){
-      ytSkips++;
-      try { ytPlayer.nextVideo(); return; } catch(e){}
-    }
-    /* 목록 자체가 거절당했는데(비공개·믹스) **주소에 영상이 같이 있으면** 그것만 튼다.
-       주소창을 복사하면 목록이 딸려 오는 게 흔한데, 그때 무음이 되는 건 억울하다. */
-    if (onList && p.video && !ytOnlyVid){
-      ytOnlyVid = true; ytCur = '';
-      try { ytApply(); return; } catch(e){}
-    }
-    ytFail(code === 101 || code === 150 ? 'embed'
-         : code === 100 ? 'notfound'
-         : code === 2 ? 'badlink' : 'error');
-  }
-
-  function ytState(code){
-    if (!ytOn) return;
-    if (code === 1){ ytSkips = 0; ytVol(); return; }        // 재생 시작 — 여기서 소리를 켠다
-    if (code !== 0) return;                                 // 0 = 끝
-    /* 끝나면 처음으로 되돌린다 — 배경음악은 끝나면 안 된다.
-       플레이리스트는 playVideo() 로는 마지막 곡만 다시 나므로 0번으로 감는다. */
-    try {
-      if ((ytPick(parseYT(st().yt)) || {}).list && ytPlayer.playVideoAt) ytPlayer.playVideoAt(0);
-      else ytPlayer.playVideo();
-    } catch(e){}
-  }
-  function ytStop(){
-    ytOn = false;
-    if (ytPlayer){ try { ytPlayer.pauseVideo(); } catch(e){} }
-  }
-  function ytPlaying(){
-    if (!ytOn || !ytPlayer || !ytPlayer.getPlayerState) return false;
-    try { return ytPlayer.getPlayerState() === 1 || ytPlayer.getPlayerState() === 3; } catch(e){ return false; }
-  }
 
   /* ---------- 2순위: 생성 엔진 (오르골 로파이) ----------
      72 BPM · 4마디 흰건반 코드 루프(Cmaj7→Am7→Fmaj7→G6) 위에
@@ -625,19 +394,13 @@ const music = (() => {
   function genPlaying(){ return !!timer && !!ctx && ctx.state === 'running'; }
 
   /* ---------- 공통 ---------- */
-  function playing(){ return filePlaying() || genPlaying() || ytPlaying(); }
+  function playing(){ return filePlaying() || genPlaying(); }
 
   /* 지금 트랙이 요구하는 재생기 하나만 남기고 나머지는 끈다.
      세 재생기(파일·오르골·유튜브)가 동시에 도는 순간이 이 파일의 유일한 진짜 버그원이라
      **켜기 전에 끄는** 순서를 지킨다. */
   function start(){
     const t = wantTrack();
-    if (t.yt){
-      fileStop(); genStop();
-      ytStart();
-      return;
-    }
-    ytStop();
     if (t.src && !shipped(t)) broken.add(t.src);   // 부르지도 않는다 — 404 는 진단을 흐린다
     if (t.src && !broken.has(t.src)){
       genStop();
@@ -648,7 +411,7 @@ const music = (() => {
     fileStop();
     genStart();
   }
-  function stop(){ fileStop(); genStop(); ytStop(); }
+  function stop(){ fileStop(); genStop(); }
 
   /* soundOn(전체 음소거)과 musicPref(설정) 둘 다 켜져 있어야 재생.
      프롤로그가 돌고 있으면(__introAudio) 그동안은 눌러 둔다 — 비·통화 소리 위에
@@ -656,7 +419,7 @@ const music = (() => {
   let lastKey = '';
   function sync(){
     const want = musicPref && (typeof soundOn === 'undefined' || soundOn) && !window.__introAudio;
-    const key = want ? wantTrack().id + '|' + (st().yt || '') : '';
+    const key = want ? wantTrack().id : '';
     if (!want){ if (playing()) stop(); lastKey = ''; return; }
     /* 곡이 바뀌었으면 돌고 있어도 다시 건다 — 그게 갈아타기다. */
     if (key !== lastKey){ lastKey = key; start(); return; }
@@ -667,7 +430,6 @@ const music = (() => {
   function volumeChanged(){
     if (deck && !deck.paused && !ramps.some(r => r.el === deck)) deck.volume = wantVol();
     if (genGain) try { genGain.gain.value = 1.5 * masterVol(); } catch(e){}
-    if (ytPlayer && !ytMuted) ytVol();
   }
 
   function setPref(on){
@@ -688,12 +450,6 @@ const music = (() => {
      그러면 버튼을 눌러도 아무 일이 안 일어난다. 버튼은 그러면 안 된다. */
   function kick(){
     if (ctx && ctx.state === 'suspended'){ try { ctx.resume(); } catch(e){} }
-    if (wantTrack().yt && ytPlayer){
-      ytOn = true;
-      try { ytPlayer.unMute(); ytMuted = false; } catch(e){}
-      try { ytPlayer.playVideo(); } catch(e){}
-      ytVol();
-    }
     lastKey = '';
     sync();
     /* 유튜브는 눌러도 소리가 몇 초 뒤에 온다(버퍼링 = 상태 3). 여기서 false 가
@@ -705,12 +461,10 @@ const music = (() => {
   function play(id){
     const t = trackOf(id);
     if (!t) return false;
-    if (t.yt){ if (!parseYT(st().yt)) return false; }
-    else if (!has(t.id)) return false;
+    if (!has(t.id)) return false;
     const m = st();
     m.cur = t.id;
     if (m.mode === 'auto') m.mode = 'loop';   // 손으로 고르는 순간 자동은 끝난다
-    ytFailed = false;
     try { save(); } catch(e){}
     sync();
     return true;
@@ -728,7 +482,7 @@ const music = (() => {
   /* 줍는다(가구 조사) · 산다(💿). 둘 다 결국 같은 목록에 한 줄이 늘어난다. */
   function grant(id){
     const t = trackOf(id);
-    if (!t || t.yt || has(id)) return false;
+    if (!t || has(id)) return false;
     st().owned.push(id);
     try { save(); } catch(e){}
     return true;
@@ -745,27 +499,8 @@ const music = (() => {
     if (!['loop', 'shuffle', 'auto'].includes(mode)) return;
     st().mode = mode;
     try { save(); } catch(e){}
-    /* 유튜브가 돌고 있으면 그쪽 섞기도 지금 바꾼다 — 다음 곡부터 반영되는
-       섞기는 눌러도 아무 일이 안 일어난 것으로 보인다. */
-    if (ytPlayer && ytOn && (ytPick(parseYT(st().yt)) || {}).list){
-      try { if (ytPlayer.setShuffle) ytPlayer.setShuffle(mode === 'shuffle'); } catch(e){}
-    }
     sync();
   }
-  function setYT(url){
-    const p = parseYT(url);
-    st().yt = p ? String(url).trim() : '';
-    ytCur = ''; ytFailed = false; ytWhy = ''; ytSkips = 0; ytOnlyVid = false; ytCode = 0;
-    try { save(); } catch(e){}
-    if (!p) return false;
-    return play('yt');
-  }
-  function ytStatus(){
-    return { url: st().yt, parsed: parseYT(st().yt), picked: ytPick(parseYT(st().yt)),
-             failed: ytFailed, why: ytWhy, playing: ytPlaying(),
-             skipped: ytSkips, onlyVideo: ytOnlyVid, code: ytCode };
-  }
-
   /* 브라우저 자동재생 정책: 첫 입력 후에만 소리를 낼 수 있다.
 
      한 번만 시도하면 안 된다. 마우스에서는 pointerdown 시점에 아직 "사용자 활성화"가
@@ -816,12 +551,8 @@ const music = (() => {
     init, sync, setPref, pref: () => musicPref, playing,
     /* 쥬크박스 — juke.js(화면)와 story.js(줍기)가 쓴다 */
     tracks: () => LIST, track: trackOf, owned: ownedIds, has,
-    /* 화면이 「이 판에서 노동요를 파는가」를 물을 자리 (js/juke.js) */
-    ytAllowed: () => !NATIVE_APP,
     now: () => wantTrack(), curId: () => st().cur, mode: () => st().mode,
     shipped,                                     // juke.js 가 목록에서 걸러 낸다
-    play, next, grant, buy, setMode, setYT, ytStatus, ytWarm, volumeChanged, kick,
-    /* 등록하면 떼는 함수를 돌려준다 — 모달은 닫힐 때 자기 것을 떼야 한다 */
-    onYTFail: fn => { ytWatch.push(fn); return () => { const i = ytWatch.indexOf(fn); if (i >= 0) ytWatch.splice(i, 1); }; },
+    play, next, grant, buy, setMode, volumeChanged, kick,
   };
 })();

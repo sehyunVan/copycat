@@ -24,41 +24,6 @@ function jukeModeLabel(m){
   }[m] || m;
 }
 
-/* 실패 이유별 안내. **할 일이 다르면 다르게 말해야 한다** —
-   "사내망에서 막혔다"(포기)와 "게시자가 퍼가기를 막았다"(다른 링크)를 한 문장으로
-   뭉쳐 놓으면, 링크만 바꾸면 될 사람이 네트워크를 쳐다보며 시간을 버린다. */
-function ytWhyText(why){
-  if (why === 'embed') return L({
-    ko:'이 영상은 <b>다른 사이트에서 재생하지 못하게</b> 게시자가 막아 둔 것입니다. 다른 링크를 넣어 보세요 — 플레이리스트라면 막힌 곡만 건너뜁니다.',
-    en:'The owner has <b>disabled playback on other sites</b> for this one. Try another link — in a playlist, only the blocked tracks are skipped.',
-    ja:'この動画は<b>他サイトでの再生を禁止</b>されています。別のリンクを試してください——プレイリストなら禁止された曲だけ飛ばします。' });
-  if (why === 'notfound') return L({
-    ko:'그 주소에 영상이 없습니다 — 삭제되었거나 비공개입니다.',
-    en:'Nothing at that address — deleted or private.',
-    ja:'その住所に動画がありません——削除か非公開です。' });
-  if (why === 'badlink'){
-    /* 플레이리스트일 때는 거의 항상 **비공개**다. 자기 목록을 붙여넣은 사람에게
-       "주소를 다시 붙여넣으세요" 라고 하면 열 번을 다시 붙여넣게 된다 —
-       고칠 곳은 주소가 아니라 유튜브의 공개 설정이다. */
-    const list = !!(music.ytStatus().parsed || {}).list;
-    if (list) return L({
-      ko:'그 플레이리스트를 열지 못했습니다 — 없는 목록이거나 <b>비공개</b>입니다. 유튜브에서 목록 공개 범위를 <b>일부 공개</b> 이상으로 바꾸면 됩니다.',
-      en:'Couldn’t open that playlist — it doesn’t exist, or it’s <b>private</b>. Setting it to <b>Unlisted</b> or Public on YouTube is enough.',
-      ja:'そのプレイリストを開けませんでした——存在しないか<b>非公開</b>です。YouTube側で<b>限定公開</b>以上にすれば通ります。' });
-    /* 코드 2 는 "주소가 틀렸다" 뿐 아니라 **유튜브가 지금 이 클라이언트를 거절했다**
-       일 수도 있다(실측: 같은 주소가 몇 분 전엔 됐다). 그래서 다시 눌러 보라고 한다 —
-       주소는 그대로 남아 있으니 「걸기」 한 번이면 된다. */
-    return L({
-      ko:'유튜브가 그 주소를 거절했습니다. 주소를 다시 확인하거나, <b>잠시 뒤 「걸기」를 한 번 더</b> 눌러 보세요.',
-      en:'YouTube refused that address. Check it, or just <b>press Set again in a moment</b>.',
-      ja:'YouTubeがその住所を拒否しました。住所を確認するか、<b>少し後にもう一度「かける」</b>を押してください。' });
-  }
-  return L({
-    ko:'유튜브가 안 열립니다 — 사내망에서 막혀 있거나 파일로 연 배포본입니다. 내장 곡으로 돌아갑니다.',
-    en:'YouTube won’t open here — blocked on this network, or this is the offline single-file build. Falling back to the built-in tracks.',
-    ja:'YouTubeが開けません——社内網でブロックされているか、ファイルで開いた単体版です。内蔵曲に戻ります。' });
-}
-
 function jukeRowHTML(t, state){
   const now = state.now === t.id;
   const em = `<span class="em">${t.em}</span>`;
@@ -68,7 +33,7 @@ function jukeRowHTML(t, state){
   let right;
   /* 이 배포본에 음원이 안 실린 곡. 갖고 있어도 틀면 오르골이 나오므로 그렇다고 적는다 —
      단일 파일로 받은 사람에게 "샀는데 안 나온다"는 버그로 읽힌다 (tools/pack-single.js). */
-  if (!music.shipped(t) && !t.yt)
+  if (!music.shipped(t))
     right = `<span class="tiny">${L({ ko:'이 배포본에 없음', en:'Not in this build', ja:'この配布版にはなし' })}</span>`;
   /* 고른 곡과 **실제로 나고 있는 곡**은 다를 수 있다(자동재생 정책에 막혀 멈춰 있을 때).
      둘을 같은 말로 적으면 머리 줄의 「멈춰 있음」과 이 줄이 서로 다른 말을 한다. */
@@ -88,16 +53,14 @@ function jukeBodyHTML(){
   const all = music.tracks();
 
   /* 갖고 있는 곡 → 살 수 있는 곡. 못 찾은 「줍는 곡」은 여기 없다. */
-  const mine = all.filter(t => !t.yt && own.includes(t.id));
+  const mine = all.filter(t => own.includes(t.id));
   /* **없는 걸 팔지 않는다.** 음원이 안 실린 배포본에서는 그 음반이 목록에 아예 없다 */
-  const sale = all.filter(t => !t.yt && !own.includes(t.id) && t.cost && music.shipped(t));
-  const lost = all.filter(t => !t.yt && !own.includes(t.id) && t.find && music.shipped(t)).length;
+  const sale = all.filter(t => !own.includes(t.id) && t.cost && music.shipped(t));
+  const lost = all.filter(t => !own.includes(t.id) && t.find && music.shipped(t)).length;
 
   const modeBtns = ['loop', 'shuffle', 'auto'].map(m =>
     `<button class="buy ${music.mode() === m ? '' : 'alt'}" data-mode="${m}">${jukeModeLabel(m)}</button>`).join('');
 
-  const yt = music.ytStatus();
-  const ytNow = state.now === 'yt';
 
   const on = music.playing();
 
@@ -162,25 +125,7 @@ function jukeBodyHTML(){
         en:'They are not for sale. Click furniture to look at it.',
         ja:'買える物ではありません。家具を押して調べてください。',
       })}</span></div></div></div>` : ''}
-
-    ${!music.ytAllowed() ? '' : `
-    <div class="jukesec">${music.track('yt').em} ${music.track('yt').n}</div>
-    <div class="card ${ytNow ? 'owned' : ''}">
-      <div class="ytrow">
-        <input id="ytUrl" placeholder="https://www.youtube.com/playlist?list=…" value="${esc(yt.url || '')}" autocomplete="off" spellcheck="false">
-        <button class="buy" id="ytGo">${L({ ko:'걸기', en:'Set', ja:'かける' })}</button>
-        ${yt.url ? `<button class="buy alt" id="ytClear">${L({ ko:'해제', en:'Clear', ja:'解除' })}</button>` : ''}
-      </div>
-      <div class="hint">${yt.failed ? ytWhyText(yt.why) : yt.onlyVideo ? L({
-          ko:'이 주소의 <b>목록</b>은 실을 수 없어서(믹스이거나 비공개) <b>영상 하나</b>만 반복하고 있습니다. 목록으로 틀려면 유튜브의 <b>플레이리스트 주소</b>를 넣으세요.',
-          en:'The <b>list</b> in this address can’t be loaded (a mix, or private), so a <b>single video</b> is looping. Paste a real <b>playlist</b> URL to get the list.',
-          ja:'この住所の<b>リスト</b>は読み込めないため（ミックスか非公開）、<b>動画1本</b>を繰り返しています。リストで流すには<b>プレイリストのURL</b>を入れてください。' })
-        : L({
-          ko:'유튜브 링크를 넣으면 노동요로 들을 수 있습니다. 위의 음량과 밤 절반 볼륨은 여기에도 걸립니다.',
-          en:'Paste a YouTube link and it plays as your work tunes. The volume above and the night halving apply here too.',
-          ja:'YouTubeのリンクを入れれば労働歌として流せます。上の音量と夜の半分音量はこちらにも効きます。' })
-      }</div>
-    </div>`}`;
+}`;
 }
 
 function showJuke(){
@@ -195,11 +140,6 @@ function showJuke(){
       })}</p></div>
     <div class="mbody" id="jukeBody">${jukeBodyHTML()}</div>
     <div class="mfoot"><button class="okbtn" data-close>${L({ ko:'닫기', en:'Close', ja:'閉じる' })}</button></div>`);
-
-  /* 유튜브 스크립트를 **지금** 받아 둔다. 「걸기」를 누른 뒤에 받으면 그 사이에
-     클릭 제스처가 식어 자동재생 정책이 소리를 막는다 — 미리 받아 두면 재생기가
-     누른 손 안에서 만들어져 첫 시도에 소리가 난다. */
-  music.ytWarm();
 
   const body = m.veil.querySelector('#jukeBody');
   const redraw = () => { body.innerHTML = jukeBodyHTML(); wire(); renderTop(); };
@@ -252,53 +192,18 @@ function showJuke(){
     if (kickBtn) kickBtn.onclick = () => {
       music.kick();
       redraw();
-      /* 유튜브는 버퍼링을 거쳐 소리가 오므로 누른 직후의 화면은 아직 「멈춰 있음」이다.
-         조금 뒤에 한 번 더 본다 — 모달이 닫혔으면 그만둔다. */
-      setTimeout(() => { try { if (m.veil.isConnected) redraw(); } catch(e){} }, 1600);
     };
 
-    const go = body.querySelector('#ytGo'), url = body.querySelector('#ytUrl');
-    if (go) go.onclick = () => {
-      if (!music.setYT(url.value)){
-        sfx.err();
-        toast(L({ ko:'유튜브 링크로 안 읽힙니다. 주소를 통째로 붙여넣어 보세요.',
-                  en:'That doesn’t read as a YouTube link. Try pasting the whole address.',
-                  ja:'YouTubeのリンクとして読めません。アドレスをそのまま貼ってみてください。' }));
-        return;
-      }
-      sfx.add();
-      redraw();
-    };
-    /* 이 칸에도 조합 중 엔터가 온다(일본어로 검색해 붙여넣는 경우). 결재함과 같은
-       문을 쓴다 — ui.js onTextSubmit. */
-    if (url) onTextSubmit(url, () => { if (go) go.click(); });
-    const clr = body.querySelector('#ytClear');
-    if (clr) clr.onclick = () => {
-      music.setYT('');
-      music.play(music.owned()[0] || 'box');
-      redraw();
-    };
   }
   wire();
 
-  /* 유튜브가 실패하면 그 순간 화면도 같이 바뀌어야 한다 — 안 그러면
-     "걸기를 눌렀는데 아무 일도 안 일어났다"가 된다. 닫을 때는 떼고 나간다. */
-  const off = music.onYTFail(() => { try { if (m.veil.isConnected) redraw(); } catch(e){} });
-  m.veil.addEventListener('click', e => {
-    if (e.target === m.veil || e.target.closest('[data-close]')) off();
-  });
   return m;
 }
 
 /* 여는 문은 **사무실의 CD 플레이어**다(story.js 의 클릭 라우팅). 툴바에 💿 버튼이
    따로 있었는데 뗐다 — 툴바 버튼은 설정이고, 가구는 사무실이다. 이 게임에서 곡을
    고르는 일은 설정이 아니라 오늘 아침에 사무실에서 하는 일이어야 한다.
-   여기 남은 건 조용히 실패하는 것들을 화면으로 끌어내는 그물뿐이다. */
+   여기 있던 그물(유튜브가 조용히 죽는 걸 화면으로 끌어내던 것)은 노동요를 걷으면서
+   같이 나갔다. 부르는 자리가 남아 있어 함수는 둔다 — 지금은 아무 일도 안 한다. */
 function jukeInit(){
-  /* 유튜브가 조용히 죽는 걸 막는 마지막 그물. 모달이 닫혀 있어도 한 번은 말해 준다. */
-  music.onYTFail(() => toast(L({
-    ko:'유튜브를 열 수 없어 내장 곡으로 돌아갑니다.',
-    en:'Couldn’t open YouTube — falling back to the built-in tracks.',
-    ja:'YouTubeを開けないため内蔵曲に戻ります。',
-  })));
 }

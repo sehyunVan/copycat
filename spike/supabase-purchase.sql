@@ -34,7 +34,9 @@ revoke insert, update, delete on public.parcel_products from anon, authenticated
 
 -- 처음 한 벌. 스토어에 등록할 때 이 코드를 그대로 쓴다.
 insert into public.parcel_products (product_id, boxes, label, sort) values
-  ('box_5',  5,  '상자 5개',  1),
+  -- box_5 는 Play 에서 **지워졌다**(2026-09-07). 지운 상품 코드는 그 앱에서 다시 못 쓴다 —
+  -- 그래서 다섯 개짜리는 box_05 라는 새 이름으로 간다. 옛 이름은 되살리지 않는다.
+  ('box_05', 5,  '상자 5개',  1),
   ('box_12', 12, '상자 12개', 2),
   ('box_30', 30, '상자 30개', 3)
 on conflict (product_id) do nothing;
