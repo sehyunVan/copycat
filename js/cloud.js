@@ -147,6 +147,14 @@
   const lastUid = () => { try { return localStorage.getItem(SEEN_UID) || ''; } catch (e){ return ''; } };
   const rememberUid = u => { try { localStorage.setItem(SEEN_UID, u || ''); } catch (e){} };
 
+  /* **이 기기가 진짜 계정(익명 아님)으로 들어온 적이 있는가.** SEEN_UID 로는 이걸 알 수
+     없다 — 그건 부팅마다 지금 계정으로 덮어써지고(익명이든 아니든), 로그아웃하면 새 익명
+     계정 값이 들어간다. 그래서 따로, **지우지 않고** 적는다.
+     쓰는 곳은 하나다: 여기 표시가 있으면 얹기를 건너뛰고 곧장 로그인으로 간다(창 한 번). */
+  const HAD_ACCT = 'copycat.cloud.hadaccount';
+  const hadAccount = () => { try { return localStorage.getItem(HAD_ACCT) === '1'; } catch (e){ return false; } };
+  const markAccount = () => { try { localStorage.setItem(HAD_ACCT, '1'); } catch (e){} };
+
   const LINK_OFF = 'copycat.auth.nolink';
   const linkBlocked = () => { try { return localStorage.getItem(LINK_OFF) === '1'; } catch (e){ return false; } };
   const blockLink = () => { try { localStorage.setItem(LINK_OFF, '1'); } catch (e){} };
@@ -401,8 +409,11 @@
     ST.anon = !!user.is_anonymous;
     if (!ST.anon){
       note('들어옴: ' + (ST.who || '계정'));
+      markAccount();                     /* 이 기기는 이제 「들어온 적 있는 기기」다 */
       markRetry(false);                  /* 들어왔다 — 다음 판을 위해 표시를 지운다 */
-      try { localStorage.removeItem(LINK_OFF); } catch (e){}
+      /* **LINK_OFF 는 안 지운다.** 지웠더니 로그아웃하고 다시 들어올 때마다 얹기를
+         새로 시도하고, 그게 거절당해서 로그인 창이 **매번 두 번** 떴다.
+         「이 구글은 얹을 수 없다」는 사실은 시간이 지나도 참이다. */
     }
     ST.who = (!ST.anon && (user.email || (user.user_metadata || {}).email)) || '';
   }
@@ -436,7 +447,19 @@
     markRetry(false);
     try {
       /* 얹기가 막힌다는 것을 이미 안다면 묻지 않고 로그인으로 간다 */
-      if (linkBlocked()){ note('얹기 막힘을 기억함 → 로그인'); return await signInGoogle(); }
+      /* ── 창이 두 번 뜨던 이유 ──
+         얹기(linkIdentity)를 먼저 시도하고, 그게 「이미 다른 계정 것」으로 거절되면
+         로그인으로 갈아탔다 — 구글 화면을 **두 번** 지나야 했다. 돌아온 사람에게는
+         그 두 번이 매번이다.
+
+         그래서 **이 기기가 전에 계정으로 들어온 적이 있으면 얹기를 건너뛴다**
+         (HAD_ACCT). 들어온 적이 있다는 것은 그 구글이 이미 계정을 가졌다는 뜻이고,
+         그 경우 얹기는 언제나 거절된다.
+         새 기기·앱 데이터를 지운 판에는 그 표시가 없으므로 얹기로 간다(창 한 번). */
+      if (linkBlocked() || hadAccount()){
+        note(linkBlocked() ? '얹기 막힘을 기억함 → 로그인' : '전에 들어온 기기 → 곧장 로그인');
+        return await signInGoogle();
+      }
       if (ST.anon && sb.auth.linkIdentity){
         note('익명 계정에 얹기 시도');
         const r = await oauthGo(o => sb.auth.linkIdentity(o));
@@ -567,6 +590,29 @@
               + '연동했으니 고양이들이 따라옵니다.'}</p></div>
         <div class="mfoot"><button class="okbtn" data-close>${
           fail ? '닫기' : '좋아요'}</button></div>`);
+      /* **맨 위로 못 박는다.** 시작 화면은 z-index 9999 이고, 창을 위로 올려 주는 규칙은
+         `body.titleon` 이 붙어 있을 때만 걸린다(js/title.js 의 CSS). 그 반이 아직 안
+         붙은 사이에 창이 뜨면 **시작 화면 뒤에 깔린 채로 탭만 먹는다** — 화면에는
+         아무것도 없는데 아무것도 안 눌린다(아이폰 실측 2026-09-08, 「갇힌다」의 정체).
+         규칙에 기대지 않고 여기서 직접 올린다. */
+      try { m.veil.style.zIndex = '10001'; } catch (e){}
+
+      /* 실패했으면 **무슨 일이 있었는지**도 같이 보여 준다. 이 자취가 없으면 사람은
+         「안 된다」밖에 말할 수 없고, 그러면 나는 또 추측한다(이번에 네 번 했다). */
+      if (fail){
+        try {
+          const trail = sessionStorage.getItem('copycat.auth.note') || '';
+          if (trail){
+            const box = document.createElement('div');
+            box.className = 'tiny';
+            box.style.cssText = 'margin-top:10px;opacity:.55;white-space:pre-line;text-align:left';
+            box.textContent = trail;
+            const body = m.veil.querySelector('.mhead');
+            if (body) body.appendChild(box);
+          }
+        } catch (e){}
+      }
+
       /* 주소에 남은 표시를 지운다 — 새로 고칠 때마다 같은 창이 또 뜨면 안 된다.
          **해시까지** 지운다: 구글은 대개 그쪽에 실어 보낸다. */
       try {
@@ -577,10 +623,17 @@
     }, 250);
   }
 
+  /* **시작화면은 안 기다린다.** 「어느 사무실로 이어 갈까」는 게임을 시작하기 **전에**
+     물어야 하는 것이다 — 30초를 놀고 나서 「그 사무실은 사라집니다」를 보면 이미
+     늦었고, 무엇을 잃는지도 그때는 더 크다. 시작화면 위로는 이미 올라간다
+     (style: body.titleon .veil{z-index:10000} — 설정 창이 쓰는 그 규칙이다).
+
+     기다리는 것은 셋뿐이다: 프롤로그(.opening)는 끊으면 안 되고, 다른 창(.veil)이나
+     안내(.coach)가 열려 있으면 그 위에 겹쳐서 둘 다 못 읽게 된다. */
   function whenVisible(fn){
     let n = 0;
     const t = setInterval(() => {
-      const busy = document.querySelector('#cctitle, .opening, .veil, .coach');
+      const busy = document.querySelector('.opening, .veil, .coach');
       if (!busy){ clearInterval(t); fn(); return; }
       if (++n > 60){ clearInterval(t); }
     }, 500);

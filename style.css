@@ -2795,6 +2795,10 @@ body.eerie #app.tabbar .edithud button{position:relative;z-index:1;width:38px;he
   display:flex;align-items:center;justify-content:center}
 body.eerie #app.tabbar .edithud button svg{display:block;width:19px;height:19px;fill:currentColor}
 body.eerie #app.tabbar .edithud button:active{background:var(--ui-sunk)}
+/* **못 치우는 것에는 ✕ 를 안 그린다**(책상·결재함…). 위 규칙이 button 에 display 를
+   주므로 hidden 속성만으로는 안 사라진다 — 그래서 여기서 한 번 더 말한다.
+   화면 쪽은 el.hidden 한 줄로 끝난다(js/cozy.js hudFollow). */
+body.eerie #app.tabbar .edithud button[hidden]{display:none}
 body.eerie #app.tabbar .edithud [data-k="esc"]{color:var(--ui-soft)}
 
 /* ── 미리보기 — UI 를 잠깐 걷는다 ── */
