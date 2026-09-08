@@ -290,7 +290,30 @@ function afterReady(fn){
 
    그리고 **실패를 삼키지 않는다.** 조용한 .catch(() => {}) 가 그 세 번 동안
    "왜 오프라인이 안 켜지지" 를 대답 불가능한 질문으로 만들었다. */
-if ('serviceWorker' in navigator)
+/* **앱에서는 서비스 워커를 안 쓴다.** 앱은 파일을 통째로 들고 있어서 캐시가 벌어 주는
+   것이 없고, 대신 잃는 것이 크다: 스토어로 새 판을 받아도 웹 자산은 **캐시의 옛것**이
+   한 번 더 뜬다. 실제로 1.0.6 에서 그 일이 났다 — 네이티브 고침(키보드)은 바로 먹었는데
+   화면 고침(상단 바)은 안 먹어서, 「고쳤다는데 그대로다」가 또 됐다.
+   이미 등록돼 있는 기기도 있으므로 **떼어내고 캐시도 지운다**(다음 실행부터 깨끗해진다). */
+var CC_NATIVE = (function () {
+  try {
+    if (window.Capacitor && (Capacitor.isNativePlatform
+      ? Capacitor.isNativePlatform() : (Capacitor.getPlatform && Capacitor.getPlatform() !== 'web'))) return true;
+    if (location.protocol === 'capacitor:') return true;                 // iOS
+    return location.hostname === 'localhost' && !location.port
+        && location.protocol === 'https:';                              // 안드로이드
+  } catch (e) { return false; }
+})();
+
+if (CC_NATIVE) {
+  if ('serviceWorker' in navigator && navigator.serviceWorker.getRegistrations)
+    navigator.serviceWorker.getRegistrations()
+      .then(function (rs) { rs.forEach(function (r) { r.unregister(); }); })
+      .catch(function () {});
+  if (window.caches && caches.keys)
+    caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); })
+      .catch(function () {});
+} else if ('serviceWorker' in navigator)
   navigator.serviceWorker.register('./sw.js').catch(e =>
     console.warn('[copycat] 서비스 워커 등록 실패 — 오프라인은 안 켜집니다:', e));
 ${installJS}`;

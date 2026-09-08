@@ -1199,9 +1199,13 @@ body.gacut .deco, body.gacut .bubble, body.gacut .tag3d, body.gacut #tags3d{
 .osub.them span{color:#FFC98F;font-style:normal}
 
 .oskip{position:absolute;top:calc(7.5vh + 14px);right:18px;z-index:5;cursor:pointer;
+  display:flex;align-items:center;gap:6px;
   font-size:12px;font-weight:700;letter-spacing:.4px;color:#BDB6A8;
   border:2px solid rgba(189,182,168,.35);padding:6px 11px;border-radius:3px;
   background:rgba(0,0,0,.35);transition:all .15s}
+/* 그림은 **직접 그린 것**이다(js/three/opening.js 가 넣는다). 글자와 같은 색을 쓰므로
+   테두리에 마우스를 올려 색이 뒤집힐 때 그림도 같이 뒤집힌다 — 이모지였으면 혼자 남는다. */
+.oskip svg{display:block;width:13px;height:13px;fill:currentColor;flex:none}
 .oskip:hover{color:#0B0D14;background:#E9E1D2;border-color:#E9E1D2}
 /* 장면 아래 모서리에 딱 붙는다 — 레터박스 띠의 바로 위. 띄우면 자막 자리를 먹는다 */
 .ohint{position:absolute;bottom:calc(7.5vh + 3px);right:20px;z-index:4;font-size:10.5px;

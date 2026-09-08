@@ -126,9 +126,9 @@ const UI = {
   gate2: { ko:'소리를 켜고 보는 편이 좋습니다', en:'Best with sound on', ja:'音を出して見るのがおすすめです' },
   /* ️ 를 붙여 **그림으로** 그리게 못 박는다. U+23ED 는 기본 표현이 글자라,
      안 붙이면 아이폰에서 파란 글자 기호로 나온다(실기기 2026-09-08). */
-  /* U+23E9 는 **기본 표현이 그림**이라 표시자 없이도 그림으로 나온다.
-     U+23ED 는 그 반대라 ️ 를 붙여도 기기에 따라 글자 기호로 남았다. */
-  skip:  { ko:'건너뛰기 ⏩', en:'Skip ⏩', ja:'スキップ ⏩' },
+  /* 그림은 **직접 그린 것**을 쓴다. 이모지는 기기마다 다른 사람이 그린 그림이고,
+     어떤 기기에서는 아예 글자 기호로 떨어진다(U+23ED 가 그랬다). */
+  skip:  { ko:'건너뛰기', en:'Skip', ja:'スキップ' },
   next:  { ko:'화면을 누르면 다음 장면', en:'Click to advance', ja:'クリックで次の場面' },
 };
 
@@ -1719,7 +1719,12 @@ export function play(opt = {}){
   el('div', 'obar bot', root);
   const sub = el('div', 'osub', root, '<span></span>');
   const fade = el('div', 'ofade', root);
-  const skip = el('div', 'oskip', root, T(UI.skip));
+  /* 두 겹 삼각형. 폰 스킨의 아이콘 표(js/cozy.js 의 skip)와 **같은 그림**이라
+     한 게임 안에서 그림체가 갈리지 않는다. 여기서는 스킨이 없을 수도 있어
+     (프롤로그는 스킨보다 먼저 뜬다) 경로를 그대로 박아 둔다. */
+  const SKIP_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">'
+    + '<path d="M3.6 5.4 12.2 12 3.6 18.6V5.4Z M12.6 5.4 21.2 12 12.6 18.6V5.4Z"/></svg>';
+  const skip = el('div', 'oskip', root, T(UI.skip) + SKIP_SVG);
   const hint = el('div', 'ohint', root, T(UI.next));
   const gate = el('div', 'ogate', root,
     `<button class="ogo">${T(UI.gate)}</button><div class="ogate2">${T(UI.gate2)}</div>`);

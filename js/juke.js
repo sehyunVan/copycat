@@ -84,7 +84,7 @@ function jukeBodyHTML(){
     </div>
     <div class="jukevol">
       <button class="volem" id="volMute" title="${L({ ko:'음소거', en:'Mute', ja:'ミュート' })}">${
-        soundVol === 0 ? '🔇️' : soundVol < 0.34 ? '🔈️' : soundVol < 0.7 ? '🔉️' : '🔊️'}</button>
+        soundVol === 0 ? '🔇' : '🔊'}</button>
       <input type="range" id="volRange" min="0" max="100" step="1" value="${Math.round(soundVol * 100)}"
              aria-label="${L({ ko:'음량', en:'Volume', ja:'音量' })}">
       <span class="volnum">${Math.round(soundVol * 100)}</span>
@@ -172,15 +172,19 @@ function showJuke(){
       const v = Math.round(soundVol * 100);
       if (vr && Number(vr.value) !== v) vr.value = v;
       if (vn) vn.textContent = v;
-      /* **스피커 이모지를 그대로 쓴다.** 폰 스킨이 이걸 그린 물결(∿)로 바꾸는데,
-         그 그림은 「소리」로는 읽혀도 **「음량 손잡이」로는 안 읽힌다** — 손잡이 옆에
-         있는 그림은 무엇을 조절하는지 한눈에 말해야 한다.
-         `dataset.icon` 을 미리 채워 두면 스킨의 swap 이 이 칸을 건너뛴다(js/cozy.js).
-         ️ 는 그림으로 그리라는 표시다 — 없으면 기기에 따라 글자 기호로 나온다. */
+      /* **직접 그린 아이콘**을 쓴다(js/cozy.js 의 vol · mute). 이모지는 기기마다 다른
+         사람이 그린 그림이 나와서 이 게임의 그림체와 안 붙는다 — 아이콘을 따로 그려 둔
+         이유가 그것이다(js/icons.js 머리말).
+         `dataset.icon` 을 지우고 다시 부른다: swap 은 한 번 그린 칸을 건너뛴다.
+         아이콘 손잡이가 없는 판(데스크톱)에서는 이모지로 내려간다. */
       if (vm){
-        vm.dataset.icon = 'keep';
-        vm.textContent = soundVol === 0 ? '🔇️' : soundVol < 0.34 ? '🔈️'
-                       : soundVol < 0.7 ? '🔉️' : '🔊️';
+        const on = soundVol > 0;
+        if (typeof CCIcon === 'function'){
+          delete vm.dataset.icon;
+          CCIcon(vm, on ? 'vol' : 'mute');
+        } else {
+          vm.textContent = on ? '🔊' : '🔇';
+        }
       }
     };
     let lastOn = soundVol || 0.7;
