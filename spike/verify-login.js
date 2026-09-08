@@ -84,10 +84,12 @@ const look0 = await ev(`(()=>{ const v=document.querySelector('.veil');
   const lum= rgb.length===3 ? Math.round(rgb[0]*0.299+rgb[1]*0.587+rgb[2]*0.114) : -1;
   return { below: gb.top > mb.top, svg: !!g.querySelector('.gmark svg'),
            colors: [...g.querySelectorAll('.gmark svg path')].map(p=>p.getAttribute('fill')),
+           inner: (g.querySelector('.gmark')||{}).innerHTML ? (g.querySelector('.gmark').innerHTML).slice(0,80) : '(없음)',
            bg: cs.backgroundColor, lum,
            markBg: getComputedStyle(g.querySelector('.gmark')).backgroundColor }; })()`);
 ok('구글이 메일칸 **아래**에 있다', look0.below, look0.below?'그렇다':'위에 있다');
-ok('구글 로고가 붙어 있다', look0.svg && look0.colors.length === 4, look0.colors.join(' '));
+ok('구글 로고가 붙어 있다', look0.svg && look0.colors.length === 4,
+   `svg ${look0.svg} · 색 ${look0.colors.length} [${look0.colors.join(' ')}] · 안쪽 ${look0.inner}`);
 ok('로고는 흰 바탕 위에 (브랜드 규정)', /255, 255, 255/.test(look0.markBg), look0.markBg);
 /* **재기는 재야 한다.** 밝기가 -1(못 읽음)이거나 0(계산이 깨짐)이면 통과가 아니라
    실패다 — 그러지 않으면 어떤 색이든 통과하는 검사가 된다. */

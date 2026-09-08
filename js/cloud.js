@@ -146,6 +146,27 @@
     erase: () => eraseAccount(),
   };
 
+  /* ── 로그인하고 **돌아온 판인가** ──
+     구글로 넘어갔다 오면 주소에 표시가 붙어 온다(`#access_token=…` 또는 `?code=…`).
+     Supabase 클라이언트가 그걸 먹고 지우므로 **만들기 전에** 여기서 봐 둔다.
+
+     왜 필요한가: 돌아오면 페이지가 처음부터 다시 뜨고, 시작 화면도 그대로 다시 뜬다 —
+     눌렀던 그 자리로 돌아온 것처럼 보인다. 됐는지 안 됐는지를 말해 주지 않으면
+     사람은 한 번 더 누른다. */
+  const CAME_BACK = (() => {
+    try {
+      const h = location.hash || '', q = location.search || '';
+      if (/access_token=|provider_token=/.test(h)) return 'ok';
+      if (/[?&]code=/.test(q)) return 'ok';
+      /* 실패도 주소에 실려 온다. 「아무 일도 없었다」로 보이면 안 된다. */
+      if (/error=|error_description=/.test(h + q)){
+        const m = (h + q).match(/error_description=([^&]*)/);
+        return 'fail:' + (m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : '');
+      }
+      return '';
+    } catch (e){ return ''; }
+  })();
+
   const off = why => { ST.on = false; ST.why = why; return false; };
 
   /* 돌 수 있는 자리인가 — 하나라도 아니면 조용히 잠든다 */
@@ -197,6 +218,7 @@
       who(session.user);
       ST.on = true; ST.why = '';
       nativeHooks();
+      if (CAME_BACK) sayLinked();
     } catch (e){ return off('시작 실패: ' + (e && e.message)); }
 
     await pull();
@@ -350,6 +372,39 @@
 
   /* 방이 화면에 나올 때까지 기다린다 — 시작화면 · 프롤로그 · 근로계약서가 다 지나간 뒤.
      30초를 넘기면 그냥 포기한다(그 사람은 지금 게임을 보고 있지 않다). */
+  /* 돌아왔다고 말한다. 게임의 modal 을 쓴다 — 시작 화면 위로 뜨는 규칙이 이미 있다
+     (style 의 `body.titleon .veil{z-index:10000}`). 말풍선(toast)은 시작 화면 뒤로
+     숨어서 **돌아온 바로 그 순간에는 안 보인다.**
+
+     시작 화면이 아직 안 그려졌을 수 있어(스크립트 순서) 조금 기다렸다 띄운다. */
+  function sayLinked(){
+    /* **묶였는지는 주소가 아니라 계정을 보고 판단한다.** 돌아왔다는 표시가 붙어 있어도
+       익명 그대로일 수 있고(중간에 취소·거절), 그때 「묶었습니다」라고 하면 거짓말이다. */
+    const fail = /^fail/.test(CAME_BACK) || ST.anon;
+    const why = /^fail/.test(CAME_BACK) ? CAME_BACK.slice(5) : '';
+    let n = 0;
+    const t = setInterval(() => {
+      if (typeof modal !== 'function'){ if (++n > 40) clearInterval(t); return; }
+      clearInterval(t);
+      const m = modal(`
+        <div class="mhead"><div class="q">ACCOUNT</div>
+          <h3>${fail ? '연결하지 못했습니다' : '사무실을 계정에 묶었습니다'}</h3>
+          <p>${fail
+            ? (esc(why) || '다시 시도해 주세요.')
+            : (ST.who ? esc(ST.who) + ' 로 들어왔습니다.' : '들어왔습니다.')
+              + ' 이제 폰을 바꾸거나 앱을 지워도 고양이들이 따라옵니다.'}</p></div>
+        <div class="mfoot"><button class="okbtn" data-close>${
+          fail ? '닫기' : '좋아요'}</button></div>`);
+      /* 주소에 남은 표시를 지운다 — 새로 고칠 때마다 같은 창이 또 뜨면 안 된다.
+         **해시까지** 지운다: 구글은 대개 그쪽에 실어 보낸다. */
+      try {
+        const q = location.search.replace(/([?&])code=[^&]*&?/, '$1').replace(/[?&]$/, '');
+        history.replaceState(null, '', location.pathname + q);
+      } catch (e){}
+      return m;
+    }, 250);
+  }
+
   function whenVisible(fn){
     let n = 0;
     const t = setInterval(() => {

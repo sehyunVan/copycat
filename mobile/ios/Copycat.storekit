@@ -1,0 +1,65 @@
+{
+  "identifier": "00000000-0000-0000-0000-000000000001",
+  "nonRenewingSubscriptions": [],
+  "products": [
+    {
+      "displayPrice": "3300",
+      "familyShareable": false,
+      "internalID": "1000",
+      "localizations": [
+        {
+          "description": "캣닢 상자 5개. 열면 가구·고양이·서류가 나옵니다.",
+          "displayName": "상자 5개",
+          "locale": "ko_KR"
+        }
+      ],
+      "productID": "box_05",
+      "referenceName": "상자 5개",
+      "type": "Consumable"
+    },
+    {
+      "displayPrice": "6600",
+      "familyShareable": false,
+      "internalID": "1001",
+      "localizations": [
+        {
+          "description": "캣닢 상자 12개. 열면 가구·고양이·서류가 나옵니다.",
+          "displayName": "상자 12개",
+          "locale": "ko_KR"
+        }
+      ],
+      "productID": "box_12",
+      "referenceName": "상자 12개",
+      "type": "Consumable"
+    },
+    {
+      "displayPrice": "14000",
+      "familyShareable": false,
+      "internalID": "1002",
+      "localizations": [
+        {
+          "description": "캣닢 상자 30개. 열면 가구·고양이·서류가 나옵니다.",
+          "displayName": "상자 30개",
+          "locale": "ko_KR"
+        }
+      ],
+      "productID": "box_30",
+      "referenceName": "상자 30개",
+      "type": "Consumable"
+    }
+  ],
+  "settings": {
+    "_applicationInternalID": "",
+    "_developerTeamID": "",
+    "_failTransactionsEnabled": false,
+    "_lastSynchronizedDate": 0,
+    "_locale": "ko_KR",
+    "_storefront": "KOR",
+    "_storeKitErrors": []
+  },
+  "subscriptionGroups": [],
+  "version": {
+    "major": 4,
+    "minor": 0
+  }
+}

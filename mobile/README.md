@@ -71,6 +71,50 @@ Capacitor 는 플랫폼별 webDir 을 지원하지 않는다. `dist/iphone` 과�
 의존성은 CocoaPods 가 아니라 **Swift Package Manager** 로 들어간다(Capacitor 8).
 Xcode 가 처음 열릴 때 패키지를 받으니 잠깐 기다린다.
 
+### 윈도우에서 sync 를 돌렸다면 — 경로부터 고친다
+
+의존성 목록(`ios/App/CapApp-SPM/Package.swift`)은 `cap sync` 가 쓴다. 그런데
+**윈도우에서 돌리면 경로를 역슬래시로 적는다**:
+
+    .package(name: "CapacitorApp", path: "..\..\..\node_modules\@capacitor\app")
+
+Swift Package Manager 는 이걸 경로로 안 읽는다 — 맥에서 열면 의존성을 못 찾고 거기서
+멈춘다. 파일에 「고치지 마라」고 적혀 있지만 그 CLI 가 윈도우에서 잘못 쓴 것이라 되돌린다:
+
+    node tools/fix-ios-spm.js
+
+**윈도우에서 `npx cap sync ios` 를 돌릴 때마다 다시 깨지므로 그 뒤에 같이 돌린다.**
+맥에서 sync 를 돌렸으면 할 일이 없다(그쪽은 슬래시로 쓴다).
+
+### 상자 사는 칸이 iOS 에서 뜨려면
+
+코드는 플랫폼을 안 가린다 — `js/store.js` 에 `appl_…` 키가 이미 있고, 안드로이드
+전용 분기는 한 줄도 없다. 화면이 뜨는 조건은 셋이며 **셋 다 스토어 쪽 일**이다:
+
+1. App Store Connect 에 소모품 `box_05` · `box_12` · `box_30` (PAY.md 3)
+2. **유료 앱 계약**이 활성 — 이게 비면 애플이 상품을 안 돌려준다 (PAY.md 3-4)
+3. RevenueCat 의 App Store 앱에 번들 `sarl.copycat.app` 과 **App Store 공유 비밀**
+
+셋 중 하나라도 비면 `getProducts` 가 빈 배열을 주고, 상점은 **일부러** 안 뜬다
+(살 수 없는 단추를 그리지 않는다 — `js/store.js`).
+
+### 스토어가 서기 전에 그 칸을 보려면 — StoreKit 테스트 파일
+
+`mobile/ios/Copycat.storekit` 에 소모품 셋을 같은 코드(`box_05`·`box_12`·`box_30`)로
+적어 뒀다. Xcode 가 이 파일을 보면 **App Store Connect 없이도** 상품을 돌려주므로,
+개발 빌드에서 상자 사는 칸이 그대로 뜬다.
+
+    Xcode → Product → Scheme → Edit Scheme… → Run → Options
+      → StoreKit Configuration → **Copycat.storekit**
+
+여기서 산 것은 **애플의 시험 거래**라 RevenueCat 웹훅이 안 울린다 — 즉 잔액은 안 오른다.
+화면과 값·글자 길이를 보는 용도다. 진짜 결제 시험은 샌드박스 계정 + 실제 소모품으로 한다
+(PAY.md 7). 웹에서 틀만 볼 때는 `?store=demo` 가 같은 일을 한다.
+
+앱 버전은 안드로이드와 맞춰 둔다 — 지금 `MARKETING_VERSION 1.0.7` / 빌드 `7`.
+게임 시작화면의 도장은 안드로이드 build.gradle 을 읽으므로, 두 쪽을 같이 올려야
+도장과 스토어 표시가 어긋나지 않는다.
+
 ### Xcode 에서 한 번만 하는 것
 
 1. 왼쪽에서 **App** 타깃 → **Signing & Capabilities**
