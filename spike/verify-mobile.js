@@ -209,6 +209,30 @@ const BASE = 'http://localhost:8123/dist/';
       setCol('stage');
       return { onStage, onShop, onInbox, shopCol, shopCls, n } })()`);
     ok(leak.onStage !== 'none', '무대에서는 분기 카드 자리가 있다', leak.onStage);
+    /* **위쪽이 서로 안 겹치는가.** 안전 영역은 헤드리스에서 못 만들지만, 「띠 아래에서
+       시작한다」는 규칙 자체는 여기서도 잰다 — 숫자를 박아 두면 그 규칙이 깨져도
+       조용하다(실기기에서 두 번 겹쳤다: 상태바와, 그다음엔 설정 단추와). */
+    const top = await ev(`(async()=>{
+      setCol('stage'); await new Promise(r=>setTimeout(r,500));
+      const bar = document.querySelector('#topbar').getBoundingClientRect();
+      const rail = document.querySelector('.doorrail');
+      const chip = document.querySelector('.clockchip');
+      const rb = rail ? rail.getBoundingClientRect() : null;
+      const cb = chip ? chip.getBoundingClientRect() : null;
+      const gear = document.querySelector('#topbar .gearbtn, #topbar #btnMore, #topbar .iconbtn');
+      return { barBottom: Math.round(bar.bottom),
+               railTop: rb ? Math.round(rb.top) : null,
+               chipTop: cb ? Math.round(cb.top) : null,
+               gearBottom: gear ? Math.round(gear.getBoundingClientRect().bottom) : null,
+               v: getComputedStyle(document.querySelector('#app')).getPropertyValue('--topb').trim() } })()`);
+    ok(top.railTop !== null && top.railTop >= top.barBottom,
+       '**오른쪽 줄이 상단 띠 아래에서 시작한다**',
+       `띠 아래 ${top.barBottom} · 줄 ${top.railTop} · --topb ${top.v}`);
+    ok(top.gearBottom === null || top.railTop >= top.gearBottom,
+       '설정 단추와 안 겹친다', `설정 아래 ${top.gearBottom} · 줄 ${top.railTop}`);
+    ok(top.chipTop !== null && top.chipTop >= top.barBottom - 4,
+       '시계 칩도 띠 아래에 있다', `칩 ${top.chipTop}`);
+
     ok(leak.onShop === 'none' && leak.onInbox === 'none',
        '**다른 탭에는 안 따라온다**',
        `비품 ${leak.onShop} · 결재함 ${leak.onInbox} · data-col ${leak.shopCol} · 겹친 stack ${leak.n} · ${leak.shopCls}`);

@@ -84,7 +84,7 @@ function jukeBodyHTML(){
     </div>
     <div class="jukevol">
       <button class="volem" id="volMute" title="${L({ ko:'음소거', en:'Mute', ja:'ミュート' })}">${
-        soundVol === 0 ? '🔇' : soundVol < 0.34 ? '🔈' : soundVol < 0.7 ? '🔉' : '🔊'}</button>
+        soundVol === 0 ? '🔇️' : soundVol < 0.34 ? '🔈️' : soundVol < 0.7 ? '🔉️' : '🔊️'}</button>
       <input type="range" id="volRange" min="0" max="100" step="1" value="${Math.round(soundVol * 100)}"
              aria-label="${L({ ko:'음량', en:'Volume', ja:'音量' })}">
       <span class="volnum">${Math.round(soundVol * 100)}</span>
@@ -172,15 +172,15 @@ function showJuke(){
       const v = Math.round(soundVol * 100);
       if (vr && Number(vr.value) !== v) vr.value = v;
       if (vn) vn.textContent = v;
-      /* **다시 그린 아이콘으로 돌려놓는다.** 폰 스킨(js/cozy.js)이 처음 한 번 이모지를
-         그린 아이콘으로 바꿔 두는데, 여기서 textContent 로 덮으면 그 그림이 날아가고
-         그 자리만 혼자 이모지가 된다 — 손잡이를 움직이는 순간 그림체가 바뀐다. */
+      /* **스피커 이모지를 그대로 쓴다.** 폰 스킨이 이걸 그린 물결(∿)로 바꾸는데,
+         그 그림은 「소리」로는 읽혀도 **「음량 손잡이」로는 안 읽힌다** — 손잡이 옆에
+         있는 그림은 무엇을 조절하는지 한눈에 말해야 한다.
+         `dataset.icon` 을 미리 채워 두면 스킨의 swap 이 이 칸을 건너뛴다(js/cozy.js).
+         ️ 는 그림으로 그리라는 표시다 — 없으면 기기에 따라 글자 기호로 나온다. */
       if (vm){
-        const em = soundVol === 0 ? '🔇' : soundVol < 0.34 ? '🔈'
-                 : soundVol < 0.7 ? '🔉' : '🔊';
-        vm.textContent = em;
-        delete vm.dataset.icon;              // 다시 바꿔도 되는 상태로 되돌린다
-        if (typeof CCIcon === 'function') CCIcon(vm, em === '🔇' ? 'mute' : 'wave');
+        vm.dataset.icon = 'keep';
+        vm.textContent = soundVol === 0 ? '🔇️' : soundVol < 0.34 ? '🔈️'
+                       : soundVol < 0.7 ? '🔉️' : '🔊️';
       }
     };
     let lastOn = soundVol || 0.7;

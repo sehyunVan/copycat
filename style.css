@@ -1557,12 +1557,12 @@ body.r3ready #loadgate{opacity:0;visibility:hidden}
 /* 안전 영역. 아이폰의 홈 인디케이터(아래 34px)와 노치가 화면을 먹는다 —
    viewport-fit=cover 로 화면 전체를 쓰는 대신 그 몫을 우리가 비켜 줘야 한다.
    안드로이드에서도 제스처 바가 있으면 같은 값이 들어오고, 없으면 0 이다. */
-/* `--toph` 는 **상단 띠의 실제 높이**다(js/cozy.js 의 hudTop 이 재서 넣는다).
+/* `--topb` 는 **상단 띠의 아래 모서리**다(js/cozy.js 의 hudTop 이 재서 넣는다).
    여기 적은 것은 그 전에 쓰이는 기본값이라 안전 영역까지 포함한다 — JS 가 늦어도
    어긋나지 않는다. 방 위에 뜨는 것들이 이걸 기준으로 앉는다: 각자 숫자를 들고 있으면
    기기가 바뀔 때마다 따로 어긋난다(--hudtop 이 시계 칩을 재는 것과 같은 이유다). */
 #app.tabbar{--tabbar:54px;--dockh:28px;--safeb:env(safe-area-inset-bottom, 0px);
-  --toph:calc(62px + env(safe-area-inset-top, 0px));overflow:hidden}
+  --topb:calc(62px + env(safe-area-inset-top, 0px));overflow:hidden}
 #app.tabbar #topbar{padding-top:calc(4px + env(safe-area-inset-top, 0px))}
 #app.tabbar #main{display:block;position:relative;padding:0;gap:0;overflow:hidden}
 #app.tabbar .stagewrap{position:absolute;left:0;right:0;top:0;
@@ -2086,7 +2086,7 @@ body.eerie #app.tabbar .stagewrap::before{content:'';position:absolute;left:0;ri
 
    `backdrop-filter` 가 안 먹는 환경이 있어서(구형 WebView) 바탕색 자체에 알파를 준다 —
    블러가 빠져도 반투명 판은 남는다. */
-body.eerie #app.tabbar .clockchip{left:12px;top:var(--toph);max-width:266px;border:0;border-radius:15px;
+body.eerie #app.tabbar .clockchip{left:12px;top:calc(var(--topb) - 2px);max-width:266px;border:0;border-radius:15px;
   background:var(--ui-glass);backdrop-filter:var(--ui-blur);-webkit-backdrop-filter:var(--ui-blur);
   box-shadow:var(--ui-glasslift),inset 0 0 0 1px var(--ui-glassline);
   padding:9px 14px 12px;color:var(--ui-glassink);overflow:hidden}
@@ -3088,7 +3088,9 @@ body.eerie.cozyskin .modal .calrow .tx{color:var(--ui-soft)}
 body.eerie.cozyskin .modal .empty{color:var(--ui-soft)}
 
 /* ── 우측 상단 세로 1열 — 달력 · 게시판 · 음악 ── */
-body.eerie #app.tabbar .doorrail{position:fixed;right:12px;top:calc(var(--toph) + 52px);z-index:7;
+/* 줄은 **띠 아래에서** 시작한다. 예전에는 `112px` 이었는데 그건 띠가 62px 이던 시절의
+   숫자다 — 안전 영역이 붙는 기기에서는 그 값이 띠 한가운데를 가리켜 설정 단추와 겹쳤다. */
+body.eerie #app.tabbar .doorrail{position:fixed;right:12px;top:calc(var(--topb) + 8px);z-index:7;
   display:none;flex-direction:column;gap:8px}
 body.eerie #app.tabbar[data-col="stage"] .doorrail{display:flex}
 /* 시트가 열려 있어도 줄은 남는다 — 망치가 그 줄의 첫 칸이고, 켜졌다는 표시가 거기
@@ -3121,8 +3123,12 @@ body.eerie #app.tabbar .doorrail .decobtn{width:52px;padding:8px 4px 7px;border:
   font:inherit;font-size:9.5px;font-weight:700}
 body.eerie #app.tabbar .doorrail .decobtn.on{background:var(--ui-accent);color:var(--ui-accentink);
   backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:var(--ui-lift)}
-/* 줄이 위로 올라온다 — 이제 넷이라 시계 밑에서 시작한다 */
-body.eerie #app.tabbar .doorrail{top:60px}
+/* 줄이 위로 올라온다 — 이제 넷이라 띠 바로 밑에서 시작한다.
+   **여기에 숫자를 다시 적지 않는다.** 예전에 `top:60px` 이 이 자리에 있었는데, 위쪽
+   3093 줄이 이미 자리를 정하고 있어서 **같은 선택자가 뒤에서 조용히 이겼다** —
+   위를 고쳐도 아무 일이 안 일어나는 자리였다(실기기에서 설정 단추와 겹쳤다).
+   자리는 한 곳에서만 정한다. */
+body.eerie #app.tabbar .doorrail{top:calc(var(--topb) + 8px)}
 
 /* ── 1. 견본 칸 정렬 ──
    가구는 **물건 하나**라 칸 안에 여백을 두고 앉히는 게 맞지만, 벽지·바닥·러그는

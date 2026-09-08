@@ -9,15 +9,36 @@
    ============================================================ */
 (function () {
   'use strict';
-  try { if (!/[?&]diag=1/.test(location.search)) return; } catch (e) { return; }
+  /* 켜는 길이 둘이다.
+     · 웹: 주소에 ?diag=1
+     · 앱: **왼쪽 위 고양이 로고를 1.2초 길게 누른다** — 앱에는 주소창이 없어서
+       질의문자를 붙일 수가 없다. 폰에서만 나는 증상은 앱에서 나므로, 앱에서 열 수
+       있어야 이 창이 쓸모가 있다. 우연히 눌릴 자리가 아니라 숨긴 문으로 충분하다. */
+  const auto = (() => { try { return /[?&]diag=1/.test(location.search); } catch (e) { return false; } })();
 
   const box = document.createElement('div');
   box.id = 'ccdiag';
   box.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99999;pointer-events:none;' +
     'background:rgba(10,8,6,.86);color:#FFE9C8;font:11px/1.45 ui-monospace,Menlo,Consolas,monospace;' +
     'padding:6px 8px;white-space:pre;letter-spacing:0';
-  const put = () => (document.body || document.documentElement).appendChild(box);
-  if (document.body) put(); else document.addEventListener('DOMContentLoaded', put);
+  let on = false;
+  function show(v){
+    on = v;
+    if (!v) { if (box.parentNode) box.parentNode.removeChild(box); return; }
+    (document.body || document.documentElement).appendChild(box);
+    paint();
+  }
+  function armLongPress(){
+    const hit = document.querySelector('.brand') || document.querySelector('#logo');
+    if (!hit) return setTimeout(armLongPress, 1000);
+    let t = null;
+    const start = () => { clearTimeout(t); t = setTimeout(() => show(!on), 1200); };
+    const stop = () => clearTimeout(t);
+    ['pointerdown'].forEach(e => hit.addEventListener(e, start));
+    ['pointerup', 'pointerleave', 'pointercancel'].forEach(e => hit.addEventListener(e, stop));
+  }
+  if (document.body) armLongPress(); else document.addEventListener('DOMContentLoaded', armLongPress);
+  if (auto) { if (document.body) show(true); else document.addEventListener('DOMContentLoaded', () => show(true)); }
 
   const n = v => Math.round(v || 0);
 
@@ -49,12 +70,11 @@
       '화면보다 넓은 것: ' + widest();
   }
 
-  paint();
   ['resize', 'orientationchange', 'focusin', 'focusout', 'scroll'].forEach(t =>
-    window.addEventListener(t, paint, true));
+    window.addEventListener(t, () => { if (on) paint(); }, true));
   if (window.visualViewport){
-    window.visualViewport.addEventListener('resize', paint);
-    window.visualViewport.addEventListener('scroll', paint);
+    window.visualViewport.addEventListener('resize', () => { if (on) paint(); });
+    window.visualViewport.addEventListener('scroll', () => { if (on) paint(); });
   }
-  setInterval(paint, 700);   /* 배치는 게임이 늦게 바꾸기도 한다 */
+  setInterval(() => { if (on) paint(); }, 700);   /* 배치는 게임이 늦게 바꾸기도 한다 */
 })();

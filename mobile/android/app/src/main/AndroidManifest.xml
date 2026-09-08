@@ -9,12 +9,20 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
+        <!-- 키보드가 올라올 때 **창을 건드리지 않는다**(windowSoftInputMode=adjustNothing).
+             Capacitor 8 은 자기가 웹뷰 부모에 키보드 높이만큼 padding 을 준다
+             (SystemBars.java: setPadding(0,0,0,imeInsets.bottom) — 웹뷰 140+ 이고
+             viewport-fit=cover 면 안드로이드 버전과 무관하게 돈다). 그런데 창의 기본값
+             adjustResize 가 **같은 높이를 한 번 더** 깎아서, 키보드를 열면 화면이 두 번
+             줄어 납작해졌다(915 → 155). iOS 에는 이 코드가 없어서 안드로이드에서만 났다.
+             조정은 한 곳에서만 한다. -->
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
             android:name=".MainActivity"
             android:screenOrientation="portrait"
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme.NoActionBarLaunch"
+            android:windowSoftInputMode="adjustNothing"
             android:launchMode="singleTask"
             android:exported="true">
 

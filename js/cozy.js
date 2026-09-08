@@ -72,8 +72,12 @@
        추측한 값을 들고 있으면 그 띠 밑으로 파고든다 — 아이폰에서 실제로 그랬다
        (2026-09-08). 띠를 재서 넘기면 칩도 오른쪽 줄도 같이 따라온다. */
     const bar = doc.getElementById('topbar');
-    const bh = bar ? Math.round(bar.getBoundingClientRect().height) : 0;
-    if (bh) app.style.setProperty('--toph', bh + 'px');
+    /* **높이가 아니라 아래 모서리**를 넘긴다. 높이를 주면 읽는 쪽이 「띠는 0 에서
+       시작한다」를 가정해야 하는데, 그 띠는 배치에 따라 absolute 이기도 하다 —
+       가정이 틀리면 오른쪽 줄이 띠 위로 올라가 설정 단추와 겹친다(실기기 2026-09-08).
+       bottom 은 가정이 필요 없다. */
+    const bb = bar ? Math.round(bar.getBoundingClientRect().bottom) : 0;
+    if (bb > 0) app.style.setProperty('--topb', bb + 'px');
 
     const h = clock.offsetHeight;
     if (!h) return;                                        /* 아직 안 그려졌다 */
