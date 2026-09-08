@@ -185,15 +185,26 @@
   const signInGoogle = delay => oauthGo(o => sb.auth.signInWithOAuth(o), delay);
 
   let landing = false;
-  let lastUrl = '', lastAt = 0;
   async function finishLogin(raw){
     const url = String(raw || '');
     if (!sb || landing || url.indexOf(APP_SCHEME + '://') !== 0) return;
-    /* **같은 주소가 두 번 온다.** appUrlOpen 과 getLaunchUrl 이 둘 다 물어다 주는 판이
-       있어서, 두 번째가 「이미 처리한 오류」로 실패 안내를 띄웠다. 잠깐 사이의 같은
-       주소는 한 번만 본다. */
-    if (url === lastUrl && Date.now() - lastAt < 8000) return;
-    lastUrl = url; lastAt = Date.now();
+    /* **같은 주소를 두 번 먹지 않는다.**
+       appUrlOpen 과 getLaunchUrl 이 둘 다 물어다 주는 판이 있고, 그보다 나쁜 것이
+       하나 더 있다: 아래에서 세션을 세운 뒤 페이지를 새로 고치는데 **`getLaunchUrl()`
+       은 새로고침 너머로도 그 주소를 그대로 돌려준다** — 앱을 깨운 주소는 그대로다.
+       그러면 부팅할 때마다 이미 쓴 코드를 또 교환하고 또 새로 고친다: 화면이
+       「어느 사무실로 이어 갈까요」와 무대 사이를 오가며 끝없이 깜빡인다.
+
+       전에는 메모리 변수(lastUrl)로 막았는데 **그건 새로고침에서 지워진다** — 막으려던
+       바로 그 경로를 못 막고 있었다. 앱을 껐다 켜면 멀쩡했던 이유도 이것이다:
+       그때는 딥링크로 깨운 게 아니라 getLaunchUrl 이 빈손이다.
+       그래서 sessionStorage 에 둔다 — 새로고침은 넘고 앱을 껐다 켜면 사라지는 자리가
+       정확히 그 성질이다. (아이폰 실측 2026-09-08) */
+    const SEEN = 'copycat.auth.url';
+    let seen = '';
+    try { seen = sessionStorage.getItem(SEEN) || ''; } catch (e){}
+    if (seen === url){ note('같은 딥링크 — 건너뜀'); return; }
+    try { sessionStorage.setItem(SEEN, url); } catch (e){}
     landing = true;
     await closeBrowser();
     const say = t => { try { if (typeof toast === 'function') toast(t); } catch (e){} };
