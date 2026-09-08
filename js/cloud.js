@@ -239,6 +239,23 @@
          주소를 보고 하던 「묶었습니다」가 앱에서만 조용히 지나갔다.
          sessionStorage 를 쓰는 이유: 새로고침은 넘고 앱을 껐다 켜면 사라진다. */
       try { sessionStorage.setItem('copycat.justlinked', '1'); } catch (e){}
+
+      /* **저장된 것을 확인하고 새로 고친다.**
+         `exchangeCodeForSession` 이 끝나도 SDK 가 localStorage 에 적는 것은 그다음이다.
+         바로 새로 고치면 부팅이 **아직 익명인 상태**를 읽고, 그러면 「이미 다른 계정에
+         붙어 있다」 갈래로 다시 들어가 화면이 한 번 번쩍이고 시작 화면에 갇힌다.
+         앱을 껐다 켜면 멀쩡한 이유가 그것이다 — 그때는 이미 다 적혀 있다.
+         (아이폰 실측 2026-09-08. 안드로이드는 같은 코드인데 이 틈이 짧아 안 걸렸다.)
+
+         못 기다려도 가기는 간다 — 영영 안 넘어가는 것보다 한 번 번쩍이는 쪽이 낫다. */
+      for (let i = 0; i < 20; i++){
+        try {
+          const { data } = await sb.auth.getSession();
+          const u = data && data.session && data.session.user;
+          if (u && !u.is_anonymous){ note("세션 확인 " + String(u.email || u.id).slice(0, 24)); break; }
+        } catch (e){}
+        await new Promise(r => setTimeout(r, 150));
+      }
       location.reload();
     } catch (e){ fail((e && e.message) || '주소를 읽지 못했다'); }
   }

@@ -1047,14 +1047,26 @@
     const bar = sheet.querySelector('.decopick');
 
     if (decoTab === 'shop') {
-      const items = furnList();
+      /* **창고는 창고에 있는 것만 보여 준다.** 방에 다 놓은 물건(창고 0)은 여기서
+         빠진다 — 전에는 「방 3」으로 남고 놓기 단추만 꺼져 있었는데, 그건 이 시트가
+         하는 일(지금 놓을 것을 고른다)에 대한 답이 아니다. 눌러도 안 되는 칸은
+         목록을 길게 만들고 고르는 눈을 흐린다.
+         「몇 개 가졌나」는 상점이 안다(거기 「보유」가 있다) — 두 화면의 일이 다르다. */
+      const all = furnList();
+      const items = all.filter(it => (it.stored | 0) > 0);
       /* **한 줄로 옆으로 넘긴다.** 격자 셋으로 놓았더니 목록이 화면을 반쯤 먹고
          방이 안 보였다 — 배치 중에 방이 안 보이면 고를 이유가 없다.
          한 줄이면 시트가 낮아지고, 물건 수가 늘어도 높이가 그대로다. */
       if (!items.length) {
-        body.innerHTML = `<div class="decomove">
-          <p>아직 가진 가구가 없습니다. <b>상점</b>에서 들이면 여기에 쌓입니다 —
-          치운 가구도 여기로 돌아옵니다.</p></div>`;
+        /* 빈 이유가 둘이라 말도 둘이다: 아직 아무것도 없는 것과, 다 놓아서 없는 것.
+           둘을 같은 말로 덮으면 뒤쪽 사람은 「내 가구가 사라졌다」로 읽는다. */
+        body.innerHTML = all.length
+          ? `<div class="decomove">
+              <p>창고가 비었습니다 — 가진 가구는 <b>모두 방에 있습니다.</b>
+              물건을 골라 ✕ 로 치우면 여기로 돌아옵니다.</p></div>`
+          : `<div class="decomove">
+              <p>아직 가진 가구가 없습니다. <b>상점</b>에서 들이면 여기에 쌓입니다 —
+              치운 가구도 여기로 돌아옵니다.</p></div>`;
         bar.className = 'decopick'; bar.innerHTML = '';
         return;
       }
