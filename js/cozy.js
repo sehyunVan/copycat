@@ -62,7 +62,31 @@
     if (bar) clock.appendChild(bar);
     mine = false;
   }
-  new MutationObserver(twoLine).observe(clock, { childList: true, characterData: true, subtree: true });
+  /* 시계 **밑에** 근무·사기 줄이 붙는다. 그 자리를 숫자로 박아 두면(예전 122px)
+     시계가 한 줄 늘어나는 날 바로 겹친다 — 그래서 여기서 재서 넘긴다.
+     읽는 곳은 style.css 의 --hudtop 하나뿐이고, 못 재면 예전 값으로 돌아간다. */
+  function hudTop(){
+    if (!app.classList.contains('tabbar')) return;
+    /* 시계 칩 **자신의 자리**도 숫자가 아니라 잰 값이다. 위쪽 띠는 안전 영역만큼
+       높아지는데(노치·다이나믹 아일랜드·글자 크기 설정), 칩이 `top:60px` 처럼
+       추측한 값을 들고 있으면 그 띠 밑으로 파고든다 — 아이폰에서 실제로 그랬다
+       (2026-09-08). 띠를 재서 넘기면 칩도 오른쪽 줄도 같이 따라온다. */
+    const bar = doc.getElementById('topbar');
+    const bh = bar ? Math.round(bar.getBoundingClientRect().height) : 0;
+    if (bh) app.style.setProperty('--toph', bh + 'px');
+
+    const h = clock.offsetHeight;
+    if (!h) return;                                        /* 아직 안 그려졌다 */
+    app.style.setProperty('--hudtop', (clock.offsetTop + h + 8) + 'px');
+  }
+
+  new MutationObserver(() => { twoLine(); hudTop(); })
+    .observe(clock, { childList: true, characterData: true, subtree: true });
+  /* 첫 그림과 창 크기 변화 — 시계는 1초마다 다시 쓰이므로 위 관찰자가 대부분 잡지만,
+     처음 한 번과 회전은 그 전에 온다. */
+  hudTop();
+  window.addEventListener('resize', hudTop);
+  setTimeout(hudTop, 1200);
 
   /* ---------- 3. 이모지를 직접 그린 아이콘으로 ----------
      레퍼런스의 아이콘은 그려진 것이지 이모지가 아니다. 이모지는 기기마다 그림이 다르고

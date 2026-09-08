@@ -125,7 +125,7 @@ function jukeBodyHTML(){
         en:'They are not for sale. Click furniture to look at it.',
         ja:'買える物ではありません。家具を押して調べてください。',
       })}</span></div></div></div>` : ''}
-}`;
+`;
 }
 
 function showJuke(){
@@ -172,7 +172,16 @@ function showJuke(){
       const v = Math.round(soundVol * 100);
       if (vr && Number(vr.value) !== v) vr.value = v;
       if (vn) vn.textContent = v;
-      if (vm) vm.textContent = soundVol === 0 ? '🔇' : soundVol < 0.34 ? '🔈' : soundVol < 0.7 ? '🔉' : '🔊';
+      /* **다시 그린 아이콘으로 돌려놓는다.** 폰 스킨(js/cozy.js)이 처음 한 번 이모지를
+         그린 아이콘으로 바꿔 두는데, 여기서 textContent 로 덮으면 그 그림이 날아가고
+         그 자리만 혼자 이모지가 된다 — 손잡이를 움직이는 순간 그림체가 바뀐다. */
+      if (vm){
+        const em = soundVol === 0 ? '🔇' : soundVol < 0.34 ? '🔈'
+                 : soundVol < 0.7 ? '🔉' : '🔊';
+        vm.textContent = em;
+        delete vm.dataset.icon;              // 다시 바꿔도 되는 상태로 되돌린다
+        if (typeof CCIcon === 'function') CCIcon(vm, em === '🔇' ? 'mute' : 'wave');
+      }
     };
     let lastOn = soundVol || 0.7;
     if (vr) vr.oninput = () => {

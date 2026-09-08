@@ -1557,7 +1557,12 @@ body.r3ready #loadgate{opacity:0;visibility:hidden}
 /* 안전 영역. 아이폰의 홈 인디케이터(아래 34px)와 노치가 화면을 먹는다 —
    viewport-fit=cover 로 화면 전체를 쓰는 대신 그 몫을 우리가 비켜 줘야 한다.
    안드로이드에서도 제스처 바가 있으면 같은 값이 들어오고, 없으면 0 이다. */
-#app.tabbar{--tabbar:54px;--dockh:28px;--safeb:env(safe-area-inset-bottom, 0px);overflow:hidden}
+/* `--toph` 는 **상단 띠의 실제 높이**다(js/cozy.js 의 hudTop 이 재서 넣는다).
+   여기 적은 것은 그 전에 쓰이는 기본값이라 안전 영역까지 포함한다 — JS 가 늦어도
+   어긋나지 않는다. 방 위에 뜨는 것들이 이걸 기준으로 앉는다: 각자 숫자를 들고 있으면
+   기기가 바뀔 때마다 따로 어긋난다(--hudtop 이 시계 칩을 재는 것과 같은 이유다). */
+#app.tabbar{--tabbar:54px;--dockh:28px;--safeb:env(safe-area-inset-bottom, 0px);
+  --toph:calc(62px + env(safe-area-inset-top, 0px));overflow:hidden}
 #app.tabbar #topbar{padding-top:calc(4px + env(safe-area-inset-top, 0px))}
 #app.tabbar #main{display:block;position:relative;padding:0;gap:0;overflow:hidden}
 #app.tabbar .stagewrap{position:absolute;left:0;right:0;top:0;
@@ -2081,7 +2086,7 @@ body.eerie #app.tabbar .stagewrap::before{content:'';position:absolute;left:0;ri
 
    `backdrop-filter` 가 안 먹는 환경이 있어서(구형 WebView) 바탕색 자체에 알파를 준다 —
    블러가 빠져도 반투명 판은 남는다. */
-body.eerie #app.tabbar .clockchip{left:12px;top:60px;max-width:266px;border:0;border-radius:15px;
+body.eerie #app.tabbar .clockchip{left:12px;top:var(--toph);max-width:266px;border:0;border-radius:15px;
   background:var(--ui-glass);backdrop-filter:var(--ui-blur);-webkit-backdrop-filter:var(--ui-blur);
   box-shadow:var(--ui-glasslift),inset 0 0 0 1px var(--ui-glassline);
   padding:9px 14px 12px;color:var(--ui-glassink);overflow:hidden}
@@ -2093,12 +2098,32 @@ body.eerie #app.tabbar .clockchip em{display:block;font-style:normal;font-weight
 body.eerie #app.tabbar .clockchip i{left:14px;bottom:6px;height:3px;background:var(--ui-accent);border-radius:2px}
 
 /* ── 근무·사기·대기·누적 — 시계와 같은 유리 ── */
-body.eerie #app.tabbar .stagefoot{left:12px;right:auto;top:122px;bottom:auto;height:auto;border:0;
+/* **오른쪽 끝이 있다.** 전에는 right:auto 여서 줄이 길어지면 그대로 뻗어 나가
+   문 기둥(달력·게시판·음악)을 덮었다 — 폭이 400px 넘는 폰에서 라벨이 살아나면
+   바로 그 일이 났다. 기둥 자리(52px)와 여백을 빼고 멈춘다. 그래도 모자라면
+   **줄을 바꾼다**(wrap) — 옆으로 넘치는 것보다 아래로 접히는 편이 낫다.
+
+   위치도 숫자로 안 박는다. --hudtop 은 js/cozy.js 가 **시계 칩을 재서** 넣는다:
+   시계가 두 줄이 되든 세 줄이 되든 이 줄은 그 밑에 붙는다(예전 122px 은 두 줄일 때의
+   값이라, 시계가 한 줄만 더 늘어도 겹쳤다 — stagestack 에서 배운 것과 같은 실수다). */
+body.eerie #app.tabbar .stagefoot{left:12px;right:72px;top:var(--hudtop,122px);bottom:auto;height:auto;border:0;
   border-radius:12px;background:var(--ui-glass);
   backdrop-filter:var(--ui-blur);-webkit-backdrop-filter:var(--ui-blur);
   box-shadow:var(--ui-glasslift),inset 0 0 0 1px var(--ui-glassline);
-  padding:7px 13px;gap:14px;z-index:6;flex-direction:row;align-items:center}
+  padding:7px 13px;gap:6px 14px;z-index:6;flex-direction:row;align-items:center;
+  flex-wrap:wrap;width:fit-content;max-width:calc(100% - 84px)}
 body.eerie #app.tabbar .stagefoot .kv{background:none;border:0;padding:0;font-size:11.5px;color:var(--ui-glassink)}
+
+/* ── 이 줄에서는 **아이콘 대신 글자** ──
+   11px 짜리 도트 아이콘 넷은 알아보기도 어려운데 자리는 68px 을 먹었다. 글자
+   (근무·사기·대기·누적)가 같은 자리에 더 정확히 들어간다. 폭 400px 아래에서 라벨을
+   숨기던 규칙도 여기서는 끈다 — 아이콘도 없이 숫자만 남으면 무슨 숫자인지 모른다. */
+body.eerie #app.tabbar .stagefoot .kv > svg,
+body.eerie #app.tabbar .stagefoot .kv > .dotline,
+body.eerie #app.tabbar .stagefoot .kv > .dotem,
+body.eerie #app.tabbar .stagefoot .kv > .emico{display:none}
+body.eerie #app.tabbar .stagefoot .kv span{display:inline}
+body.eerie #app.tabbar .stagefoot .kv.wide{display:inline-flex}
 
 /* ── 왼쪽 아래 쌓는 자리 (js/cozy.js 의 stagestack) ──
    택배 단추와 사건 카드가 여기 세로로 선다. **자리를 숫자로 정하지 않는다** — 카드가
@@ -3063,7 +3088,7 @@ body.eerie.cozyskin .modal .calrow .tx{color:var(--ui-soft)}
 body.eerie.cozyskin .modal .empty{color:var(--ui-soft)}
 
 /* ── 우측 상단 세로 1열 — 달력 · 게시판 · 음악 ── */
-body.eerie #app.tabbar .doorrail{position:fixed;right:12px;top:112px;z-index:7;
+body.eerie #app.tabbar .doorrail{position:fixed;right:12px;top:calc(var(--toph) + 52px);z-index:7;
   display:none;flex-direction:column;gap:8px}
 body.eerie #app.tabbar[data-col="stage"] .doorrail{display:flex}
 /* 시트가 열려 있어도 줄은 남는다 — 망치가 그 줄의 첫 칸이고, 켜졌다는 표시가 거기
