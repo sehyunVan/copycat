@@ -16,7 +16,14 @@
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 PROJ="mobile/ios/App/App.xcodeproj"
-SCHEME="App"
+# 스킴 이름은 **물어봐서** 정한다. Capacitor 가 만드는 프로젝트에는 공유 스킴이 없을
+# 때가 있고(Xcode 가 제 사용자 폴더에만 만든다), 그러면 xcodebuild 는
+# "does not contain a scheme named …" 만 뱉는다 — 이름을 지어 부르면 또 틀린다.
+SCHEME="${SCHEME:-}"
+if [ -z "$SCHEME" ]; then
+  SCHEME=$(xcodebuild -project "$PROJ" -list 2>/dev/null     | awk '/Schemes:/{f=1;next} f && NF {print $1; exit}')
+fi
+SCHEME="${SCHEME:-App}"
 
 [ -d "$PROJ" ] || { echo "iOS 프로젝트가 없다: $PROJ"; exit 1; }
 
