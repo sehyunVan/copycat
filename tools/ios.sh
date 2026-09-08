@@ -20,6 +20,34 @@ SCHEME="App"
 
 [ -d "$PROJ" ] || { echo "iOS 프로젝트가 없다: $PROJ"; exit 1; }
 
+# ── 플러그인 폴더가 실제로 있는가 ─────────────────────────────────────
+# Package.swift 는 `../../../node_modules/@capacitor/app` 같은 **경로**로 플러그인을
+# 가리킨다. 그 폴더가 없으면 Xcode 는 "the package at … cannot be accessed" 만 뱉고,
+# 그 문장은 **무엇이 없는지 말해 주지 않는다.** 여기서 먼저 이름을 대고 멈춘다.
+#
+# 제일 흔한 경우: 플러그인이 나중에 추가됐는데 이 기계에서는 `npm install` 을 그 전에
+# 한 번만 돌린 것이다(node_modules 는 저장소에 없다).
+preflight() {
+  local pkg="mobile/ios/App/CapApp-SPM/Package.swift" miss=0
+  [ -f "$pkg" ] || return 0
+  while IFS= read -r rel; do
+    local dir="mobile/ios/App/CapApp-SPM/$rel"
+    if [ ! -d "$dir" ]; then
+      echo "  ✗ 없다: $rel"
+      miss=1
+    fi
+  done < <(grep -o 'path: "[^"]*"' "$pkg" | sed 's/path: "//;s/"$//')
+  if [ "$miss" = 1 ]; then
+    echo ""
+    echo "플러그인 폴더가 없다. 이 기계에서 받은 적이 없거나, 나중에 추가된 것이다:"
+    echo "  cd mobile && npm install"
+    echo "그다음 다시:"
+    echo "  node tools/pack-mobile.js && (cd mobile && npm run sync)"
+    exit 1
+  fi
+}
+preflight
+
 case "${1:-run}" in
 devices)
   echo "── 연결된 기기 ──"
