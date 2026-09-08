@@ -1239,6 +1239,11 @@
     const sel = (typeof EDIT !== 'undefined' && EDIT) ? EDIT.sel : null;
     const on = editOn() && !!sel;
     hud.classList.toggle('show', on);
+    /* **못 치우는 것에는 ✕ 를 안 그린다**(책상·결재함·화장실…). 그려 두면 눌러 보고
+       거절당하는 단추가 되고, 그건 「고장」으로 읽힌다. 판단은 게임 쪽 한 곳에서
+       한다(edit.js 의 editCanRemove) — 두 곳에서 하면 언젠가 서로 다른 말을 한다. */
+    const rm = hud.querySelector('[data-k="off"]');   /* ✕ — 치우기 */
+    if (rm) rm.hidden = !(on && typeof editCanRemove === 'function' && editCanRemove());
     arrs.forEach(a => a.classList.toggle('show', on));
     peek.classList.toggle('show', editOn());
     peekAnchor();

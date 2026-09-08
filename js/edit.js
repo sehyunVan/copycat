@@ -446,6 +446,17 @@ function editToStorage(tile, grid){
   if (shopCount(id) <= placed) S.shop[id] = placed + 1;
 }
 
+/* 지금 고른 것을 치울 수 있는가. 화면 쪽(js/cozy.js)이 ✕ 를 그릴지 정할 때 쓴다 —
+   **눌러도 안 되는 단추를 그리지 않는다**는 이 게임의 규칙을 여기서도 지킨다.
+   판단 근거는 아래 editRemove 와 **같은 줄**이어야 하므로 한 곳에 둔다. */
+function editCanRemove(u){
+  const sel = u || (typeof EDIT !== 'undefined' && EDIT ? EDIT.sel : null);
+  if (!sel) return false;
+  if (sel.kind === 'desk') return false;
+  if ((sel.kind === 'furn' || sel.kind === 'top') && !editShopId(sel.tile)) return false;
+  return true;
+}
+
 function editRemove(){
   const u = EDIT.sel;
   if (!u || !W) return false;
@@ -453,11 +464,19 @@ function editRemove(){
      치우기는 「창고로 보내기」다. 그런데 결재함·화장실·정수기처럼 **카탈로그에 없는**
      것들은 돌아올 자리가 없다 — 치우면 그 방에서 영영 사라지고 다시 만들 길이 없다.
      그건 배치가 아니라 파괴다. 등·러그·얹은 소품은 제 목록으로 돌아가므로 예외다. */
-  if ((u.kind === 'furn' || u.kind === 'top') && !editShopId(u.tile)){
-    if (typeof toast === 'function') toast(L({
-      ko: `${unitName(u)} 은(는) 치울 수 없습니다 — 창고로 돌아올 수 없는 물건입니다.`,
-      en: `${unitName(u)} can’t be put away — it has no place in storage.`,
-      ja: `${unitName(u)} は片づけられません — 倉庫に戻せない物です。` }));
+  /* **책상도 치울 수 없다.** 카탈로그에 없어서 창고로 갈 수도 없지만, 더 큰 이유는
+     그것이 **고양이가 일하는 자리**라는 것이다 — 책상 수가 곧 근무 자리 수이고
+     (world.js 가 격자에서 w.desks 를 다시 유도한다), 마지막 하나를 치우면 아무도
+     일을 못 하는 사무실이 된다. 되돌릴 길도 없다: 생성기는 분기를 넘길 때만 방을
+     다시 세운다. 옮기는 것은 그대로 된다 — 막는 것은 치우기뿐이다. */
+  if (u.kind === 'desk' || ((u.kind === 'furn' || u.kind === 'top') && !editShopId(u.tile))){
+    if (typeof toast === 'function') toast(u.kind === 'desk'
+      ? L({ ko: '책상은 치울 수 없습니다 — 고양이가 일하는 자리입니다.',
+            en: 'Desks can’t be put away — that’s where the cats work.',
+            ja: 'デスクは片づけられません — 猫が働く席です。' })
+      : L({ ko: `${unitName(u)} 은(는) 치울 수 없습니다 — 창고로 돌아올 수 없는 물건입니다.`,
+            en: `${unitName(u)} can’t be put away — it has no place in storage.`,
+            ja: `${unitName(u)} は片づけられません — 倉庫に戻せない物です。` }));
     try { sfx.err(); } catch (e) {}
     return false;
   }

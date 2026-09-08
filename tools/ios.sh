@@ -55,6 +55,20 @@ preflight() {
 }
 preflight
 
+# ── 게임을 먼저 굽는다 ─────────────────────────────────────────────────
+#  Xcode 는 `mobile/ios/App/App/public` 만 본다. 그건 `cap sync` 가 채우는 자리이고,
+#  `cap sync` 는 `dist/android` 를 옮길 뿐이다. 굽기를 건너뛰면 **고친 것이 안 실린
+#  채로 빌드가 성공한다** — 그게 제일 나쁘다. 화면에는 옛 게임이 그대로 뜨는데
+#  빌드는 초록이라, 코드를 의심하게 된다(2026-09-08 실제로 그랬다).
+#  건너뛰려면: SKIP_WEB=1 ./tools/ios.sh run
+web() {
+  [ "${SKIP_WEB:-}" = "1" ] && { echo "── 굽기 건너뜀 (SKIP_WEB=1) ──"; return 0; }
+  echo "── 게임 굽기 ──"
+  node tools/pack-mobile.js > /dev/null || { echo "pack-mobile 실패"; exit 1; }
+  ( cd mobile && npm run sync > /dev/null ) || { echo "cap sync 실패"; exit 1; }
+  echo "   $(grep -o 'copycat-v[0-9]*' dist/iphone/sw.js | head -1)"
+}
+
 case "${1:-run}" in
 devices)
   echo "── 연결된 기기 ──"
@@ -83,6 +97,7 @@ run)
     echo "  ./tools/ios.sh run <id>"
     exit 1
   fi
+  web
   echo "── 기기 $UDID 로 빌드 (스킴 $SCHEME) ──"
   # -allowProvisioningUpdates: 서명 파일이 없으면 애플에서 받아 온다(팀이 있어야 한다)
   #
@@ -108,6 +123,7 @@ run)
 
 archive)
   OUT="mobile/ios/build/App.xcarchive"
+  web
   echo "── 아카이브 (스킴 $SCHEME) ──"
   LOG=mobile/ios/archive.log
   xcodebuild -project "$PROJ" -scheme "$SCHEME" -configuration Release     -destination "generic/platform=iOS" -allowProvisioningUpdates     -archivePath "$OUT" archive > "$LOG" 2>&1

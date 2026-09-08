@@ -312,7 +312,21 @@ function gaIcons(root){
    통화도 자릿수도 나라마다 다르고, 그걸 게임이 계산하면 반드시 어딘가 틀린다. */
 function gaShopHTML(){
   const st = window.STORE && STORE.state();
-  if (!st || !st.on || !st.items.length) return '';
+  /* **앱에서 안 뜨면 이유를 적는다.** 웹에서는 원래 안 파는 게 맞아서 조용한 것이
+     맞지만, 앱에서 칸이 사라지면 「고장인지 아직 준비가 안 된 건지」를 구분할 방법이
+     없다 — 실제로 아이폰에서 그 자리에서 막혔다(2026-09-08). 스토어와 서버 중
+     어디가 아직인지는 `why` 가 안다. */
+  if (!st || !st.on || !st.items.length){
+    const native = (() => { try {
+      const c = window.Capacitor;
+      return !!(c && (c.isNativePlatform ? c.isNativePlatform() : c.getPlatform));
+    } catch (e){ return false; } })();
+    if (!native) return '';
+    const why = (st && st.why) || '아직 준비되지 않았습니다';
+    return `<div class="gashop"><div class="gashophead">${L({
+        ko: '상자 사기', en: 'Buy boxes', ja: '箱を買う' })}</div>
+      <div class="tiny" style="opacity:.6">${esc(why)}</div></div>`;
+  }
   return `<div class="gashop">
     <div class="gashophead">${L({ ko: '상자 사기', en: 'Buy boxes', ja: '箱を買う' })}</div>
     <div class="gashoprow">${st.items.map(x => `
