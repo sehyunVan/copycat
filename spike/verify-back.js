@@ -72,8 +72,11 @@ ok('주소에서 표시를 지운다', okCase && !/code=/.test(okCase.url),
 const failCase = await run(BASE + '/index.html#error=access_denied&error_description=사용자가+취소했습니다', '');
 ok('거절당하면 **왜인지 말한다**',
    failCase && /못했습니다|취소/.test(failCase.said), failCase ? failCase.said.slice(0,50) : '안 떴다');
-ok('거절인데 「묶었습니다」라고 안 한다',
-   failCase && !/묶었습니다/.test(failCase.said), failCase ? '안 한다' : '-');
+/* **없는 문구를 찾으면 저절로 통과한다.** 문구를 「묶었습니다」에서 「연동했습니다」로
+   바꿨을 때 이 줄이 그대로 남아 한 번 그랬다 — 찾는 말은 지금 쓰는 말이어야 한다. */
+ok('거절인데 「연동했습니다」라고 안 한다',
+   failCase && /연동하지 못했습니다/.test(failCase.said) && !/연동했습니다/.test(failCase.said),
+   failCase ? failCase.said.slice(0,40) : '-');
 
 /* ── 앱 경로 ──────────────────────────────────────────────────────────
    **앱에서는 주소에 흔적이 안 남는다.** 우리가 우리 주소로 다시 여는 것이라

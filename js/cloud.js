@@ -231,7 +231,26 @@
       who(session.user);
       ST.on = true; ST.why = '';
       nativeHooks();
-      if (CAME_BACK) sayLinked();
+
+      /* ── 익명에서 **벗어나는 순간**을 직접 듣는다 ──
+         주소(웹)와 sessionStorage(앱)로 두 번 만들었는데 둘 다 경로에 기대는 방법이라,
+         경로가 하나 더 생기면 또 조용해진다. 계정이 바뀌었다는 것은 **계정층이 안다** —
+         그걸 물어보는 쪽이 짧고, 웹·앱·같은 자리에서 연결하는 경우까지 한 번에 덮는다. */
+      try {
+        sb.auth.onAuthStateChange((_evt, sess) => {
+          const wasAnon = ST.anon;
+          if (sess && sess.user) who(sess.user);
+          if (wasAnon && !ST.anon) sayLinked();
+        });
+      } catch (e){}
+
+      /* 위 신호를 놓치는 판을 위한 그물 — 돌아오면서 페이지가 새로 뜬 경우,
+         세션은 이미 서 있어서 「바뀌는 순간」이 지나갔다. */
+      if (CAME_BACK){
+        /* 성패는 `sayLinked` 가 계정을 보고 가른다 — 돌아왔는데 익명이면 그것도 말한다.
+           조용히 넘기면 사람은 됐는지 안 됐는지를 모른 채 한 번 더 누른다. */
+        sayLinked(/^fail/.test(CAME_BACK) ? CAME_BACK.slice(5) : '');
+      }
     } catch (e){ return off('시작 실패: ' + (e && e.message)); }
 
     await pull();
@@ -390,7 +409,10 @@
      숨어서 **돌아온 바로 그 순간에는 안 보인다.**
 
      시작 화면이 아직 안 그려졌을 수 있어(스크립트 순서) 조금 기다렸다 띄운다. */
+  let said = false;
   function sayLinked(reason){
+    /* 신호가 둘(위 onAuthStateChange · 아래 그물)이라 한 판에 한 번만 말한다. */
+    if (said) return; said = true;
     /* **묶였는지는 주소가 아니라 계정을 보고 판단한다.** 돌아왔다는 표시가 붙어 있어도
        익명 그대로일 수 있고(중간에 취소·거절), 그때 「묶었습니다」라고 하면 거짓말이다.
        `reason` 은 앱 쪽에서 실패를 들고 바로 부를 때 온다(finishLogin 의 fail). */
@@ -402,11 +424,11 @@
       clearInterval(t);
       const m = modal(`
         <div class="mhead"><div class="q">ACCOUNT</div>
-          <h3>${fail ? '연결하지 못했습니다' : '사무실을 계정에 묶었습니다'}</h3>
+          <h3>${fail ? '연동하지 못했습니다' : '사무실을 계정에 연동했습니다'}</h3>
           <p>${fail
             ? (esc(why) || '다시 시도해 주세요.')
-            : (ST.who ? esc(ST.who) + ' 로 들어왔습니다.' : '들어왔습니다.')
-              + ' 이제 폰을 바꾸거나 앱을 지워도 고양이들이 따라옵니다.'}</p></div>
+            : (ST.who ? esc(ST.who) + ' 로 들어왔습니다. ' : '')
+              + '연동했으니 고양이들이 따라옵니다.'}</p></div>
         <div class="mfoot"><button class="okbtn" data-close>${
           fail ? '닫기' : '좋아요'}</button></div>`);
       /* 주소에 남은 표시를 지운다 — 새로 고칠 때마다 같은 창이 또 뜨면 안 된다.

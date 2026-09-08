@@ -353,14 +353,14 @@ body.titleon .veil{z-index:10000}
   const askLogin = () => {
     const m = modal(`
       <div class="mhead"><div class="q">ACCOUNT</div>
-        <h3>사무실을 계정에 묶습니다</h3>
-        <p>묶어 두면 폰을 바꾸거나 앱을 지워도 고양이들이 따라옵니다.</p></div>
+        <h3>사무실을 계정에 연동합니다</h3>
+        <p>연동하면 고양이들이 따라옵니다.</p></div>
       <div class="mbody">
         <div class="codebox">
           <input id="lgMail" class="mail" maxlength="80" autocomplete="email" inputmode="email"
                  placeholder="메일 주소">
           <button class="buy alt" id="lgSend">보내기</button></div>
-        <div class="hint" id="lgNote" style="margin-top:9px">메일로 받으면 그 편지의 단추가 열쇠입니다.</div>
+        <div class="hint" id="lgNote" style="margin-top:9px"></div>
         <button class="lgg" id="lgGoogle" style="margin-top:14px">
           <span class="gmark">${G_MARK}</span><span class="lgl">구글로 계속하기</span></button>
       </div>
