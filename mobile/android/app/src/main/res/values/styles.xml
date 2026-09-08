@@ -8,6 +8,18 @@
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>
+        <!--
+          화면을 상태바 **밑에서** 시작한다.
+
+          targetSdk 36 부터 안드로이드는 앱을 화면 끝까지 그리게 강제한다. 그런데
+          이 웹뷰는 `env(safe-area-inset-top)` 을 CSS 로 넘겨주지 않는다 — 아이폰에서
+          쓴 그 방법이 여기서는 0 이 되고, 상단 띠가 시계·배터리와 겹친다
+          (아이폰에서 겪은 것과 같은 고장이다).
+
+          그래서 CSS 로 피하는 대신 **창을 그만큼 줄인다.** 그러면 env() 가 0 이어도
+          맞고, 상태바 자리에는 windowBackground(게임의 어두운 색)가 남는다.
+        -->
+        <item name="android:fitsSystemWindows">true</item>
     </style>
 
     <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
