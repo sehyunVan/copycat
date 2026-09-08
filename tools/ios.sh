@@ -65,13 +65,22 @@ run)
   # UDID 를 인자로 줄 수 있다: ./tools/ios.sh run 00008110-XXXX
   UDID="${2:-}"
   if [ -z "$UDID" ]; then
-    UDID=$(xcrun devicectl list devices 2>/dev/null \
-      | awk '/connected/ && /iPhone|iPad/ {print $(NF-1); exit}')
+    # **xcodebuild 에게 직접 물어본다.** 기기 목록을 devicectl 로 읽어 열을 세면
+    # 형식이 조금만 달라도 엉뚱한 값을 집는다 — 실제로 그래서
+    # "unable to find a device matching the provided destination specifier" 가 났다.
+    # 목적지를 쓸 그 도구가 아는 이름을 그대로 받아 오는 쪽이 안 틀린다.
+    UDID=$(xcodebuild -project "$PROJ" -scheme "$SCHEME" -showdestinations 2>/dev/null \
+      | grep "platform:iOS," | grep -v "Simulator" | grep -vi "placeholder" \
+      | sed -E "s/.*id:([0-9A-Fa-f-]{8,}).*/\1/" | head -1)
   fi
   if [ -z "$UDID" ]; then
-    echo "폰을 못 찾았다. 케이블로 연결하고 화면 잠금을 풀어 둔 뒤:"
-    echo "  ./tools/ios.sh devices     ← 여기 나오는 UDID 를 보고"
-    echo "  ./tools/ios.sh run <UDID>"
+    echo "폰을 못 찾았다. 케이블로 연결하고 **화면 잠금을 풀어** 둔 뒤 다시."
+    echo ""
+    echo "── xcodebuild 가 보는 목적지 ──"
+    xcodebuild -project "$PROJ" -scheme "$SCHEME" -showdestinations 2>&1       | grep -E "platform:iOS|Available destinations|Ineligible" | sed 's/^/  /' | head -20
+    echo ""
+    echo "위 목록에 폰이 있으면 그 id 를 그대로 넘겨라:"
+    echo "  ./tools/ios.sh run <id>"
     exit 1
   fi
   echo "── 기기 $UDID 로 빌드 (스킴 $SCHEME) ──"
