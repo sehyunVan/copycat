@@ -1,5 +1,5 @@
 {
-  "identifier": "00000000-0000-0000-0000-000000000001",
+  "identifier": "4B3C2A19",
   "nonRenewingSubscriptions": [],
   "products": [
     {
@@ -51,15 +51,11 @@
   "settings": {
     "_applicationInternalID": "",
     "_developerTeamID": "",
-    "_failTransactionsEnabled": false,
-    "_lastSynchronizedDate": 0,
-    "_locale": "ko_KR",
-    "_storefront": "KOR",
-    "_storeKitErrors": []
+    "_lastSynchronizedDate": 0
   },
   "subscriptionGroups": [],
   "version": {
-    "major": 4,
+    "major": 3,
     "minor": 0
   }
 }

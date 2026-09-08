@@ -150,5 +150,18 @@ log)
   xcrun devicectl device console --device "$UDID" 2>/dev/null     | grep --line-buffered -E "CC-AUTH|Copycat|copycat"     || echo "devicectl console 을 못 쓴다 — Xcode 의 Devices and Simulators 에서 Open Console"
   ;;
 
-*) echo "쓸 수 있는 것: devices · run · archive · log" ;;
+storekit-off)
+  # 가짜 결제 설정을 스킴에서 뗀다. 이건 **있으면 좋은 것이지 필수가 아니다** —
+  # Xcode 가 이 파일을 못 읽으면 실행 자체가 막히므로, 막힐 바에는 떼고 간다.
+  # (진짜 결제는 유료 앱 계약이 활성화된 뒤 샌드박스로 본다.)
+  SCH=mobile/ios/App/App.xcodeproj/xcshareddata/xcschemes/App.xcscheme
+  if grep -q StoreKitConfigurationFileReference "$SCH"; then
+    node -e "const f='$SCH',fs=require('fs');let s=fs.readFileSync(f,'utf8');s=s.replace(/s*<StoreKitConfigurationFileReference[sS]*?</StoreKitConfigurationFileReference>/,'');fs.writeFileSync(f,s)"
+    echo "뗐다. Xcode 를 닫았다 다시 열고 ⌘R."
+  else
+    echo "이미 안 물려 있다."
+  fi
+  ;;
+
+*) echo "쓸 수 있는 것: devices · run · archive · log · storekit-off" ;;
 esac
