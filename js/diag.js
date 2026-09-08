@@ -54,6 +54,15 @@
     return worst ? worst.s + ' ' + n(worst.w) + 'px' : '없음';
   }
 
+  /* 계정층이 남긴 한 줄(js/cloud.js 의 note) */
+  function authNote(){
+    let t = '';
+    try { t = sessionStorage.getItem('copycat.auth.note') || ''; } catch (e){}
+    let st = '';
+    try { const s = window.CLOUD && CLOUD.state(); if (s) st = (s.on ? (s.anon ? '익명' : (s.who || '계정')) : '꺼짐(' + s.why + ')'); } catch (e){}
+    return (st ? st + ' · ' : '') + (t || '-');
+  }
+
   function paint(){
     const app = document.querySelector('#app');
     const de = document.documentElement;
@@ -67,7 +76,8 @@
       '스크롤 ' + n(de.scrollLeft) + ',' + n(de.scrollTop) +
       '  넘침 ' + (de.scrollWidth > de.clientWidth ? n(de.scrollWidth - de.clientWidth) + 'px' : '없음') +
       '  포커스 ' + (a ? a.tagName.toLowerCase() + (a.id ? '#' + a.id : '') : '-') + '\n' +
-      '화면보다 넓은 것: ' + widest();
+      '화면보다 넓은 것: ' + widest() + '\n' +
+      '로그인: ' + authNote();
   }
 
   ['resize', 'orientationchange', 'focusin', 'focusout', 'scroll'].forEach(t =>

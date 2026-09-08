@@ -74,8 +74,12 @@ Capacitor 는 플랫폼별 webDir 을 지원하지 않는다. `dist/iphone` 과�
 
     cd mobile
     npm install
-    npx cap sync ios
+    npm run sync              # cap sync + iOS 경로 고치기(아래)
     npx cap open ios          # Xcode 가 열린다
+
+**`npm run sync` 를 쓴다**(`npx cap sync` 대신). 두 플랫폼을 같이 맞추고, 윈도우에서
+깨지는 iOS 경로까지 이어서 고친다 — 두 걸음을 사람이 기억하게 두면 언젠가 한 걸음을
+빠뜨린다.
 
 의존성은 CocoaPods 가 아니라 **Swift Package Manager** 로 들어간다(Capacitor 8).
 Xcode 가 처음 열릴 때 패키지를 받으니 잠깐 기다린다.

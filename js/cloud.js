@@ -74,21 +74,116 @@
   const plug = n => { try { return (window.Capacitor.Plugins || {})[n] || null; } catch (e){ return null; } };
   const backTo = () => (NATIVE ? APP_SCHEME + '://login' : location.href);
 
-  async function openOutside(url){
+  const naps = ms => new Promise(r => setTimeout(r, ms));
+
+  /* ---------- 로그인 창을 여닫는 손 ----------
+     여기서 랜덤이 두 번 났다. 둘 다 **닫기와 열기가 겹친 것**이었다:
+
+     · 닫자마자 열면 안드로이드가 그 열기를 **삼킨다** — 안내만 뜨고 창이 안 뜬다.
+       그래서 닫기를 **기다리고**, 재시도는 한 박자 쉬고 연다.
+     · 반대로 늦게 온 열기가 하나 더 뜨면 커스텀 탭이 **두 장** 쌓인다(두 번 누름 ·
+       딥링크가 두 번 옴). 방금 연 참이면 건너뛴다 — 늦게 온 호출이 원하는 화면은
+       이미 떠 있다.
+
+     그리고 **플러그인이 거절하면 브릿지로 한 번 더 시도한다** — 조용히 실패하지 않는다. */
+  let openAt = 0;
+  async function closeBrowser(){
     const B = plug('Browser');
-    if (B && B.open) return B.open({ url });
-    window.open(url, '_system');       /* 플러그인이 없으면 브릿지에 맡긴다 */
+    if (!B || !B.close) return;
+    /* **기다린다.** 예전엔 던져 놓고 바로 다음 줄로 갔는데, 닫는 중에 open 이 겹치면
+       그 열기가 삼켜지거나(안 뜬다) 새 탭이 따로 뜬다(두 장) — 랜덤의 정체다. */
+    try { await B.close(); } catch (e){}
+  }
+
+  async function openOutside(url, delay){
+    if (delay) await naps(delay);
+    if (Date.now() - openAt < 1500){ note('열기 겹침 — 건너뜀'); return true; }
+    openAt = Date.now();
+    const B = plug('Browser');
+    if (B && B.open){
+      try { await B.open({ url }); return true; }
+      catch (e){ note('브라우저 열기 실패 → 브릿지로'); }
+    }
+    try { window.open(url, '_system'); return true; }
+    catch (e){ note('브릿지도 실패: ' + (e && e.message)); return false; }
   }
 
   /* 딥링크로 돌아왔다. 두 갈래를 **다 받는다**: code(PKCE)와 토큰(implicit).
      지금 SDK 기본은 implicit 이지만 나중에 flowType 을 바꿔도 이 손은 그대로 돈다.
      신원 연결(linkIdentity)은 토큰을 안 실어 보내므로 그때는 세션을 새로 받아 온다. */
+  /* ---------- 「이미 다른 계정에 붙어 있다」 ----------
+     익명 계정에 구글을 **얹으려다**(linkIdentity) 그 구글이 이미 다른 계정의 것이면
+     서버가 identity_already_exists 로 돌려보낸다. 전에는 거기서 끝났다 — 그러면
+     **예전에 가입한 사람이 자기 사무실로 영영 못 들어간다.** 원하는 것은 그 반대다:
+     이미 있는 계정이면 얹기를 접고 **그 계정으로 들어간다**(signInWithOAuth).
+
+     지금 기기의 사무실은 로컬 저장이 진실이라 그대로 있고, 서버 쪽이 앞서 있으면
+     부팅이 「어느 사무실로 이어 갈까요」를 묻는다(pull → askSync) — 그게 사무실이 붙는 자리다.
+
+     **한 번만 다시 시도한다.** 구글 ↔ 우리 사이를 오가는 길이라, 조건이 잘못 잡히면
+     무한히 튕긴다. 표시는 sessionStorage 에 둔다 — 웹은 그 사이에 페이지가 새로 뜬다. */
+  const IDENTITY_TAKEN = /identity_already_exists|already[ _]linked|already[ _]registered|already[ _]exists/i;
+  /* 한 번 「이미 다른 계정 것」이라고 들었으면 그 사실은 **다음에도 참이다.**
+     그래서 기억해 두고, 다음부터는 얹기를 건너뛰고 곧장 로그인으로 간다 —
+     구글 화면을 두 번 거치는 왕복이 없어진다. localStorage 다: 앱을 껐다 켜도 남는다. */
+  /* 로그인이 **어느 길로 갔는지** 한 줄 남긴다. 폰에는 개발자 도구가 없어서, 막혔을 때
+     「무엇을 시도하다 무엇에 막혔는지」를 볼 방법이 없었다. 진단 창(js/diag.js)이 읽는다. */
+  const note = t => {
+    try {
+      const d = new Date(), p = n => ('0' + n).slice(-2);
+      const line = p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds()) + ' ' + String(t).slice(0, 80);
+      /* **마지막 세 줄을 남긴다.** 간헐적으로 갈리는 증상은 한 줄로는 못 읽는다 —
+         「무엇을 시도했고, 무엇이 돌아왔고, 그다음 무엇을 했는가」가 순서로 보여야 한다. */
+      const keep = (sessionStorage.getItem('copycat.auth.note') || '').split('\n').filter(Boolean).slice(-2);
+      keep.push(line);
+      sessionStorage.setItem('copycat.auth.note', keep.join('\n'));
+    } catch (e){}
+  };
+
+  /* 이 기기가 **마지막으로 붙었던 계정**. 계정이 바뀌었다는 것은(익명 → 구글, 또는
+     다른 사람의 구글) 이 기기의 사무실과 그 계정의 사무실이 **서로 다른 이야기**일 수
+     있다는 뜻이다. 그때 한 번 묻는다 — 매 부팅마다 묻지 않으려고 여기 적어 둔다. */
+  const SEEN_UID = 'copycat.cloud.uid';
+  const lastUid = () => { try { return localStorage.getItem(SEEN_UID) || ''; } catch (e){ return ''; } };
+  const rememberUid = u => { try { localStorage.setItem(SEEN_UID, u || ''); } catch (e){} };
+
+  const LINK_OFF = 'copycat.auth.nolink';
+  const linkBlocked = () => { try { return localStorage.getItem(LINK_OFF) === '1'; } catch (e){ return false; } };
+  const blockLink = () => { try { localStorage.setItem(LINK_OFF, '1'); } catch (e){} };
+
+  const RETRY_KEY = 'copycat.auth.retry';
+  const retryUsed = () => { try { return sessionStorage.getItem(RETRY_KEY) === '1'; } catch (e){ return false; } };
+  const markRetry = v => {
+    try { v ? sessionStorage.setItem(RETRY_KEY, '1') : sessionStorage.removeItem(RETRY_KEY); } catch (e){}
+  };
+
+  /* 구글로 보내는 손 하나. 얹기(linkIdentity)와 로그인(signInWithOAuth)이 이걸 같이 쓴다 —
+     둘의 차이는 부르는 함수뿐이고, 나머지(주소·앱에서 브라우저 띄우기)는 같다. */
+  async function oauthGo(call, delay){
+    const opt = { provider: 'google', options: { redirectTo: backTo(), skipBrowserRedirect: NATIVE } };
+    const { data, error } = await call(opt);
+    if (error) return { error: error.message };
+    if (!NATIVE) return { ok: true };            /* 이 줄 다음은 없다 — 페이지가 넘어갔다 */
+    const url = data && data.url;
+    if (!url) return { error: '로그인 주소를 받지 못했습니다' };
+    await openOutside(url, delay);
+    return { ok: true };
+  }
+  /* 재시도는 방금 닫힌 커스텀 탭 뒤에 온다 — 그 자리에서는 한 박자 쉬고 연다 */
+  const signInGoogle = delay => oauthGo(o => sb.auth.signInWithOAuth(o), delay);
+
   let landing = false;
+  let lastUrl = '', lastAt = 0;
   async function finishLogin(raw){
     const url = String(raw || '');
     if (!sb || landing || url.indexOf(APP_SCHEME + '://') !== 0) return;
+    /* **같은 주소가 두 번 온다.** appUrlOpen 과 getLaunchUrl 이 둘 다 물어다 주는 판이
+       있어서, 두 번째가 「이미 처리한 오류」로 실패 안내를 띄웠다. 잠깐 사이의 같은
+       주소는 한 번만 본다. */
+    if (url === lastUrl && Date.now() - lastAt < 8000) return;
+    lastUrl = url; lastAt = Date.now();
     landing = true;
-    try { const B = plug('Browser'); if (B && B.close) B.close(); } catch (e){}
+    await closeBrowser();
     const say = t => { try { if (typeof toast === 'function') toast(t); } catch (e){} };
     /* 말풍선만으로는 부족하다 — 시작 화면이 그 위를 덮는다. 창으로도 말한다. */
     const fail = t => { say('로그인하지 못했습니다 — ' + t); landing = false; sayLinked(t); };
@@ -99,7 +194,24 @@
       const q = u.searchParams, h = new URLSearchParams(String(u.hash || '').replace(/^#/, ''));
       const pick = k => q.get(k) || h.get(k);
       const bad = pick('error_description') || pick('error');
-      if (bad) return fail(bad);
+      if (bad){
+        /* 실패가 아니라 **다른 문**이다 — 이미 있는 계정이면 그리로 들어간다 */
+        note('돌아온 오류: ' + bad);
+        if (IDENTITY_TAKEN.test(bad)){
+          blockLink();                       /* 다음부터는 얹기를 아예 안 시도한다 */
+          note('이미 있는 계정 → 로그인으로 갈아탐');
+        }
+        if (IDENTITY_TAKEN.test(bad) && !retryUsed()){
+          markRetry(true);
+          say('이미 가입한 계정입니다 — 그 사무실로 들어갑니다');
+          landing = false;
+          note('재시도: 로그인 창 다시 엶');
+          const r = await signInGoogle(450);      /* 닫힌 탭이 사라질 틈을 준다 */
+          if (r && r.error){ note('재시도 실패: ' + r.error); fail(r.error); }
+          return;
+        }
+        return fail(bad);
+      }
       const code = pick('code'), at = pick('access_token'), rt = pick('refresh_token');
       let error = null;
       if (code && sb.auth.exchangeCodeForSession) ({ error } = await sb.auth.exchangeCodeForSession(code));
@@ -247,27 +359,51 @@
       /* 위 신호를 놓치는 판을 위한 그물 — 돌아오면서 페이지가 새로 뜬 경우,
          세션은 이미 서 있어서 「바뀌는 순간」이 지나갔다. */
       if (CAME_BACK){
+        const why = /^fail/.test(CAME_BACK) ? CAME_BACK.slice(5) : '';
+        /* 웹에서도 같은 갈림길이다. 「이미 다른 계정에 붙어 있다」면 실패라고 말하지 말고
+           **그 계정으로 들어가는 문**을 연다(아래에서 페이지가 그대로 구글로 넘어간다). */
+        if (why && IDENTITY_TAKEN.test(why)) blockLink();
+        if (why && IDENTITY_TAKEN.test(why) && !retryUsed()){
+          markRetry(true);
+          const r = await signInGoogle();
+          if (!r || !r.error) return;              /* 넘어갔다 — 돌아와서 다시 돈다 */
+        }
         /* 성패는 `sayLinked` 가 계정을 보고 가른다 — 돌아왔는데 익명이면 그것도 말한다.
            조용히 넘기면 사람은 됐는지 안 됐는지를 모른 채 한 번 더 누른다. */
-        sayLinked(/^fail/.test(CAME_BACK) ? CAME_BACK.slice(5) : '');
+        sayLinked(why);
       }
     } catch (e){ return off('시작 실패: ' + (e && e.message)); }
 
     await pull();
     hooks();
-    /* 서버가 앞서 있으면 **묻는다.** 이 물음이 이 파일의 이유다 — 새 기기에서
-       로그인한 사람이 사무실을 되찾는 유일한 길이고, 자동으로 하면 반대편(이 기기가
-       진짜인 경우)을 조용히 지운다.
+    /* **고르게 한다.** 이 물음이 이 파일의 이유다 — 자동으로 하면 어느 쪽이든 한쪽이
+       조용히 지워진다. 묻는 자리는 둘이다:
+
+       · 서버가 앞서 있을 때 — 새 기기에서 로그인한 사람이 사무실을 되찾는 길
+       · **계정이 바뀌었을 때** — 방금 구글에 연동했거나 다른 계정으로 들어왔다.
+         날 수가 적더라도 그 계정에 사무실이 있으면 물어야 한다. 전에는 이 경우
+         날 수만 보고 조용히 **덮어썼다** — 연동한 순간 예전 사무실이 사라졌다.
+
+       고른 쪽은 **서버에도 반영된다**: 「이대로」면 지금 사무실을 곧바로 올리고,
+       「불러오기」면 서버 사본이 이 기기의 사무실이 된다(그 뒤 전송은 같은 내용이다).
+
        단 **화면이 실제로 보일 때까지 기다린다**: 시작화면(z-index 9999)과 프롤로그가
        모달(100)을 덮으므로, 그 사이에 물으면 아무도 못 보는 창이 떴다 사라진다. */
-    if (ST.behind) whenVisible(askRestore);
-    else flush(true);                 // 내가 앞서거나 같으면 바로 사본을 남긴다
+    const switched = !!serverSave && ST.uid !== lastUid();
+    ST.choose = !!serverSave && (ST.behind || switched);
+    if (ST.choose) whenVisible(askSync);
+    else { rememberUid(ST.uid); flush(true); }   // 물을 것이 없으면 바로 사본을 남긴다
     setInterval(() => flush(false), 20 * 1000);
   }
 
   function who(user){
     ST.uid = user.id;
     ST.anon = !!user.is_anonymous;
+    if (!ST.anon){
+      note('들어옴: ' + (ST.who || '계정'));
+      markRetry(false);                  /* 들어왔다 — 다음 판을 위해 표시를 지운다 */
+      try { localStorage.removeItem(LINK_OFF); } catch (e){}
+    }
     ST.who = (!ST.anon && (user.email || (user.user_metadata || {}).email)) || '';
   }
 
@@ -281,6 +417,7 @@
       if (error || !data) return;
       serverSave = data.save || null;
       ST.serverDays = data.days | 0;
+      ST.serverAt = data.updated_at || '';
       ST.behind = ST.serverDays > dayCount();
     } catch (e){}
   }
@@ -293,24 +430,23 @@
   async function linkGoogle(){
     if (!ST.on) return { error: '동기화가 꺼져 있습니다' };
     /* 웹은 SDK 가 페이지를 그대로 넘긴다. 앱은 skipBrowserRedirect 로 **주소만**
-       받아서(웹뷰가 구글 화면으로 가면 안 된다) 시스템 브라우저로 띄운다. */
-    const opt = { provider: 'google', options: { redirectTo: backTo(), skipBrowserRedirect: NATIVE } };
-    const go = async call => {
-      const { data, error } = await call(opt);
-      if (error) return { error: error.message };
-      if (!NATIVE) return { ok: true };          /* 이 줄 다음은 없다 — 페이지가 넘어갔다 */
-      const url = data && data.url;
-      if (!url) return { error: '로그인 주소를 받지 못했습니다' };
-      await openOutside(url);
-      return { ok: true };
-    };
+       받아서(웹뷰가 구글 화면으로 가면 안 된다) 시스템 브라우저로 띄운다 — oauthGo 가 한다. */
+    /* 누를 때마다 **새 판이다.** 자동 재시도 표시가 지난 판에서 남아 있으면, 두 번째
+       누름은 아무것도 안 하고 오류만 다시 보여 준다 — 사람 눈에는 「계속 막힌다」다. */
+    markRetry(false);
     try {
+      /* 얹기가 막힌다는 것을 이미 안다면 묻지 않고 로그인으로 간다 */
+      if (linkBlocked()){ note('얹기 막힘을 기억함 → 로그인'); return await signInGoogle(); }
       if (ST.anon && sb.auth.linkIdentity){
-        const r = await go(o => sb.auth.linkIdentity(o));
+        note('익명 계정에 얹기 시도');
+        const r = await oauthGo(o => sb.auth.linkIdentity(o));
         if (!r.error) return r;
+        /* 여기서 바로 알려 주는 판도 있다(서버가 그 자리에서 거절). 그때도 기억한다. */
+        if (IDENTITY_TAKEN.test(r.error)) blockLink();
       }
-      return await go(o => sb.auth.signInWithOAuth(o));
-    } catch (e){ return { error: (e && e.message) || '연결 실패' }; }
+      note('로그인 시도');
+      return await signInGoogle();
+    } catch (e){ note('터짐: ' + (e && e.message)); return { error: (e && e.message) || '연결 실패' }; }
   }
 
   /* ---------- 되돌리기 ----------
@@ -452,28 +588,55 @@
 
   /* 서버가 앞설 때 묻는 창. 게임의 modal() 을 그대로 쓴다 — 창을 새로 그리면
      이 파일만 다른 그림체가 된다. */
-  function askRestore(){
+  function askSync(){
     if (typeof modal !== 'function') return;
+    const say = t => { try { if (typeof toast === 'function') toast(t); } catch (e){} };
     const mine = dayCount(), there = ST.serverDays | 0;
+    /* 언제 저장된 것인지가 판단의 절반이다 — 날 수만으로는 「어느 쪽이 나인지」를
+       못 고른다(두 기기가 같은 날 수일 수도 있다). */
+    const when = (() => {
+      try {
+        const d = new Date(ST.serverAt);
+        if (isNaN(d)) return '';
+        const p = n => ('0' + n).slice(-2);
+        return (d.getMonth() + 1) + '월 ' + d.getDate() + '일 ' + p(d.getHours()) + ':' + p(d.getMinutes());
+      } catch (e){ return ''; }
+    })();
     const m = modal(`
       <div class="mhead"><div class="q">CLOUD</div>
-        <h3>다른 기기의 사무실이 더 오래되었습니다</h3>
-        <p>계정에 저장된 사무실은 <b>${there}일째</b>, 이 기기의 사무실은 <b>${mine}일째</b>입니다.</p></div>
+        <h3>어느 사무실로 이어 갈까요</h3>
+        <p>계정에 저장된 사무실과 이 기기의 사무실이 서로 다릅니다.
+           고른 쪽이 <b>계정에도 그대로</b> 남습니다.</p></div>
       <div class="mbody">
-        <div class="card"><div class="crow"><span class="em">☁️</span>
-          <div class="info"><b>되돌리면</b><span>계정에 저장된 ${there}일째 사무실로 돌아갑니다.
-            이 기기에서 지금 보고 있는 ${mine}일째 사무실은 사라집니다.</span></div></div></div>
         <div class="card"><div class="crow"><span class="em">🏢</span>
-          <div class="info"><b>이대로 두면</b><span>지금 이 사무실을 계속 쓰고, 잠시 뒤
-            계정에도 이 사무실이 올라갑니다.</span></div></div></div>
+          <div class="info"><b>이 사무실로 계속 — ${mine}일째</b>
+            <span>지금 보고 있는 사무실을 계속 쓰고, <b>계정의 기록을 이것으로 덮어씁니다.</b>
+              계정에 있던 ${there}일째 사무실은 사라집니다.</span></div></div></div>
+        <div class="card"><div class="crow"><span class="em">☁️</span>
+          <div class="info"><b>저장된 기록 불러오기 — ${there}일째${when ? ' · ' + when : ''}</b>
+            <span>계정에 저장된 사무실로 되돌아갑니다. 이 기기에서 지금 보고 있는
+              ${mine}일째 사무실은 사라집니다.</span></div></div></div>
       </div>
       <div class="mfoot" style="display:flex;gap:8px">
-        <button class="okbtn" id="cloudKeep" style="flex:1">이대로 둔다</button>
-        <button class="okbtn" id="cloudBack" style="flex:1">되돌린다</button>
+        <button class="okbtn" id="cloudKeep" style="flex:1">이 사무실로 계속</button>
+        <button class="okbtn" id="cloudBack" style="flex:1">불러오기</button>
       </div>`);
-    /* 「이대로 둔다」가 곧 **올려도 된다는 허락**이다 — 그 전까지 전송은 잠겨 있다(flush). */
-    m.veil.querySelector('#cloudKeep').onclick = () => { ST.behind = false; m.close(); flush(true); };
-    m.veil.querySelector('#cloudBack').onclick = () => restore();
+
+    /* **고른 것을 서버까지 밀고 간다.** 전에는 「이대로 둔다」가 그저 잠금을 푸는
+       것이었고, 실제 전송은 간격(3분)을 기다렸다 — 그 사이에 앱을 끄면 계정에는
+       옛 사무실이 남았다. 이제 그 자리에서 올리고, 올라간 것을 확인해서 말한다. */
+    m.veil.querySelector('#cloudKeep').onclick = async () => {
+      rememberUid(ST.uid);
+      ST.behind = false; ST.choose = false;
+      m.close();
+      const was = ST.pushed;
+      await flush(true);
+      say(ST.pushed > was ? '계정을 이 사무실로 맞췄습니다'
+                          : '아직 못 올렸습니다 — 잠시 뒤 다시 올립니다');
+    };
+    /* 불러오기는 저장 칸을 갈아 끼우고 새로 고친다(restore). 새로 고친 뒤에는 이 기기와
+       계정이 같은 사무실이라 더 물을 것이 없다 — 그래서 여기서 계정을 기억해 둔다. */
+    m.veil.querySelector('#cloudBack').onclick = () => { rememberUid(ST.uid); restore(); };
   }
 
   /* 저장이 일어났다는 표시만 남긴다. 진짜 전송은 flush 가 간격을 보고 한다.
@@ -500,7 +663,7 @@
        정하기 전에 올리면, 그 순간 더 오래된 사무실이 새 사무실을 덮는다 —
        창을 닫는 것만으로 그렇게 됐다(화면을 덮을 때 올리는 손이 여기로 온다).
        지키려고 만든 기능이 지키려던 것을 지우는 자리였다. */
-    if (ST.behind) return;
+    if (ST.behind || ST.choose) return;
     if (!now && (!dirty || Date.now() - ST.lastPush < PUSH_MS)) return;
     const body = snapshot();
     if (body === lastSent){ dirty = false; return; }   // 바뀐 것이 없으면 안 보낸다
@@ -578,7 +741,10 @@
         b.disabled = true;
         const r = await linkGoogle();
         if (r && r.error){ b.disabled = false; say('연결하지 못했습니다 — ' + r.error); }
-        else if (NATIVE) b.disabled = false;   /* 앱은 페이지가 안 넘어간다 — 취소하고 돌아올 수 있으니 다시 누를 길을 남긴다 */
+        /* 앱은 페이지가 안 넘어간다 — 취소하고 돌아올 수 있으니 다시 누를 길을 남긴다.
+           다만 **곧바로 되살리지 않는다**: 탭이 뜨는 두어 박자 사이에 한 번 더 누르면
+           로그인 창이 두 장 뜬다(실제로 그렇게 났다). 3초 뒤에 되살린다. */
+        else if (NATIVE) setTimeout(() => { b.disabled = false; }, 3000);
         return;   /* 웹은 구글로 넘어갔다가 이 페이지로 돌아온다(redirectTo) · 앱은 딥링크로 돌아온다 */
       }
       if (kind === 'email'){
