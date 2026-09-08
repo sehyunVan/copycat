@@ -74,26 +74,43 @@ run)
     echo "  ./tools/ios.sh run <UDID>"
     exit 1
   fi
-  echo "── 기기 $UDID 로 빌드 ──"
+  echo "── 기기 $UDID 로 빌드 (스킴 $SCHEME) ──"
   # -allowProvisioningUpdates: 서명 파일이 없으면 애플에서 받아 온다(팀이 있어야 한다)
-  xcodebuild -project "$PROJ" -scheme "$SCHEME" -configuration Debug \
-    -destination "id=$UDID" -allowProvisioningUpdates \
-    -derivedDataPath mobile/ios/build build 2>&1 | tail -40
-  APP=$(find mobile/ios/build/Build/Products/Debug-iphoneos -maxdepth 1 -name '*.app' | head -1)
-  [ -n "$APP" ] || { echo "빌드 결과(.app)를 못 찾았다 — 위 오류를 보라"; exit 1; }
+  #
+  # **파이프로 걸러 내지 않는다.** `xcodebuild | tail` 로 두면 실패해도 종료 코드가
+  # tail 것이라 성공처럼 지나가고, 다음 줄의 find 가 "그런 폴더 없다"로 죽는다 —
+  # 사람이 보는 것은 find 의 불평이고 진짜 이유는 위로 흘러가 버린 뒤다.
+  LOG=mobile/ios/build.log
+  xcodebuild -project "$PROJ" -scheme "$SCHEME" -configuration Debug     -destination "id=$UDID" -allowProvisioningUpdates     -derivedDataPath mobile/ios/build build > "$LOG" 2>&1
+  rc=$?
+  if [ $rc -ne 0 ]; then
+    echo ""
+    echo "── 빌드 실패 · 오류 줄만 ──"
+    grep -E "error:" "$LOG" | sed 's/^/  /' | tail -20
+    echo ""
+    echo "오류 줄이 안 보이면 전문을 보라:  tail -60 $LOG"
+    exit 1
+  fi
+  APP=$(find mobile/ios/build/Build/Products/Debug-iphoneos -maxdepth 1 -name '*.app' 2>/dev/null | head -1)
+  [ -n "$APP" ] || { echo "빌드는 됐는데 .app 이 없다 — tail -60 $LOG"; exit 1; }
   echo "── 설치: $APP ──"
   xcrun devicectl device install app --device "$UDID" "$APP" 2>&1 | tail -20
   ;;
 
 archive)
   OUT="mobile/ios/build/App.xcarchive"
-  echo "── 아카이브 ──"
-  xcodebuild -project "$PROJ" -scheme "$SCHEME" -configuration Release \
-    -destination "generic/platform=iOS" -allowProvisioningUpdates \
-    -archivePath "$OUT" archive 2>&1 | tail -40
-  [ -d "$OUT" ] && echo "→ $OUT" \
-    && echo "올리기: Xcode 의 Organizer 를 쓰거나, 아래로 내보낸 뒤 Transporter 앱에 끌어다 놓는다." \
-    || echo "아카이브 실패 — 위 오류를 보라"
+  echo "── 아카이브 (스킴 $SCHEME) ──"
+  LOG=mobile/ios/archive.log
+  xcodebuild -project "$PROJ" -scheme "$SCHEME" -configuration Release     -destination "generic/platform=iOS" -allowProvisioningUpdates     -archivePath "$OUT" archive > "$LOG" 2>&1
+  rc=$?
+  if [ $rc -ne 0 ] || [ ! -d "$OUT" ]; then
+    echo "── 아카이브 실패 · 오류 줄만 ──"
+    grep -E "error:" "$LOG" | sed 's/^/  /' | tail -20
+    echo "전문:  tail -60 $LOG"
+    exit 1
+  fi
+  echo "→ $OUT"
+  echo "올리기: Xcode 의 Organizer 를 쓰거나, Transporter 앱에 끌어다 놓는다." 
   ;;
 
 *) echo "쓸 수 있는 것: devices · run · archive" ;;
