@@ -138,5 +138,17 @@ archive)
   echo "올리기: Xcode 의 Organizer 를 쓰거나, Transporter 앱에 끌어다 놓는다." 
   ;;
 
-*) echo "쓸 수 있는 것: devices · run · archive" ;;
+log)
+  # 기기 로그를 흘려 보낸다. 게임이 남기는 [CC-AUTH] 줄만 걸러 본다 —
+  # 창이 안 뜨는 것이 증상일 때, 그 자취를 밖에서 받는 유일한 길이다.
+  UDID="${2:-}"
+  if [ -z "$UDID" ]; then
+    UDID=$(xcodebuild -project "$PROJ" -scheme "$SCHEME" -showdestinations 2>/dev/null       | grep "platform:iOS," | grep -v "Simulator" | grep -vi "placeholder"       | sed -E "s/.*id:([0-9A-Fa-f-]{8,}).*/\1/" | head -1)
+  fi
+  [ -n "$UDID" ] || { echo "폰을 못 찾았다"; exit 1; }
+  echo "── 로그 (Ctrl+C 로 멈춤) · 앱에서 로그인을 눌러 보라 ──"
+  xcrun devicectl device console --device "$UDID" 2>/dev/null     | grep --line-buffered -E "CC-AUTH|Copycat|copycat"     || echo "devicectl console 을 못 쓴다 — Xcode 의 Devices and Simulators 에서 Open Console"
+  ;;
+
+*) echo "쓸 수 있는 것: devices · run · archive · log" ;;
 esac

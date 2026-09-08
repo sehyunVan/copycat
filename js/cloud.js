@@ -137,6 +137,10 @@
       const keep = (sessionStorage.getItem('copycat.auth.note') || '').split('\n').filter(Boolean).slice(-2);
       keep.push(line);
       sessionStorage.setItem('copycat.auth.note', keep.join('\n'));
+      /* **기기 로그에도 흘린다.** sessionStorage 는 창이 떠야 읽을 수 있는데,
+         창이 안 뜨는 것이 바로 증상일 때가 있다(실기기에서 그랬다). 로그는 앱이
+         무슨 말을 하든 밖에서 받아 볼 수 있다 — `./tools/ios.sh log`. */
+      console.log('[CC-AUTH] ' + line);
     } catch (e){}
   };
 
