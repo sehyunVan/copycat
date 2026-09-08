@@ -14,7 +14,16 @@
 ## 고칠 때 순서
 
     node ../tools/pack-mobile.js     # 게임 → dist/android · dist/iphone
-    npx cap sync                     # dist → android/ 와 ios/ 안으로
+    npm run sync                     # cap sync + 아래 경로 고치기
+
+**`npx cap sync` 를 그냥 쓰지 말 것 — 윈도우에서 돌리면 iOS 를 깨뜨린다.**
+`ios/App/CapApp-SPM/Package.swift` 에 경로가 역슬래시로 박히는데, 맥의 Swift Package
+Manager 는 슬래시만 안다. 이 파일은 저장소에 들어 있어서 **맥이 `git pull` 할 때마다
+그 깨진 파일을 받고**, 플러그인이 안 실린다. `@capacitor/app` 이 빠지면 구글 로그인이
+앱으로 돌아온 것을 아무도 모르고, 화면에는 「로그인이 그냥 안 된다」로만 보인다
+(2026-09-08 실측 — 이걸 찾는 데 하루가 걸렸다).
+
+`npm run sync` 가 `tools/fix-spm.js` 를 이어서 돌린다. 맥에서는 고칠 것이 없어 그냥 지나간다.
 
 **`pack-mobile` 을 건너뛰면 옛 게임이 담긴다.** `cap sync` 는 이미 만들어진 것을
 옮길 뿐이고, 그 사실을 말해 주지 않는다.
