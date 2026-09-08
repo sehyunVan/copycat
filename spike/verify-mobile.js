@@ -8,6 +8,7 @@
      3. **네트워크를 끊고 새로 고쳐도 뜬다** ← 오프라인 주장의 유일한 증거
      4. manifest·아이콘·시작화면이 실제로 200 으로 내려온다
      5. 안전 영역 변수가 배치에 먹는다 (아이폰 홈 인디케이터)
+     6. 상태바를 피한다 · 무대 위의 카드가 다른 탭을 안 따라온다
 */
 const fs = require('fs'), path = require('path'), { spawn } = require('child_process');
 const PORT = 9600;
@@ -149,6 +150,68 @@ const BASE = 'http://localhost:8123/dist/';
     /* 오프라인에서 3D 모듈까지 오나 — 모듈은 blob 으로 접혀 있어 캐시와 무관해야 한다 */
     ok(O.렌더 === '3D', '오프라인에서도 3D 가 올라온다', O.렌더);
     ok(!errs.length, '오프라인 오류 없음', errs.slice(0, 2).join(' | '));
+  }
+
+  /* ── 6. 상태바를 피하는가 · 무대 위의 것이 무대에만 있는가 ──────────────
+     둘 다 **실기기에서만 드러났다**(2026-09-08, 아이폰). 브라우저에서는 사파리
+     주소창이 위를 밀어 줘서 안 보였고, 열을 바꿔도 카드가 따라오는 건 폰에서
+     탭을 눌러 봐야 보인다. */
+  {
+    /* **네트워크를 되돌린다.** 바로 위 오프라인 검사가 끊어 놓은 채로 두면, 여기서
+       재는 것이 배치가 아니라 「캐시에 뭐가 있나」가 된다 — 실제로 한 탭만 어긋났다. */
+    await send('Network.emulateNetworkConditions',
+      { offline:false, latency:0, downloadThroughput:-1, uploadThroughput:-1 });
+    await send('Emulation.setDeviceMetricsOverride',
+      { width:390, height:844, deviceScaleFactor:2, mobile:true });
+    /* 아이폰 배포본으로 본다 — 상태바에 가려지는 건 iOS 이야기다.
+       (스킨 CSS 는 두 배포본이 같은 파일을 쓰므로 한 번만 봐도 된다.) */
+    await send('Page.navigate', { url: BASE + 'iphone/index.html' });
+    let up = false;
+    for (let i = 0; i < 70 && !up; i++){
+      await sleep(700);
+      up = await ev(`(()=>{const t=document.querySelector('#cctitle');if(t)t.remove();
+        document.body.classList.remove('titleon');
+        document.querySelectorAll('.veil,.coach,.coachring').forEach(x=>x.remove());
+        /* **스킨이 붙을 때까지** 기다린다 — setCol 이 있다고 폰 스킨이 선 것은 아니다.
+           cozy.js 가 body.eerie 를 붙이고 .stagestack 을 만들기 전에 재면, 규칙이
+           하나도 안 걸린 맨 div 를 보고 「안 숨는다」고 말하게 된다. */
+        return typeof setCol==='function' && document.body.classList.contains('eerie')
+               && !!document.querySelector('.stagestack')})()`).catch(()=>false);
+    }
+
+    /* 안전 영역은 헤드리스에서 **흉내 낼 수 없다**(CDP 에 그 손잡이가 없다).
+       그래서 값이 아니라 **규칙**을 본다: 폰 스킨의 topbar 가 padding 을 통째로
+       다시 쓰면서 위쪽 안전 영역을 지우고 있었다 — 그 자리에 env() 가 있는지. */
+    const rule = await ev(`(()=>{
+      let hit = '';
+      for (const sh of document.styleSheets){
+        let rs; try { rs = sh.cssRules; } catch(e){ continue; }
+        for (const r of rs){
+          if (r.selectorText && /#app\.tabbar #topbar$/.test(r.selectorText.trim())
+              && /eerie/.test(r.selectorText))
+            hit = r.style.getPropertyValue('padding') || r.style.getPropertyValue('padding-top');
+        }
+      }
+      return hit })()`);
+    ok(/safe-area-inset-top/.test(rule || ''),
+       '폰 스킨 topbar 가 **상태바를 피한다**', rule || '(규칙을 못 찾음)');
+
+    const leak = await ev(`(async()=>{
+      setCol('stage'); await new Promise(r=>setTimeout(r,400));
+      const onStage = getComputedStyle(document.querySelector('.stagestack')).display;
+      setCol('shop');  await new Promise(r=>setTimeout(r,400));
+      const el = document.querySelector('#app');
+      const shopCol = el.getAttribute('data-col'), shopCls = el.className;
+      const n = document.querySelectorAll('.stagestack').length;
+      const onShop = getComputedStyle(document.querySelector('.stagestack')).display;
+      setCol('inbox'); await new Promise(r=>setTimeout(r,400));
+      const onInbox = getComputedStyle(document.querySelector('.stagestack')).display;
+      setCol('stage');
+      return { onStage, onShop, onInbox, shopCol, shopCls, n } })()`);
+    ok(leak.onStage !== 'none', '무대에서는 분기 카드 자리가 있다', leak.onStage);
+    ok(leak.onShop === 'none' && leak.onInbox === 'none',
+       '**다른 탭에는 안 따라온다**',
+       `비품 ${leak.onShop} · 결재함 ${leak.onInbox} · data-col ${leak.shopCol} · 겹친 stack ${leak.n} · ${leak.shopCls}`);
   }
 
   console.log(fail ? `\n❌ ${fail}건 실패` : '\n✅ 전부 통과');

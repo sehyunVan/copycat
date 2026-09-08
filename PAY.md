@@ -257,20 +257,32 @@ Play 쪽 마법사는 **편의**일 뿐이다. 서비스 계정은 Google Cloud 
     Play 콘솔 (계정 수준) → **사용자 및 권한** → 그 서비스 계정 줄
       (…@….iam.gserviceaccount.com) → 권한 수정 → **계정 권한** 탭
 
+RevenueCat 문서가 요구하는 것은 **넷**이다
+(revenuecat.com/docs/service-credentials/creating-play-service-credentials):
+
     [v] 앱 정보 보기 및 일괄 보고서 다운로드(읽기 전용)
-        → in-app product catalog 를 읽는 권한이다
     [v] 재무 데이터, 주문, 취소 설문조사 응답 보기
-        → subscription catalog · 결제 조회
     [v] 주문 및 구독 관리
-        → 환불 처리에 필요하다(RevenueCat 이 환불 웹훅을 보내려면)
+    [v] **매장 등록정보 관리** (Manage store presence)   ← 빠뜨리기 쉽다
 
-    → 변경사항 적용
+넷째가 핵심이다. 구글은 **인앱 상품을 이 권한으로 다룬다** — 없으면 RevenueCat 이
+상품 목록을 읽지도 만들지도 못하고, 검증 화면에 정확히 그 줄이 뜬다:
+「Could not validate access to the Google Play **in-app product catalog**」.
 
-그리고 Google Cloud 에서 **Google Play Android Developer API** 가 그 프로젝트에
-사용 설정되어 있는지 본다(콘솔 → API 및 서비스 → 사용 설정된 API).
+### Google Cloud 쪽 — API 다섯과 역할 둘
 
-**권한은 바로 안 퍼진다.** 구글 쪽 전파에 보통 몇 분, 길면 하루가 걸린다 —
-RevenueCat 의 「Check credentials」를 눌러 초록이 될 때까지 기다린다.
+RevenueCat 의 자동 설정 스크립트가 켜는 것들이다. 손으로 할 때도 같다:
+
+    API      Android Publisher · Play Developer Reporting ·
+             Cloud Pub/Sub · Cloud Resource Manager · IAM
+    역할     Pub/Sub 편집자(권한 오류가 나면 Pub/Sub 관리자) · 모니터링 뷰어
+
+### 기다림 — 최대 36 시간, 그리고 앞당기는 법
+
+문서가 못 박아 두고 있다: **Play 자격 증명이 제대로 도는 데 최대 36 시간**이 걸린다.
+앞당기는 방법이 하나 있다 — Play 콘솔 **수익 창출**에서 **아무 상품의 설명을 한 번
+고쳐 저장**하면 새 자격 증명이 곧바로(또는 아주 빨리) 살아난다.
+
 초록이 아니어도 **Public SDK key(`goog_…`)는 이미 보인다** — 그건 먼저 줘도 된다.
 2. Apps → App Store 쪽에는 **App-Specific Shared Secret** 을 넣는다(영수증 검증용).
 3. Products → 세 상품 코드를 양쪽에서 import.

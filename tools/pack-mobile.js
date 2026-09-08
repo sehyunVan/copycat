@@ -32,7 +32,23 @@ const { collect, credits, audit, ROOT } = require('./collect.js');
 const HEAVY = process.argv.includes('--heavy-audio');
 /* 캐시 이름이자 에셋 쿼리. **분까지 넣는다** — 날짜만 쓰면 같은 날 두 번 빌드했을 때
    캐시 이름이 같아서 activate 의 청소가 아무것도 지우지 않고, 고친 것이 폰에 안 내려간다. */
-const VER = 'v' + new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
+/* 시각은 **이 기계의 시각**이다. 예전엔 toISOString(UTC)이라 저녁에 구운 판이
+   오전으로 찍혀서, 폰의 도장을 보고도 어느 판인지 못 알아봤다(9시간 차이). */
+const stamp = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
+const VER = 'v' + stamp.toISOString().slice(0, 16).replace(/[-:T]/g, '');
+
+/* 폰에 깔린 것이 **플레이의 몇 번 판인지**도 같이 찍는다. 스토어·폰 설정에 뜨는
+   이름은 versionName 이라, 그 값과 도장이 한 줄에 있어야 「내부 테스트 4번이
+   내려온 것인가」를 폰만 보고 답할 수 있다. 없으면 도장만 찍는다(웹 배포). */
+const APPVER = (() => {
+  try {
+    const g = fs.readFileSync(path.join(ROOT, 'mobile/android/app/build.gradle'), 'utf8');
+    const name = (g.match(/versionName\s+"([^"]+)"/) || [])[1] || '';
+    const code = (g.match(/versionCode\s+(\d+)/) || [])[1] || '';
+    return name && code ? name + ' (' + code + ')' : name;
+  } catch (e){ return ''; }
+})();
+const BUILD_LABEL = (APPVER ? APPVER + ' · ' : '') + VER;
 
 /* 아이콘·시작화면을 먼저 만든다. 목록에 넣을 파일이라 순서가 중요하다. */
 console.log('아이콘과 시작 화면부터 만든다');
@@ -168,7 +184,7 @@ function build(platform){
        실제로 「예전 2D 모션이 다시 나온다」의 정체가 캐시였다.
        시작화면 구석에 작게 뜬다(js/title.js 가 이 값을 읽는다). */
     + `
-<meta name="copycat-build" content="${VER}">`;
+<meta name="copycat-build" content="${BUILD_LABEL}">`;
   const head = platform === 'android'
     ? `${DIST_MARK}
 <link rel="manifest" href="./manifest.webmanifest">

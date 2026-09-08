@@ -63,10 +63,33 @@ function applyCompact(on){
   HOST.requestAnimationFrame(fitWorld);
 }
 
+/* 폰용 배포본인가. col.js 의 `PHONE_DIST` 와 **같은 도장을 본다** — 여기서 다시 읽는
+   이유는 이 파일이 col.js 보다 먼저 실행되기 때문이다(index.html 의 순서).
+   폰 배포본은 배치가 하나다(탭 바). 위젯은 사람이 작은 창으로 만든 데스크톱의 이야기다. */
+const phoneBuild = () => {
+  try {
+    return /[?&]mobile=1/.test(location.search) ||
+      !!document.querySelector('meta[name="copycat-dist"][content="mobile"]');
+  } catch (e){ return false; }
+};
+
+/* 글자를 치고 있나. **안드로이드는 키보드가 올라오면 창을 실제로 줄인다**(adjustResize) —
+   innerHeight 가 700 → 380 이 되고, 그걸 「작은 창」으로 읽으면 배치가 위젯으로 갈아탄다.
+   실기기에서 그렇게 났다: 이름을 치는 순간 화면이 데스크톱 판으로 바뀌고 창이 밀렸다.
+   키보드는 창이 작아진 게 아니라 **가려진 것**이다. 치는 동안은 판단을 멈춘다. */
+const typing = () => {
+  const a = document.activeElement;
+  return !!a && (a.tagName === 'INPUT' || a.tagName === 'TEXTAREA' || a.isContentEditable);
+};
+
 /* 사용자가 직접 고정한 게 있으면 그걸 따르고, 없으면 창 크기로 판단한다 */
 function autoCompact(){
   if (PIP) return applyCompact(true);              // 떠 있는 창은 언제나 위젯이다
   if (cmpPref === '1' || cmpPref === '0') return applyCompact(cmpPref === '1');
+  /* 폰 배포본은 위젯이 안 된다 — 도장이 그렇게 말한다. */
+  if (phoneBuild()) return applyCompact(false);
+  /* 키보드가 올라와 있는 동안은 크기로 판단하지 않는다(위 typing 머리말) */
+  if (typing()) return;
   /* 직접 고정한 게 없으면 창 크기로 판단한다 — 단 폰은 빼 놓는다.
      폰에서 위젯을 켜면 300×260 을 위해 만든 배치가 780px 세로에 늘어난다. */
   applyCompact(!phoneish() && (HOST.innerWidth < CMP_W || HOST.innerHeight < CMP_H));

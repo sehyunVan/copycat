@@ -66,5 +66,17 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<!-- 구글 로그인이 앱으로 돌아오는 문 — 안드로이드 custom_url_scheme 과 같은 값 -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>sarl.copycat.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>copycat.sarl</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

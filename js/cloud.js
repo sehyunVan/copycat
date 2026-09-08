@@ -52,6 +52,76 @@
      배터리도 먹는다. 로컬 저장은 지금처럼 8초마다 돌고, 서버는 이 간격으로만 간다. */
   const PUSH_MS = 3 * 60 * 1000;
 
+  /* ---------- 앱은 **자기 주소로** 돌아온다 ----------
+     웹에서는 redirectTo 가 지금 페이지(location.href)라 구글이 끝나면 그 페이지가
+     다시 열린다 — 사람 눈에는 게임으로 돌아온 것이다. 앱에서 그 주소는
+     https://localhost/index.html, 즉 **앱 안에서만 뜻이 있는 주소**여서 바깥
+     브라우저가 갈 수 없다. 그래서 로그인이 끝나고 낯선 페이지가 남고 게임은
+     아무것도 못 받았다(「새로운 링크로 디렉션된다」의 정체).
+
+     앱은 대신 자기 스킴으로 돌아온다 — copycat.sarl://login. 안드로이드·iOS 가 그
+     주소를 보면 **앱을 깨우고**, 아래 finishLogin() 이 실려 온 것으로 세션을 세운다.
+     로그인 창은 시스템 브라우저(Custom Tab)로 띄운다: 구글이 앱 안 웹뷰에서의
+     OAuth 를 거절한다(disallowed_useragent).
+
+     스킴은 네이티브 쪽 custom_url_scheme 과 **같은 값이어야 한다**
+     (mobile/android/.../values/strings.xml · ios/App/App/Info.plist). */
+  const APP_SCHEME = 'copycat.sarl';
+  const NATIVE = (() => { try { const c = window.Capacitor;
+      return !!(c && (c.isNativePlatform ? c.isNativePlatform()
+                                         : (c.getPlatform && c.getPlatform() !== 'web')));
+    } catch (e){ return false; } })();
+  const plug = n => { try { return (window.Capacitor.Plugins || {})[n] || null; } catch (e){ return null; } };
+  const backTo = () => (NATIVE ? APP_SCHEME + '://login' : location.href);
+
+  async function openOutside(url){
+    const B = plug('Browser');
+    if (B && B.open) return B.open({ url });
+    window.open(url, '_system');       /* 플러그인이 없으면 브릿지에 맡긴다 */
+  }
+
+  /* 딥링크로 돌아왔다. 두 갈래를 **다 받는다**: code(PKCE)와 토큰(implicit).
+     지금 SDK 기본은 implicit 이지만 나중에 flowType 을 바꿔도 이 손은 그대로 돈다.
+     신원 연결(linkIdentity)은 토큰을 안 실어 보내므로 그때는 세션을 새로 받아 온다. */
+  let landing = false;
+  async function finishLogin(raw){
+    const url = String(raw || '');
+    if (!sb || landing || url.indexOf(APP_SCHEME + '://') !== 0) return;
+    landing = true;
+    try { const B = plug('Browser'); if (B && B.close) B.close(); } catch (e){}
+    const say = t => { try { if (typeof toast === 'function') toast(t); } catch (e){} };
+    const fail = t => { say('로그인하지 못했습니다 — ' + t); landing = false; };
+    try {
+      /* URL 은 스킴을 https 로 바꿔서 읽는다 — 커스텀 스킴은 브라우저의 URL 파서가
+         searchParams 를 안 채워 주는 일이 있다. */
+      const u = new URL(url.replace(APP_SCHEME + '://', 'https://app.local/'));
+      const q = u.searchParams, h = new URLSearchParams(String(u.hash || '').replace(/^#/, ''));
+      const pick = k => q.get(k) || h.get(k);
+      const bad = pick('error_description') || pick('error');
+      if (bad) return fail(bad);
+      const code = pick('code'), at = pick('access_token'), rt = pick('refresh_token');
+      let error = null;
+      if (code && sb.auth.exchangeCodeForSession) ({ error } = await sb.auth.exchangeCodeForSession(code));
+      else if (at && rt) ({ error } = await sb.auth.setSession({ access_token: at, refresh_token: rt }));
+      else ({ error } = await sb.auth.refreshSession());
+      if (error) return fail(error.message);
+      /* **새로 고친다.** 이 파일은 부팅 때 한 번 계정을 읽고(start) 그 값으로 화면을
+         꾸민다 — 세션이 도중에 바뀌면 그 값들이 옛것이다. 웹에서는 구글이 페이지를
+         다시 열어 주어 공짜로 얻던 일을, 앱에서는 직접 한다(restore 와 같은 이유).
+         사무실은 로컬 저장이 진실이라 새로 고쳐도 그대로다. */
+      location.reload();
+    } catch (e){ fail((e && e.message) || '주소를 읽지 못했다'); }
+  }
+
+  function nativeHooks(){
+    if (!NATIVE) return;
+    const A = plug('App');
+    if (!A) return;
+    if (A.addListener) A.addListener('appUrlOpen', ev => finishLogin(ev && ev.url));
+    /* 앱이 **꺼져 있다가** 그 주소로 깨어난 경우 — 첫 이벤트는 이미 지나갔다 */
+    if (A.getLaunchUrl) { try { A.getLaunchUrl().then(r => finishLogin(r && r.url), () => {}); } catch (e){} }
+  }
+
   const ST = {
     on: false,          // 이 판에서 동기화가 도는가
     why: 'init',        // 안 돌면 왜
@@ -126,6 +196,7 @@
       }
       who(session.user);
       ST.on = true; ST.why = '';
+      nativeHooks();
     } catch (e){ return off('시작 실패: ' + (e && e.message)); }
 
     await pull();
@@ -167,15 +238,24 @@
      이 사무실이 그대로 올라간다(익명 줄은 주인 없이 남지만 아무 해가 없다). */
   async function linkGoogle(){
     if (!ST.on) return { error: '동기화가 꺼져 있습니다' };
-    const opt = { provider: 'google', options: { redirectTo: location.href } };
+    /* 웹은 SDK 가 페이지를 그대로 넘긴다. 앱은 skipBrowserRedirect 로 **주소만**
+       받아서(웹뷰가 구글 화면으로 가면 안 된다) 시스템 브라우저로 띄운다. */
+    const opt = { provider: 'google', options: { redirectTo: backTo(), skipBrowserRedirect: NATIVE } };
+    const go = async call => {
+      const { data, error } = await call(opt);
+      if (error) return { error: error.message };
+      if (!NATIVE) return { ok: true };          /* 이 줄 다음은 없다 — 페이지가 넘어갔다 */
+      const url = data && data.url;
+      if (!url) return { error: '로그인 주소를 받지 못했습니다' };
+      await openOutside(url);
+      return { ok: true };
+    };
     try {
       if (ST.anon && sb.auth.linkIdentity){
-        const { error } = await sb.auth.linkIdentity(opt);
-        if (!error) return { ok: true };
+        const r = await go(o => sb.auth.linkIdentity(o));
+        if (!r.error) return r;
       }
-      const { error } = await sb.auth.signInWithOAuth(opt);
-      if (error) return { error: error.message };
-      return { ok: true };
+      return await go(o => sb.auth.signInWithOAuth(o));
     } catch (e){ return { error: (e && e.message) || '연결 실패' }; }
   }
 
@@ -233,12 +313,12 @@
     try {
       if (ST.anon){
         const { error } = await sb.auth.updateUser({ email: a },
-          { emailRedirectTo: location.href });
+          { emailRedirectTo: backTo() });
         if (error) return { error: error.message };
         return { ok: true, linked: true };
       }
       const { error } = await sb.auth.signInWithOtp({
-        email: a, options: { emailRedirectTo: location.href } });
+        email: a, options: { emailRedirectTo: backTo() } });
       if (error) return { error: error.message };
       return { ok: true, linked: false };
     } catch (e){ return { error: (e && e.message) || '보내지 못했습니다' }; }
@@ -407,7 +487,8 @@
         b.disabled = true;
         const r = await linkGoogle();
         if (r && r.error){ b.disabled = false; say('연결하지 못했습니다 — ' + r.error); }
-        return;   /* 성공하면 구글로 넘어갔다가 이 페이지로 돌아온다(redirectTo) */
+        else if (NATIVE) b.disabled = false;   /* 앱은 페이지가 안 넘어간다 — 취소하고 돌아올 수 있으니 다시 누를 길을 남긴다 */
+        return;   /* 웹은 구글로 넘어갔다가 이 페이지로 돌아온다(redirectTo) · 앱은 딥링크로 돌아온다 */
       }
       if (kind === 'email'){
         const inp = box.querySelector('[data-cloud-mail]');

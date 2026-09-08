@@ -848,7 +848,18 @@ body.gacut .deco, body.gacut .bubble, body.gacut .tag3d, body.gacut #tags3d{
 .st b{font-size:15px;font-variant-numeric:tabular-nums}
 .st.hi b{color:#2F7A64} .st.lo b{color:var(--red)}
 .st .plus{color:#2F7A64}
+/* 지원서 줄(초상 + 오른쪽 칸). **오른쪽 칸이 줄어들 수 있어야 한다** —
+   flex 자식의 기본 min-width 는 auto 라 안에 든 것들의 고유 폭 밑으로는 안 줄어든다.
+   폰(360px)에서 그 칸이 298px 를 고집해서 줄 전체가 394px 가 됐고, 그러면 창이 가로로
+   스크롤된다. 이름 칸에 포커스가 가는 순간 브라우저가 그만큼 옆으로 밀어서
+   「채용 화면이 왼쪽으로 밀려 있다」가 됐다(실기기 · 2026-09-07).
+   min-width 를 풀면 글이 줄바꿈으로 접히고 줄이 화면에 들어온다. */
 .resume{display:flex;gap:12px;align-items:center}
+.resume > *{min-width:0}
+
+/* 창은 **옆으로는 스크롤되지 않는다.** 위와 같은 사고가 다시 나도 화면이 밀리지는
+   않게 막아 둔다 — 세로 스크롤은 그대로다. */
+.modal{overflow-x:hidden}
 .mfoot{padding:14px 20px 18px;position:sticky;bottom:0;background:var(--card);
   box-shadow:0 -10px 14px -8px rgba(58,46,40,.18)}
 .okbtn{width:100%;padding:12px;background:var(--accent);color:#fff;font-weight:800;font-size:15px;
@@ -2024,7 +2035,13 @@ body.eerie #app.tabbar{
 
    대신 이름표를 **카드에 담는다.** 방 위에 글자만 얹으면 밝은 시간대에 안 읽힌다 —
    띠를 없애면서 잃는 것이 그 가독성 하나뿐이라, 그것만 카드로 되산다. ── */
-body.eerie #app.tabbar #topbar{background:transparent;border-bottom:0;padding:10px 12px;gap:8px;
+/* 위쪽 여백은 **상태바를 피해서** 잡는다. 이 줄이 `padding` 을 통째로 다시 쓰기 때문에,
+   위에 있던 `#app.tabbar #topbar{padding-top:calc(4px + env(safe-area-inset-top))}` 가
+   여기서 지워진다 — 그게 폰 브라우저에서는 안 보였다(사파리 주소창이 대신 밀어 줬다).
+   네이티브 앱은 화면 끝까지 그리므로 **시계와 배터리가 칩 위에 겹치고, 설정 단추가
+   안 눌린다.** 실기기에서만 드러나는 자리다(2026-09-08). */
+body.eerie #app.tabbar #topbar{background:transparent;border-bottom:0;
+  padding:calc(10px + env(safe-area-inset-top, 0px)) 12px 10px;gap:8px;
   position:relative;z-index:8;box-shadow:none}
 /* 로고는 **아무 판 위에도 안 얹는다.** 동그라미로 자르지도, 카드에 담지도 않는다 —
    우리 아이콘은 귀가 있는 고양이 머리이고, 배경을 두는 순간 그 실루엣이 죽는다.
@@ -2094,6 +2111,10 @@ body.eerie #app.tabbar .stagestack{position:fixed;left:12px;right:12px;
   display:flex;flex-direction:column;align-items:flex-start;gap:10px;
   pointer-events:none}
 body.eerie #app.tabbar .stagestack > *{pointer-events:auto}
+/* **무대 위의 것은 무대에서만.** 이 줄은 `position:fixed` 라 열을 바꿔도 그 자리에
+   그대로 떠 있었다 — 결재함·직원·비품 위로 분기 카드와 택배 단추가 따라다녔다.
+   지금 어느 열인지는 `#app[data-col]` 에 이미 적혀 있다(js/col.js) — 그걸 본다. */
+body.eerie #app.tabbar:not([data-col="stage"]) .stagestack{display:none}
 
 /* ── 사건 카드 — 버튼 바로 위 (채움은 skin.js) ── */
 body.eerie #app.tabbar .stagecard.show{display:block;position:static;width:100%;
