@@ -41,8 +41,13 @@ const ev=async e=>{const r=await send('Runtime.evaluate',{expression:e,returnByV
  if(r?.exceptionDetails)throw new Error((r.exceptionDetails.exception?.description||'').slice(0,300));return r?.result?.value;};
 
 /* 세 판을 각각 새로 연다. 주소에 실려 오는 표시가 이 기능의 입력이다. */
+/* 심은 스크립트는 **쓰고 걷어낸다.** 안 걷으면 다음 판에도 계속 돌아서, 「한 번만
+   쓰고 지운다」를 재려는 순간 그 스크립트가 다시 심어 놓는다 — 제품이 아니라 검사가
+   만든 상황을 재게 된다. */
+let planted = null;
 async function run(url, stub){
-  await send('Page.addScriptToEvaluateOnNewDocument',{source:stub});
+  if (planted){ await send('Page.removeScriptToEvaluateOnNewDocument',{identifier:planted}); planted=null; }
+  if (stub){ planted = (await send('Page.addScriptToEvaluateOnNewDocument',{source:stub})).identifier; }
   await send('Page.navigate',{url});
   let r=null;
   for(let i=0;i<70&&!r;i++){
@@ -69,6 +74,26 @@ ok('거절당하면 **왜인지 말한다**',
    failCase && /못했습니다|취소/.test(failCase.said), failCase ? failCase.said.slice(0,50) : '안 떴다');
 ok('거절인데 「묶었습니다」라고 안 한다',
    failCase && !/묶었습니다/.test(failCase.said), failCase ? '안 한다' : '-');
+
+/* ── 앱 경로 ──────────────────────────────────────────────────────────
+   **앱에서는 주소에 흔적이 안 남는다.** 우리가 우리 주소로 다시 여는 것이라
+   `?code=` 같은 게 없다 — 웹만 보고 만들었더니 아이폰에서는 조용히 지나갔다.
+   그래서 새로고침 너머로 표시를 넘긴다(sessionStorage). 그 자리를 여기서 본다. */
+const appCase = await run(BASE + '/index.html',
+  `try{ sessionStorage.setItem('copycat.justlinked','1'); }catch(e){}`);
+ok('**앱에서 돌아와도 말한다** (주소에 흔적이 없어도)', !!appCase,
+   appCase ? appCase.said.slice(0,40) : '안 떴다');
+
+/* 표시는 한 번만 쓴다 — 새로 고칠 때마다 같은 창이 또 뜨면 안 된다. */
+if (planted){ await send('Page.removeScriptToEvaluateOnNewDocument',{identifier:planted}); planted=null; }
+await send('Page.navigate',{url: BASE + '/index.html'});
+await sleep(9000);
+const again = await ev(`(()=>{
+  const v=[...document.querySelectorAll('.veil')].filter(x=>/ACCOUNT/.test(x.textContent));
+  let left=null; try{ left = sessionStorage.getItem('copycat.justlinked'); }catch(e){}
+  return { n:v.length, left } })()`);
+ok('표시는 한 번 쓰고 지운다', again.n === 0 && !again.left,
+   `창 ${again.n} · 남은 표시 ${again.left}`);
 
 ok('콘솔 오류 0', errs.length===0, errs.join(' / ').slice(0,150));
 const bad=rows.filter(r=>!r.pass).length;

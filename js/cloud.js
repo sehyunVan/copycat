@@ -90,7 +90,8 @@
     landing = true;
     try { const B = plug('Browser'); if (B && B.close) B.close(); } catch (e){}
     const say = t => { try { if (typeof toast === 'function') toast(t); } catch (e){} };
-    const fail = t => { say('로그인하지 못했습니다 — ' + t); landing = false; };
+    /* 말풍선만으로는 부족하다 — 시작 화면이 그 위를 덮는다. 창으로도 말한다. */
+    const fail = t => { say('로그인하지 못했습니다 — ' + t); landing = false; sayLinked(t); };
     try {
       /* URL 은 스킴을 https 로 바꿔서 읽는다 — 커스텀 스킴은 브라우저의 URL 파서가
          searchParams 를 안 채워 주는 일이 있다. */
@@ -109,6 +110,11 @@
          꾸민다 — 세션이 도중에 바뀌면 그 값들이 옛것이다. 웹에서는 구글이 페이지를
          다시 열어 주어 공짜로 얻던 일을, 앱에서는 직접 한다(restore 와 같은 이유).
          사무실은 로컬 저장이 진실이라 새로 고쳐도 그대로다. */
+      /* **새로고침 너머로 표시를 넘긴다.** 앱에서는 돌아온 흔적이 주소에 안 남는다 —
+         우리가 우리 주소로 다시 여는 것이라 `?code=` 같은 게 없다. 그래서 웹에서
+         주소를 보고 하던 「묶었습니다」가 앱에서만 조용히 지나갔다.
+         sessionStorage 를 쓰는 이유: 새로고침은 넘고 앱을 껐다 켜면 사라진다. */
+      try { sessionStorage.setItem('copycat.justlinked', '1'); } catch (e){}
       location.reload();
     } catch (e){ fail((e && e.message) || '주소를 읽지 못했다'); }
   }
@@ -163,6 +169,13 @@
         const m = (h + q).match(/error_description=([^&]*)/);
         return 'fail:' + (m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : '');
       }
+      /* 앱이 남긴 표시(위 finishLogin). **한 번만 쓰고 지운다.** */
+      try {
+        if (sessionStorage.getItem('copycat.justlinked')){
+          sessionStorage.removeItem('copycat.justlinked');
+          return 'ok';
+        }
+      } catch (e){}
       return '';
     } catch (e){ return ''; }
   })();
@@ -377,11 +390,12 @@
      숨어서 **돌아온 바로 그 순간에는 안 보인다.**
 
      시작 화면이 아직 안 그려졌을 수 있어(스크립트 순서) 조금 기다렸다 띄운다. */
-  function sayLinked(){
+  function sayLinked(reason){
     /* **묶였는지는 주소가 아니라 계정을 보고 판단한다.** 돌아왔다는 표시가 붙어 있어도
-       익명 그대로일 수 있고(중간에 취소·거절), 그때 「묶었습니다」라고 하면 거짓말이다. */
-    const fail = /^fail/.test(CAME_BACK) || ST.anon;
-    const why = /^fail/.test(CAME_BACK) ? CAME_BACK.slice(5) : '';
+       익명 그대로일 수 있고(중간에 취소·거절), 그때 「묶었습니다」라고 하면 거짓말이다.
+       `reason` 은 앱 쪽에서 실패를 들고 바로 부를 때 온다(finishLogin 의 fail). */
+    const fail = !!reason || /^fail/.test(CAME_BACK) || ST.anon;
+    const why = reason || (/^fail/.test(CAME_BACK) ? CAME_BACK.slice(5) : '');
     let n = 0;
     const t = setInterval(() => {
       if (typeof modal !== 'function'){ if (++n > 40) clearInterval(t); return; }
