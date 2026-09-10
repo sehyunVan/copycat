@@ -476,32 +476,17 @@ function genOffice(tier, owned, seed){
   for (const t of wanted) placeFurniture(
     { W, H, grid:g, zone, desks, facilities, inbox, door:{x:doorX, y:H-1} }, t, rng, machineSide);
 
-  /* 바닥 잡동사니 — 현금 뭉치, 서류 가방. 기능은 없고 격자도 안 건드린다.
-     길찾기에 영향이 없어야 하니 걸어 다닐 수 있는 칸 위에 그림만 얹는다.
-     사무실이 "정리된 전시장"이 아니라 "일하는 곳"으로 보이게 하는 장치. */
+  /* ── 바닥 잡동사니는 **더 안 놓는다** ──
+     상자·간식 그릇·서류더미를 바닥에 흩어 두던 자리였다. 사무실이 「정리된 전시장」이
+     아니라 「일하는 곳」으로 보이게 하려던 장치인데, 실제로 하는 일이 그것뿐이었다:
+     **집을 수도, 옮길 수도, 치울 수도 없다.** 배치 모드에서 눌러도 안 잡히고 창고에도
+     안 들어간다 — 그러니 사람 눈에는 「왜 안 치워지지」로만 남는다.
+
+     방이 허전해지는 것은 가구가 채운다. 그건 사람이 사서 놓은 것이라 **뜻이 있다.**
+
+     칸은 남긴다(빈 배열). 옛 저장에도 clutter 가 실려 있고, 렌더러와 스탠드 자리
+     고르기가 이 이름을 읽는다 — 없애면 그쪽이 매번 undefined 를 만난다. */
   const clutter = [];
-  {
-    const cand = [];
-    for (let y = 2; y <= H-3; y++)
-      for (let x = 1; x <= W-2; x++){
-        if (get(x, y) !== TILE.FLOOR) continue;
-        if (desks.some(d => d.seat.x === x && d.seat.y === y)) continue;
-        if (Math.abs(x - doorX) < 3 && y >= H-4) continue;
-        // 벽이나 가구에 기대어 있는 칸만 — 통로 한가운데 굴러다니면 이상하다
-        const leans = [[1,0],[-1,0],[0,1],[0,-1]].some(([dx,dy]) => {
-          const t = get(x+dx, y+dy);
-          return t !== TILE.FLOOR && t !== TILE.DOOR;
-        });
-        if (leans) cand.push({ x, y });
-      }
-    shuffle(cand);
-    const want = 2 + Math.floor(tier * 0.9);
-    for (let i = 0; i < cand.length && clutter.length < want; i++){
-      const c = cand[i];
-      if (clutter.some(p => Math.abs(p.x - c.x) <= 1 && Math.abs(p.y - c.y) <= 1)) continue;
-      clutter.push({ x:c.x, y:c.y, i: clutter.length + tier });
-    }
-  }
 
   /* 벽에 거는 것 — 액자·화이트보드·창문·시계·선반.
      격자는 그대로 WALL로 두고 별도 목록으로 관리한다(길찾기에 영향 없음).

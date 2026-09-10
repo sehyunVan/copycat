@@ -108,12 +108,14 @@ function unitAt(x, y, prefer){
     const r0 = (W.rugs || []).find(r => rugHit(r, x, y));
     if (r0) return { kind:'rug', x:r0.x, y:r0.y, tile:r0.id, rot:r0.rot|0, span:rugSizeOf(r0).w, ref:r0 };
   }
-  if (t === TILE.WALL){
-    for (const d of (W.wallDecor || []))
-      if (decorHit(d, x, y))
-        return { kind:'decor', x:d.x, y:d.y, tile:d.tile, span:decorSpan(d), face:d.face || 'n', ref:d };
-    return null;
-  }
+  /* ── 벽은 **방의 일부다** ──
+     전에는 벽에 걸린 것(액자·시계·화이트보드·커튼)도 집혀서 옮기고 치울 수 있었다.
+     그런데 그것들은 방을 세울 때 벽면을 줄 단위로 훑어 채운 것이라(world.js 의 wallDecor)
+     한 칸만 빼면 그 줄이 어긋나 보이고, 창고로 돌아올 자리도 없다 — 즉 **집을 수는
+     있는데 되돌릴 수는 없는** 물건이었다.
+     그래서 안 집는다. 벽을 눌러도 아무 일이 없다: 배치 모드가 만지는 것은 바닥에 놓인
+     것들이고, 벽지·바닥재는 배치 시트의 제 갈래에서 통째로 바꾼다. */
+  if (t === TILE.WALL) return null;
   if (t === TILE.DESK)   return { kind:'desk', x, y, tile:TILE.DESK, span:2 };
   if (t === TILE.DESK_R) return tileAt(W, x-1, y) === TILE.DESK
     ? { kind:'desk', x:x-1, y, tile:TILE.DESK, span:2 } : null;
@@ -280,6 +282,10 @@ function editTryMove(unit, tx, ty){
 
 /* 벽 장식: 방을 향한 벽면에만, 다른 장식과 안 겹치게.
    북쪽 벽은 아래가 벽이 아닌 칸, 서쪽 벽은 오른쪽이 벽이 아닌 칸이 "방을 향한 면"이다. */
+/* **지금은 안 불린다.** 벽에 걸린 것은 unitAt 이 아예 안 돌려주므로(위의 그 규칙)
+   벽 물건을 옮기는 길이 없다. 지우지 않고 남겨 두는 이유: 벽 물건을 다시 만질 수 있게
+   하는 날, 「어디에 걸 수 있나」의 답이 여기 이미 적혀 있다(같은 벽면·안 겹침·창문 피하기).
+   그날이 오면 unitAt 의 한 줄만 되돌리면 된다. */
 function decorTargetOK(unit, tx, ty){
   const west = unit.face === 'w';
   for (let i = 0; i < unit.span; i++){
@@ -581,6 +587,11 @@ function editRefresh(){
   if (!layer) return;
   layer.style.display = EDIT.on ? 'block' : 'none';
   hint.style.display = EDIT.on ? 'block' : 'none';
+  /* **배치 중이라는 표시를 #app 에 단다.** 화면 쪽(style.css)이 이 표시를 보고
+     배치와 상관없는 문들을 접는다 — 따라가기 카메라와 택배 상자. 그 둘은 방을 만지는
+     조작이 아니고, 배치 UI(손잡이·화살표·미리보기)와 같은 자리를 다툰다.
+     #viewport.editmode 로는 못 한다: 카메라·택배 단추가 그 밖에 살아서 CSS 가 못 닿는다. */
+  try { const app = document.querySelector('#app'); if (app) app.classList.toggle('editing', !!EDIT.on); } catch (er) {}
   if (!EDIT.on){
     EDIT.sel = null; EDIT.hover = null;
     ghost.style.display = 'none'; sel.style.display = 'none';

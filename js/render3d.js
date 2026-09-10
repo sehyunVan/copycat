@@ -1644,13 +1644,9 @@ export function build(world, TILE){
     g.add(o);
   });
 
-  /* 바닥 잡동사니 */
-  (world.clutter || []).forEach(c => {
-    const o = (c.i % 3 === 0) ? LP.docStack(4) : (c.i % 3 === 1) ? LP.cardboard(true) : LP.snackBowl();
-    o.position.set(c.x + 0.5, 0, c.y + 0.5);
-    o.rotation.y = (c.i % 5) * 0.4;
-    g.add(o);
-  });
+  /* 바닥 잡동사니는 **안 그린다**(world.js 가 더는 안 놓는다). 옛 저장에는 아직
+     실려 있으므로 여기서도 막아야 그 방들에서 같이 사라진다 — 생성만 멈추면
+     이미 만들어진 사무실은 그대로 어질러진 채 남는다. */
 
   /* 조명 기구 한 벌. **맨 끝에서 부른다** — 자리를 고르려면 격자·벽 장식·의자 칸이
      전부 정해져 있어야 하고, 그 셋이 위에서 채워진다. */
