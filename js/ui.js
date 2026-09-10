@@ -2124,9 +2124,9 @@ function showSettings(){
         <div class="crow"><span class="em">🌃</span>
           <div class="info"><b>${L({ ko:'마지막 장면', en:'The last scene', ja:'最後の場面' })}</b>
             <span>${L({
-              ko:'줌아웃하면 지점들이 깔리고, 그 위에서 누군가 내려다보고 있습니다.',
-              en:'Pull back far enough and the branches spread out — with someone watching from above.',
-              ja:'ズームアウトすると支店が広がり、その上から誰かが見下ろしています。',
+              ko:'카피캣의 진상을 알게 된 날로 돌아갑니다.',
+              en:'Back to the day you learned what Copycat was.',
+              ja:'カピキャットの真相を知ったあの日へ戻ります。',
             })}</span></div>
           <button class="buy alt" data-set="outro">${L({ ko:'다시 보기', en:'Replay', ja:'もう一度' })}</button>
         </div>
@@ -2332,7 +2332,13 @@ function showBranchSetup(onDone){
      고를 것이 없는 고르기 창은 사고 보고다. */
   if (!files.length){ done(); return; }
 
-  let pick = (S.branch && S.branch.logo) || '';
+  /* ── 간판은 **비워 둘 수 없다** ── (2026-09-10)
+     원래는 안 고르면 빈 값이었고, 그때 시작화면과 엔딩은 박아 둔 글자 로고로 내려갔다.
+     그런데 「안 고른 사람」이 기본이 되어 버려서, 이 게임의 얼굴이 한 번도 고른 적 없는
+     글자판이 됐다 — 게다가 그 폴백 경로에서 깨진 그림이 뜨는 사고까지 났다
+     (js/story.js 의 outroLogoHTML). 그래서 **첫 칸을 미리 골라 둔다.**
+     고르기를 푸는 손잡이도 없앴다 — 풀 수 있으면 「없음」이 다시 기본이 된다. */
+  let pick = (S.branch && S.branch.logo) || files[0];
   const cell = f =>
     `<button class="logocell ${f === pick ? 'on' : ''}" data-logo="${f}">
        <span style="background-image:${cssURL(assetURL(LOGO_PATH(f)))}"></span></button>`;
@@ -2361,14 +2367,13 @@ function showBranchSetup(onDone){
 
   const grid = m.veil.querySelector('#brGrid');
   grid.querySelectorAll('.logocell').forEach(b => b.onclick = () => {
-    /* 같은 것을 다시 누르면 고르기를 **푼다**. 마흔넷 중 하나를 눌러 본 사람이
-       「글자 로고로 돌아가려면 어떻게 하나」에서 막히지 않게. */
-    pick = (pick === b.dataset.logo) ? '' : b.dataset.logo;
+    pick = b.dataset.logo;              // 늘 하나가 골라져 있다 (위 주석)
     grid.querySelectorAll('.logocell').forEach(x => x.classList.toggle('on', x.dataset.logo === pick));
     sfx.add();
   });
   m.veil.querySelector('#brGo').onclick = () => {
-    setBranch({ logo: pick, name: m.veil.querySelector('#brName').value });
+    /* 창을 아예 안 건드리고 등록해도 첫 칸이 들어간다 — 빈 간판으로 나가는 길은 없다. */
+    setBranch({ logo: pick || files[0], name: m.veil.querySelector('#brName').value });
     m.close();
     sfx.stamp();
     renderTop();

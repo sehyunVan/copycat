@@ -937,10 +937,11 @@ function outroLogoHTML(){
      아예 안 떴다**(2026-09-10 실측: .ologo 안에 img 가 없었다). */
   const t = DOC.querySelector('#cctitle .logo img');
   if (t) return '<img src="' + t.getAttribute('src') + '" alt="copycat">';
-  try {
-    if (typeof assetURL === 'function')
-      return '<img src="' + assetURL('assets/logo-word-dot.png') + '" alt="copycat">';
-  } catch (e) {}
+  /* 시작화면이 들고 있는 그 워드마크(data URI)를 빌린다. 한동안 여기에
+     `assets/logo-word-dot.png` 를 걸어 뒀는데, **폰 배포본에는 그 파일이 없다**
+     (dist/ 에 담기는 것은 assets/logos/ 뿐이다) — 그래서 마지막 화면에 깨진 그림
+     아이콘이 떴다. 파일을 하나 더 담는 대신 이미 있는 한 벌을 쓴다. */
+  try { if (window.CCTitle && CCTitle.wordmark) return '<img src="' + CCTitle.wordmark() + '" alt="copycat">'; } catch (e) {}
   return '<div style="font:800 26px/1 system-ui;letter-spacing:.22em;color:#EFE4D2">COPYCAT</div>';
 }
 

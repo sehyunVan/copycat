@@ -480,5 +480,10 @@ body.titleon .veil{z-index:10000}
   if (DOC.body) put(); else DOC.addEventListener('DOMContentLoaded', put);
 
   /* main.js 가 부팅 끝에서 이것을 기다린다. 이 파일이 없으면 그쪽이 그냥 진행한다. */
-  window.CCTitle = { wait: () => gate, close };
+  /* 워드마크를 **밖으로 내준다.** 엔딩의 마지막 화면도 이 그림으로 끝나는데(js/story.js),
+     그쪽에서 `assets/logo-word-dot.png` 를 걸었더니 **폰 배포본에 그 파일이 없어서**
+     깨진 그림 아이콘이 떴다(2026-09-10 · dist/android 에는 assets/logos/ 만 담긴다).
+     여기 박혀 있는 것은 data URI 라 어느 배포본에서도 없을 수가 없다 —
+     그림을 두 벌 두지 않고 **있는 한 벌을 빌려 준다**. */
+  window.CCTitle = { wait: () => gate, close, wordmark: () => LOGO_SRC };
 })();

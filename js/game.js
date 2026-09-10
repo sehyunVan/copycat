@@ -366,6 +366,15 @@ function loadSave(){
        것으로 만들면 「내가 고른 것」이 아니게 되고, 시작화면은 빈 값에서 옛 로고로
        내려가므로 화면이 깨지지도 않는다(js/title.js). */
     d.branch = d.branch || { logo:'', name:'' };
+    /* **빈 간판을 채운다.** 등록 창에서 아무것도 안 고르면 빈 값이 남던 시절의 저장이
+       있고(그때는 그게 「없음」이었다), 그 판에서는 시작화면과 엔딩이 글자 로고로
+       내려간다 — 엔딩에서는 그 폴백이 깨진 그림으로 뜨기까지 했다. 지금은 등록에서
+       늘 하나가 골라지므로(ui.js showBranchSetup), 옛 저장도 여기서 같은 상태로 맞춘다. */
+    if (!d.branch.logo && typeof LOGO_FILES !== 'undefined' && LOGO_FILES.length){
+      d.branch.logo = LOGO_FILES[0];
+      /* 시작화면이 읽는 거울 키도 같이 맞춘다 — 저장만 고치면 첫 화면은 옛 상태로 뜬다 */
+      try { localStorage.setItem(LOGO_KEY, d.branch.logo); } catch (e) {}
+    }
     d.ending = d.ending ? 1 : 0;                              // 마지막 장면을 봤나 (js/story.js)
     d.beats = Array.isArray(d.beats) ? d.beats : [];          // 바깥 겹의 문구 중 본 것 (js/story.js)
     d.routines = Array.isArray(d.routines) ? d.routines : [];
