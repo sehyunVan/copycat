@@ -546,6 +546,9 @@
          불러도 써지는 것은 같은 내용이다. 몇 밀리초 뒤에 새로 고치므로 이 상태로
          게임이 도는 시간은 없다. */
       try { if (typeof S !== 'undefined') S = serverSave; } catch (e){}
+      /* 불러온 저장에 맞춰 시작화면의 거울 둘도 다시 그린다 — 다른 기기에서 엔딩을 본
+         계정을 이 기기로 불러오면 첫 화면도 그 정경이어야 하고, 그 반대도 그렇다. */
+      try { if (typeof syncTitleKeys === 'function') syncTitleKeys(); } catch (e){}
       location.reload();
       return true;
     } catch (e){ return false; }

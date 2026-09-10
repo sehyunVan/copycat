@@ -932,6 +932,31 @@ function hire(look){
    저장 형식이 바뀔 때 시작화면이 같이 깨진다. 그래서 **작은 키 하나로 비춰 둔다.**
    원본은 어디까지나 저장이고, 이 키는 그림 이름만 아는 사본이다. */
 const LOGO_KEY = 'copycat.logo';
+
+/* ── 거울을 **저장에서 다시 그린다** ──
+   거울 키는 두 개다: 간판(copycat.logo)과 엔딩을 봤나(copycat.ending). 둘 다 시작화면이
+   저장을 읽을 수 없어서 두는 사본이고, 원본은 늘 S 다.
+
+   그런데 그 사본을 **쓰는 자리만** 있고 **지우는 자리가 없었다.** 그래서 「처음부터」로
+   회사를 정리하면 S.ending 은 0 이 되는데 키는 '1' 로 남아서, 새로 시작한 사람의 첫
+   화면이 냥찰청 정경이었다(2026-09-10 실측 · 조건 ②). 간판도 같은 식으로 옛 회사의
+   그림이 남았다.
+
+   사본이 원본과 갈리는 길을 하나씩 막는 대신, **S 가 바뀌는 자리에서 다시 그린다.**
+   그 자리는 셋뿐이다 — 부팅(loadSave), 처음부터(newGame), 서버에서 불러오기(cloud.js). */
+function syncTitleKeys(){
+  try {
+    const f = (S && S.branch && S.branch.logo) || '';
+    if (f) localStorage.setItem(LOGO_KEY, f); else localStorage.removeItem(LOGO_KEY);
+  } catch (e) {}
+  try {
+    /* ENDING_KEY 는 story.js 에 있다(그 파일이 세우는 값이라 거기가 원산지다).
+       이 함수는 모든 스크립트가 선 다음에 불리므로 그 이름이 보인다. */
+    if (S && S.ending) localStorage.setItem(ENDING_KEY, '1');
+    else localStorage.removeItem(ENDING_KEY);
+  } catch (e) {}
+}
+
 function setBranch(o){
   if (!S.branch || typeof S.branch !== 'object') S.branch = { logo:'', name:'' };
   if (o && typeof o.logo === 'string') S.branch.logo = o.logo;

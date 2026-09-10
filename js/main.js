@@ -306,6 +306,9 @@ function bindInput(){
     window.__introAudio = true;
     try { music.sync(); } catch(e){}
     S = newGame();
+    /* 시작화면이 읽는 거울 둘을 새 저장에 맞춘다 — 안 지우면 「처음부터」로 시작한
+       사람의 첫 화면이 남의 엔딩 정경이고 간판도 옛 회사 것이다(game.js syncTitleKeys). */
+    syncTitleKeys();
     DOCS.length = 0; NPCS.length = 0; RAID = null;
     DECOR.clearCache();
     buildWorld(); renderAll();
@@ -408,6 +411,7 @@ function boot(){
   const loaded = loadSave();
   const isNew = !loaded;
   S = loaded || newGame();
+  syncTitleKeys();  // 거울 둘을 이 저장에 맞춘다 (game.js)
   decorSync();      // 저장의 벽지·바닥을 decor.js 에 맞춘다 (buildWorld 보다 먼저)
 
   buildWorld();
