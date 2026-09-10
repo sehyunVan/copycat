@@ -595,6 +595,162 @@ const BEATS = [
        + 'うちの支店は<b>三十二番目</b>です。',
     }) },
 
+  /* ── 바깥 세상 ── (2026-09-10)
+     한동안 이 표에는 넷뿐이었다(Q9·13·19·25). 그래서 분기를 스물여덟 번 넘기는 동안
+     **새 문장이 네 번**만 나오고 나머지는 이벤트 표가 돌려 쓰는 말이었다 — 「썼던 문구가
+     반복된다」는 것이 그 뜻이다.
+     늘리면서 방향을 하나로 잡았다: **바깥이 왜 저렇게 됐나**. STORY.md 의 바깥 겹은
+     「캣닢 중독으로 나라가 무너졌고, 냥찰청이 유통을 통째로 잡으려고 회사를 직접 세웠다」
+     인데, 그동안 화면에는 그 세상이 한 번도 안 나왔다. 이 회사가 미끼라는 말을 하기 전에
+     **미끼를 놓을 만한 세상**이 먼저 보여야 한다.
+     규칙은 그대로다 — 설명하지 않는다(톤 규칙 6). 어긋난 숫자 하나만 놓고 지나간다.
+     배치는 단서 표(Q1·2·3·5·8·12·17·22)와 안 겹치는 분기에만 둔다. */
+
+  /* Q4 — 바깥. 숫자 셋만 적는다. 무슨 뜻인지는 안 적는다. */
+  { id:'b4', q:4, where:'news', text: L({
+      ko:'📰 시청 공고 — 이번 달 <b>노숙 정비</b> 구역이 넷 늘었습니다. '
+       + '구직 창구는 <b>화요일만</b> 엽니다. 급식소는 <b>변동 없음</b>.',
+      en:'📰 City notice — <b>four</b> more districts added to the street-clearing list. '
+       + 'The job desk opens <b>Tuesdays only</b>. Soup kitchens: <b>no change</b>.',
+      ja:'📰 市の公告——今月の<b>路上整理</b>区域が四つ増えました。'
+       + '求職窓口は<b>火曜のみ</b>。炊き出しは<b>変更なし</b>。',
+    }) },
+
+  /* Q6 — 첫 압수수색. 영장 번호가 **우리 등기번호**다 (STORY.md 배치표의 그 줄). */
+  { id:'b6', q:6, where:'raid', note: L({
+      ko:'영장 사본이 함께 왔습니다. 발부 번호 <b>3-2-0412</b>.<br>'
+       + '<span style="opacity:.75">— 우리 회사 등기번호와 같습니다.</span>',
+      en:'A copy of the warrant came with it. Warrant no. <b>3-2-0412</b>.<br>'
+       + '<span style="opacity:.75">— the same as our company registration number.</span>',
+      ja:'令状の写しが同封されていました。発付番号 <b>3-2-0412</b>。<br>'
+       + '<span style="opacity:.75">——うちの登記番号と同じです。</span>',
+    }) },
+
+  /* Q7 — 중독이 바깥의 기본값이 된 세상. 「그래서」를 안 붙인다. */
+  { id:'b7', q:7, where:'news', text: L({
+      ko:'📰 보건 통계 — 성묘 <b>셋 중 하나</b>가 캣닢 상용. 회복 시설 대기 <b>2년 4개월</b>. '
+       + '올해 신규 시설 <b>0곳</b>.',
+      en:'📰 Health figures — <b>one in three</b> adults uses catnip daily. Recovery-centre wait: '
+       + '<b>2 years 4 months</b>. New centres this year: <b>0</b>.',
+      ja:'📰 保健統計——成猫の<b>三匹に一匹</b>がキャットニップ常用。回復施設の待機<b>2年4か月</b>。'
+       + '今年の新規施設<b>0か所</b>。',
+    }) },
+
+  /* Q10 — 첫 무마. 청구서 주소가 **이 건물**이다 (STORY.md 배치표). */
+  { id:'b10', q:10, where:'news', text: L({
+      ko:'📰 법무 비용 정산 — 자문료 청구서가 왔습니다. 수신처 주소는 '
+       + '<b>이 건물 3층</b>입니다. 우리는 <b>2층</b>입니다.',
+      en:'📰 Legal costs — the advisory invoice arrived. The billing address is '
+       + '<b>the third floor of this building</b>. We are on the <b>second</b>.',
+      ja:'📰 法務費用の精算——顧問料の請求書が届きました。宛先はこの<b>建物の3階</b>です。'
+       + 'うちは<b>2階</b>です。',
+    }) },
+
+  /* Q11 — 결산표의 「회수」. 반출(Q13)의 예고편이다: 나간 것과 들어간 곳이 따로 적힌다. */
+  { id:'b11', q:11, where:'quarter', row: d => L({
+      ko:{ k:'회수 (물품계)', v: fmt(Math.round(d.earned)) },
+      en:{ k:'Recovered (stores)', v: fmt(Math.round(d.earned)) },
+      ja:{ k:'回収（物品係）', v: fmt(Math.round(d.earned)) },
+    }) },
+
+  /* Q14 — 재건 예산. 항목이 하나 더 있고, 그 항목이 우리다. */
+  { id:'b14', q:14, where:'news', text: L({
+      ko:'📰 재건 예산이 공고됐습니다. 급식 <b>-12%</b>, 시설 <b>-8%</b>, '
+       + '「<b>유통관리 특별사업</b>」 <b>+340%</b>. 사업 내용은 비공개입니다.',
+      en:'📰 The rebuilding budget is out. Meals <b>-12%</b>, facilities <b>-8%</b>, '
+       + '“<b>Special distribution-control programme</b>” <b>+340%</b>. Contents undisclosed.',
+      ja:'📰 復興予算が公告されました。給食<b>-12%</b>、施設<b>-8%</b>、'
+       + '「<b>流通管理特別事業</b>」<b>+340%</b>。事業内容は非公開です。',
+    }) },
+
+  /* Q15 — 멍멍파 근황에 **우리 내부 메모 문장**이 그대로 인용된다 (STORY.md 배치표). */
+  { id:'b15', q:15, where:'quarter', row: d => L({
+      ko:{ k:'멍멍파 근황', v:'우리 메모와 같은 문장' },
+      en:{ k:'Woof Gang report', v:'same wording as our memo' },
+      ja:{ k:'ワンワン組の近況', v:'うちのメモと同じ文' },
+    }) },
+
+  /* Q16 — 압수량과 유통량이 같다. 즉 **새어 나간 것이 없다.** */
+  { id:'b16', q:16, where:'news', text: L({
+      ko:'📰 냥찰청 발표 — 올해 캣닢 압수량 <b>전년 대비 +19%</b>. '
+       + '같은 자료의 시중 유통 추정량도 <b>+19%</b>. 두 숫자는 <b>끝자리까지 같습니다</b>.',
+      en:'📰 From the Bureau — catnip seized this year is <b>up 19%</b>. '
+       + 'In the same report, estimated street supply is also <b>up 19%</b> — '
+       + '<b>identical to the last digit</b>.',
+      ja:'📰 猫察庁発表——今年のキャットニップ押収量<b>前年比+19%</b>。'
+       + '同じ資料の市中流通推定量も<b>+19%</b>。二つの数字は<b>末尾まで同じ</b>です。',
+    }) },
+
+  /* Q18 — 점검자 서명. 우리 회사를 세운 서류의 그 도장이다. */
+  { id:'b18', q:18, where:'raid', note: L({
+      ko:'점검자 서명란에 이름 대신 <b>도장 두 개</b>가 찍혀 있습니다.<br>'
+       + '<span style="opacity:.75">— 설립 서류의 발기인 칸에 찍힌 것과 같은 도장입니다.</span>',
+      en:'The inspector’s line carries <b>two seals</b> instead of names.<br>'
+       + '<span style="opacity:.75">— the same seals as on the founders’ line of our incorporation papers.</span>',
+      ja:'点検者の署名欄には名前の代わりに<b>判が二つ</b>押されています。<br>'
+       + '<span style="opacity:.75">——設立書類の発起人欄に押されたものと同じ判です。</span>',
+    }) },
+
+  /* Q20 — 시세가 3년째 같다. 값이 안 움직이는 시장은 시장이 아니다. */
+  { id:'b20', q:20, where:'news', text: L({
+      ko:'📰 시세면 — 캣닢 도매가가 <b>3년째 같은 값</b>입니다. 단속은 늘고 물량은 줄었는데 '
+       + '값이 안 움직입니다. 기자는 <b>「단가표가 있는 것 같다」</b>고 적었습니다.',
+      en:'📰 Market page — wholesale catnip has held <b>the same price for three years</b>. '
+       + 'Raids up, supply down, price flat. The reporter wrote: <b>“as if there is a price list.”</b>',
+      ja:'📰 相場面——キャットニップの卸値は<b>3年間同じ</b>です。摘発は増え、量は減ったのに'
+       + '値が動きません。記者は<b>「単価表があるようだ」</b>と書いています。',
+    }) },
+
+  /* Q21 — 거래처 명단. 이름은 다 다른데 번호가 하나다 (STORY.md 배치표). */
+  { id:'b21', q:21, where:'news', text: L({
+      ko:'📰 거래처 명단을 정리했습니다. 상호 <b>열한 곳</b>, 대표자 <b>열한 명</b>, '
+       + '연락처 <b>한 개</b>. 전단에 적혀 있던 그 번호입니다.',
+      en:'📰 We tidied the client list. <b>Eleven</b> company names, <b>eleven</b> owners, '
+       + '<b>one</b> phone number — the one printed on the flyer.',
+      ja:'📰 取引先名簿を整理しました。商号<b>十一件</b>、代表者<b>十一名</b>、'
+       + '連絡先<b>一つ</b>。チラシに書かれていたあの番号です。',
+    }) },
+
+  /* Q23 — 결산표의 「보관처」. 우리가 조달한 것이 어디로 갔는지가 한 줄 적힌다. */
+  { id:'b23', q:23, where:'quarter', row: d => L({
+      ko:{ k:'보관처', v:'냥찰청 물품계' },
+      en:{ k:'Held at', v:'Bureau stores' },
+      ja:{ k:'保管先', v:'猫察庁 物品係' },
+    }) },
+
+  /* Q24 — 운영비의 출처. 「유통관리 특별사업」(Q14)이 여기서 다시 나온다. */
+  { id:'b24', q:24, where:'news', text: L({
+      ko:'📰 경리 메모 — 올해 사무실 임대료가 자동 이체로 들어왔습니다. '
+       + '이체인 항목은 <b>「유통관리 특별사업」</b>입니다. 우리는 신청한 적이 없습니다.',
+      en:'📰 Accounts note — this year’s office rent arrived by standing order. '
+       + 'The payer field reads <b>“Special distribution-control programme.”</b> We never applied.',
+      ja:'📰 経理メモ——今年の事務所家賃が自動振替で入金されました。'
+       + '振込人の項目は<b>「流通管理特別事業」</b>。申請した覚えはありません。',
+    }) },
+
+  /* Q26 — 마지막 통지서. 점검표가 아니라 **명단**이 비친다. */
+  { id:'b26', q:26, where:'raid', note: L({
+      ko:'봉투 안쪽에 명단이 한 장 더 있었습니다. 상호가 <b>서른아홉 줄</b>이고, '
+       + '줄마다 「<b>운영 중</b>」이라고 적혀 있습니다.<br>'
+       + '<span style="opacity:.75">— 서른두 번째 줄에 우리 상호가 있습니다.</span>',
+      en:'There was one more sheet inside the envelope: <b>thirty-nine</b> company names, '
+       + 'each marked “<b>operating</b>”.<br>'
+       + '<span style="opacity:.75">— ours is on line thirty-two.</span>',
+      ja:'封筒の内側にもう一枚、名簿がありました。商号が<b>三十九行</b>、'
+       + '各行に「<b>運営中</b>」と書かれています。<br>'
+       + '<span style="opacity:.75">——三十二行目にうちの商号があります。</span>',
+    }) },
+
+  /* Q27 — 마지막 사보. 이 줄 다음이 엔딩이다. */
+  { id:'b27', q:27, where:'news', text: L({
+      ko:'📰 본사 소식 — 이번 달 신규 개소 <b>한 곳</b>. 전국 지점은 <b>서른아홉</b> 그대로입니다. '
+       + '한 곳이 열렸는데 수가 안 늘었습니다.',
+      en:'📰 From HQ — <b>one</b> new branch this month. Nationwide total: still <b>thirty-nine</b>. '
+       + 'One opened and the number did not move.',
+      ja:'📰 本社だより——今月の新規開設<b>一か所</b>。全国の支店は<b>三十九</b>のままです。'
+       + '一つ開いたのに数が増えていません。',
+    }) },
+
   /* Q13 — 결산표에 칸이 하나 늘어 있다. 「반출」. 우리가 이번 분기에 번 숫자와 **같다.**
      단위도 안 적혀 있고, 누가 반출했는지도 안 적혀 있다. */
   { id:'b13', q:13, where:'quarter', row: d => L({
@@ -637,7 +793,12 @@ function beatSeen(id){
    닫힐 때 표시하게 두면 한 군데서 새고, 새면 영영 못 본다(단서 쪽과 같은 판단이다). */
 function beatTake(where){
   if (!S) return null;
-  const b = BEATS.find(x => x.where === where && (S.quarter | 0) >= x.q && !beatSeen(x.id));
+  /* **분기 순으로** 꺼낸다. 표의 줄 순서로 꺼내면(find 가 그렇다) 늦게 끼워 넣은 줄이
+     먼저 나온다 — Q4 짜리를 Q9 짜리보다 나중에 적어 놨다는 이유만으로 이야기가
+     뒤에서부터 온다. 밀린 것이 여럿이면 **제일 이른 분기**가 먼저다. */
+  let b = null;
+  for (const x of BEATS)
+    if (x.where === where && (S.quarter | 0) >= x.q && !beatSeen(x.id) && (!b || x.q < b.q)) b = x;
   if (!b) return null;
   if (!Array.isArray(S.beats)) S.beats = [];
   S.beats.push(b.id);
@@ -729,21 +890,39 @@ function endingCheck(){
 /* ---------- 화면에 얹는 것 ----------
    상하 검은 띠 · 자막 · 암전 · 마지막 로고. 프롤로그와 같은 규칙이다(opening.js) —
    같은 게임의 두 컷신이 다른 판을 쓰면 그중 하나는 광고로 읽힌다. */
+/* ── 층 순서를 **여기서 못 박는다** ──
+   이 판의 클래스 이름은 프롤로그(style.css 의 .obar/.ofade/.osub/.oskip)와 같다. 같은
+   컷신 문법을 쓰자고 그렇게 지었는데, 그쪽에는 z-index 가 붙어 있다(.ofade 3 · .osub 4).
+   여기서 그 층을 안 적으면 **로고 판(z-index 없음)이 암전과 자막 밑으로 깔린다** —
+   마지막 화면이 통째로 검은 사각형이었던 이유가 그것이다(2026-09-10).
+   건너뛰기 단추가 세로로 늘어났던 것도 같은 뿌리다: 이름을 빌리면 값도 같이 온다. */
 const OUTRO_CSS = [
   '.outro{position:fixed;inset:0;z-index:9990;cursor:pointer}',
-  '.outro .obar{position:absolute;left:0;right:0;height:7.5%;background:#000}',
+  '.outro .obar{position:absolute;left:0;right:0;height:7.5%;background:#000;z-index:2}',
   '.outro .obar.t{top:0}.outro .obar.b{bottom:0}',
-  '.outro .osub{position:absolute;left:0;right:0;bottom:11.5%;text-align:center;padding:0 8%;',
+  '.outro .osub{position:absolute;left:0;right:0;bottom:11.5%;z-index:4;text-align:center;padding:0 8%;',
   '  font:600 clamp(13px,2.1vw,22px)/1.7 "Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;',
   '  color:#EFE4D2;text-shadow:0 2px 10px rgba(0,0,0,.85);opacity:0;transition:opacity .5s ease}',
-  '.outro .ofade{position:absolute;inset:0;background:#000;opacity:1}',
-  '.outro .oskip{position:absolute;right:16px;bottom:calc(7.5% + 12px);font-size:11.5px;',
-  '  letter-spacing:.06em;color:#9C8C78;opacity:.7}',
+  '.outro .ofade{position:absolute;inset:0;background:#000;opacity:1;z-index:3}',
   /* 마지막 로고 — 검은 판 위에 간판 하나. 고른 간판이 있으면 그것이다(TODO 59). */
-  '.outro .ologo{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;',
-  '  background:#000;opacity:0;transition:opacity 1.1s ease;pointer-events:none}',
-  '.outro .ologo img{width:min(46vw,180px);height:auto;filter:drop-shadow(0 4px 14px rgba(0,0,0,.6))}',
+  '.outro .ologo{position:absolute;inset:0;z-index:8;display:flex;flex-direction:column;align-items:center;',
+  '  justify-content:center;gap:26px;background:#000;opacity:0;transition:opacity 1.1s ease;pointer-events:none}',
+  /* **뒤집어서 얹는다.** 이 게임의 로고는 크림 바탕에 찍는 검은 잉크 그림이라,
+     검은 판 위에 그대로 놓으면 **아무것도 안 보인다**(2026-09-10: 마지막 화면이
+     통째로 검은 사각형이었다). 시작화면도 어두운 정경 위에서는 같은 손을 쓴다
+     (js/title.js 의 #cctitle.vista .logo). */
+  '.outro .ologo img{width:min(46vw,180px);height:auto;image-rendering:pixelated;',
+  '  filter:invert(1) brightness(1.22) drop-shadow(0 4px 14px rgba(0,0,0,.6))}',
   '.outro.logoon .ologo{opacity:1}',
+  /* 축하 한 마디 — **로고 다음**이다. 같이 뜨면 로고가 그 문장의 머리글이 된다.
+     이 게임은 결말을 봤다고 문을 닫지 않으므로(위 머리말), 마지막 줄은 「끝」이 아니라
+     「계속」이라고 말한다. 톤 규칙 1(생산성으로 협박하지 않는다)에 맞춰 시키지 않고 권한다. */
+  '.outro .odone{max-width:min(78vw,420px);text-align:center;opacity:0;transform:translateY(6px);',
+  '  transition:opacity .9s ease,transform .9s ease;',
+  '  font:600 clamp(12.5px,1.9vw,17px)/1.85 "Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;',
+  '  color:#D8CCB6;letter-spacing:.01em}',
+  '.outro .odone b{display:block;margin-bottom:7px;font-size:1.16em;color:#F2E7D3;letter-spacing:.04em}',
+  '.outro.doneon .odone{opacity:1;transform:none}',
 ].join('\n');
 
 function outroLogoHTML(){
@@ -752,8 +931,16 @@ function outroLogoHTML(){
   const f = (S.branch && S.branch.logo) || '';
   if (f && typeof LOGO_FILES !== 'undefined' && LOGO_FILES.indexOf(f) >= 0)
     return '<img src="' + assetURL('assets/logos/' + f) + '" alt="copycat">';
+  /* 시작화면이 아직 떠 있으면 그 그림을 그대로 쓴다. **다만 엔딩에서는 거의 없다** —
+     컷신은 게임 도중에 열리고 그때 #cctitle 은 이미 사라진 뒤다. 그래서 실제로는
+     아래 한 줄이 쓰이는데, 한동안 그 자리가 글자 폴백이라 **마지막 화면에 로고가
+     아예 안 떴다**(2026-09-10 실측: .ologo 안에 img 가 없었다). */
   const t = DOC.querySelector('#cctitle .logo img');
   if (t) return '<img src="' + t.getAttribute('src') + '" alt="copycat">';
+  try {
+    if (typeof assetURL === 'function')
+      return '<img src="' + assetURL('assets/logo-word-dot.png') + '" alt="copycat">';
+  } catch (e) {}
   return '<div style="font:800 26px/1 system-ui;letter-spacing:.22em;color:#EFE4D2">COPYCAT</div>';
 }
 
@@ -785,8 +972,12 @@ function playOutro(){
   root.className = 'outro';
   root.innerHTML = '<div class="obar t"></div><div class="obar b"></div>'
     + '<div class="osub"><span></span></div><div class="ofade"></div>'
-    + '<div class="oskip">' + L({ ko:'눌러서 건너뛰기', en:'tap to skip', ja:'タップでスキップ' }) + '</div>'
-    + '<div class="ologo">' + outroLogoHTML() + '</div>';
+    + '<div class="ologo">' + outroLogoHTML()
+    + '<div class="odone">' + L({
+        ko: '<b>축하합니다.</b>스토리를 모두 해금하셨습니다.<br>앞으로도 회사를 키워 나가세요.',
+        en: '<b>Congratulations.</b>You have unlocked the whole story.<br>Keep the company growing.',
+        ja: '<b>おめでとうございます。</b>物語をすべて解放しました。<br>これからも会社を大きくしてください。',
+      }) + '</div></div>';
   DOC.body.appendChild(root);
   const sub = root.querySelector('.osub'), subT = root.querySelector('.osub span');
   const fade = root.querySelector('.ofade');
@@ -819,12 +1010,17 @@ function playOutro(){
     }), 'good');
   };
 
-  /* 마지막 로고 — 암전이 다 내린 다음에 뜬다. 그림 위에 겹치면 둘 다 안 읽힌다. */
+  /* 마지막 로고 — 암전이 다 내린 다음에 뜬다. 그림 위에 겹치면 둘 다 안 읽힌다.
+     그 다음이 축하 한 마디다. **1.7초 뒤**에 얹는다 — 로고와 같이 뜨면 로고가 안 읽히고,
+     더 늦추면 다 끝난 줄 알고 화면을 눌러 버린다(누르면 그 자리에서 끝난다). */
   const showLogo = () => {
     if (phase !== 'play') return;
     phase = 'logo';
+    sub.style.opacity = '0';        // 지난 문장을 걷는다 — 로고 화면에 남아 있으면 안 된다
     root.classList.add('logoon');
-    setTimeout(finish, 3400);
+    setTimeout(() => { if (phase === 'logo') root.classList.add('doneon'); }, 1700);
+    /* 읽을 시간을 준다 — 문장이 세 줄이라 3.4초로는 못 읽는다. 그 전에 누르면 끝난다. */
+    setTimeout(finish, 8600);
   };
 
   const step = now => {
@@ -843,9 +1039,13 @@ function playOutro(){
   };
   raf = requestAnimationFrame(step);
 
-  /* 건너뛰기 — 한 번 누르면 로고로, 로고에서 누르면 끝난다.
-     못 건너뛰는 컷신은 두 번째부터 벌이다(opening.js 도 같은 규칙이다). */
-  root.addEventListener('click', () => { if (phase === 'play') showLogo(); else finish(); });
+  /* ── 여기엔 건너뛰기가 없다 ──
+     프롤로그는 건너뛸 수 있다. 그건 **처음부터 다시 시작할 때마다** 다시 나오는 장면이라
+     두 번째부터는 벌이기 때문이다(opening.js). 엔딩은 반대다: 한 저장에 **딱 한 번**만
+     열리고(endingSeen), 28분기를 버틴 값이 이 24초다. 건너뛰기 한 줄을 오른쪽에 띄워
+     두면 그 값을 먼저 깎고 시작하는 셈이다.
+     대신 **로고가 뜬 다음에는** 누르면 닫힌다 — 다 읽은 사람을 붙잡아 두지 않는다. */
+  root.addEventListener('click', () => { if (phase !== 'play') finish(); });
   return true;
 }
 

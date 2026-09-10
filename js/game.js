@@ -1005,9 +1005,12 @@ function buyItem(id){
   const tile = SHOP_TILE[id];
   if (tile && !addFurniture(tile)){
     sfx.err();
-    toast(L({ ko:`사무실에 <b>${it.n}</b>을(를) 놓을 자리가 없습니다. 분기를 넘겨 사무실을 넓히세요.`,
-              en:`No room for <b>${it.n}</b>. Advance quarters to expand the office.`,
-              ja:`<b>${it.n}</b>を置く場所がありません。四半期を進めてオフィスを広げましょう。` }));
+    /* **토스트에는 태그를 쓰지 않는다.** toast() 는 textContent 로 넣으므로
+       <b> 가 글자 그대로 찍힌다(실제로 「</b」가 화면에 보였다). 강조가 필요하면
+       모달을 쓰고, 여기서는 이름만 낫표로 감싼다. */
+    toast(L({ ko:`사무실에 「${it.n}」을(를) 놓을 자리가 없습니다. 분기를 넘겨 사무실을 넓히세요.`,
+              en:`No room for “${it.n}”. Advance quarters to expand the office.`,
+              ja:`「${it.n}」を置く場所がありません。四半期を進めてオフィスを広げましょう。` }));
     return false;
   }
   /* 벽 물건은 바닥 자리를 안 먹는다 — 길찾기와 무관한 wallDecor 목록으로 산다.
@@ -1020,9 +1023,9 @@ function buyItem(id){
                              : ensureWallItem(W, wt, 7);
     if (!hung){
       sfx.err();
-      toast(L({ ko:`<b>${it.n}</b>을(를) 걸 벽이 없습니다.`,
-                en:`No wall to hang <b>${it.n}</b> on.`,
-                ja:`<b>${it.n}</b>を掛ける壁がありません。` }));
+      toast(L({ ko:`「${it.n}」을(를) 걸 벽이 없습니다.`,
+                en:`No wall to hang “${it.n}” on.`,
+                ja:`「${it.n}」を掛ける壁がありません。` }));
       return false;
     }
     if (typeof snapshotWorld === 'function') snapshotWorld();
@@ -1412,13 +1415,11 @@ function closeQuarter(){
   }
   if (ev.heat){ S.penalty = Math.max(0, S.penalty + ev.heat); }
   if (ev.rival){ S.rival = Math.max(0, Math.min(RIVAL_MAX, S.rival + ev.rival)); }
-  /* 분기마다 가끔 떨어지던 것이 **장비**였는데 그 체계를 없앴다(js/cats.js 머리말).
-     빈자리를 두지 않고 **본사 택배 한 상자**로 갈음한다 — 얻는 리듬은 그대로 두되
-     그 보상이 이미 있는 물건(TODO 57)으로 흐르게 한다. 상자는 세는 데가 한 곳이다. */
-  if (ev.drop || Math.random() < 0.35){
-    if (typeof gaS === 'function') gaS().tix = (gaS().tix | 0) + 1;
-    evDrop = { n: L({ ko:'본사 택배 한 상자', en:'A parcel from HQ', ja:'本社からの宅配ひと箱' }) };
-  }
+  /* 분기마다 상자 한 개가 떨어지던 자리다(장비 체계를 없애며 갈음했던 것).
+     **그 길을 닫았다**(2026-09-10) — 상자는 일해서 벌 수 없는 재화라서, 분기를
+     넘기기만 해도 쌓이면 값이 「기다리면 되는 것」이 된다: js/gacha.js 머리말.
+     이벤트 표의 drop:1 은 남겨 둔다 — 나중에 상자가 아닌 것을 줄 자리다. */
+
   if (ev.k === 'hire'){
     if (S.cats.length < deskCount()){
       evHire = newCat();

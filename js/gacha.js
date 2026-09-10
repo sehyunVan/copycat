@@ -7,7 +7,9 @@
    ── 뜯는 데 드는 것은 **상자**다 ──
    멸치와 **별개 재화**다. 그래서 **멸치로 상자를 살 수 없다** — 그 길을 열어 두면
    상자는 멸치의 다른 이름일 뿐이고, 재화가 둘인 척하는 재화 하나가 된다.
-   상자는 하루 한 번 무료 · 결재 10건마다 하나 · 누적 보상으로 온다.
+   상자는 **사는 것으로만** 온다(2026-09-10). 하루 한 번 무료 · 결재 10건마다 하나 ·
+   누적 보상 셋을 다 뺐다 — 공짜 길이 하나라도 열려 있으면 파는 물건의 값이
+   「기다리면 되는 것」이 된다.
 
    화면에 적는 이름은 **상자(📦)** 이고, 코드 안의 이름은 `tix` 그대로다 —
    저장에 들어 있는 칸이라 이름을 바꾸면 옛 저장이 그 칸을 잃는다. 보이는 말과
@@ -51,23 +53,19 @@ const GA_ODDS = { 3: 0.025, 2: 0.20 };
    대가」가 되고, 그 순간부터 1회 뽑기를 누를 이유가 없어진다. 확정 등급을
    올리는 건 이 한 줄이다(GA_TEN_FLOOR = 3). */
 const GA_TEN_FLOOR = 2;
-const GA_MILE = [
-  { at: 10,  tix: 2 },
-  { at: 30,  tix: 5 },
-  { at: 50,  tix: 8 },
-  { at: 100, tix: 15 },
-];
 
 /* 옛 저장에는 이 칸이 없다 — 읽을 때 만든다. loadSave 를 건드리지 않는 이유는
    저장 형식을 바꾸면 v 를 올려야 하고, 지금 v 를 올리면 남의 사무실이 날아간다. */
 function gaS(){
   if (!S.gacha || typeof S.gacha !== 'object') S.gacha = {};
   const g = S.gacha;
-  if (typeof g.tix !== 'number') g.tix = 3;        // 처음 세 장은 그냥 준다 — 한 번은 당겨 봐야 안다
+  /* **처음에 주지 않는다.** 세 장을 주던 자리였는데(「한 번은 당겨 봐야 안다」),
+     이 값은 서버가 없을 때만 쓰는 로컬 잔액이라 **저장을 지울 때마다 세 장이 다시
+     생겼다** — 공짜로 버는 길이 없어야 한다는 규칙에 그게 제일 크게 어긋난다.
+     상자를 처음 보는 사람은 상점 칸에서 본다(gaShopHTML). */
+  if (typeof g.tix !== 'number') g.tix = 0;
   if (typeof g.pulls !== 'number') g.pulls = 0;
-  if (typeof g.free !== 'string') g.free = '';
   if (!Array.isArray(g.got)) g.got = [];
-  if (typeof g.since !== 'number') g.since = 0;    // 결재 몇 건이 지났나 (10건마다 한 장)
   if (typeof g.brick !== 'number') g.brick = 0;   // 받은 벽돌 — 세기만 한다(재화가 아니다)
   return g;
 }
@@ -89,7 +87,6 @@ const gaPulls = () => gaOn() ? (PARCEL.state().pulls | 0) : (gaS().pulls | 0);
 const gaGot   = () => gaS().got || [];
 /* 하루 한 번. 서버가 붙어 있으면 **서버의 날짜**로 센다 — 기기 시계로 재면
    시계를 돌려 여러 번 받는다. 로컬일 때는 게임의 날짜 키를 그대로 쓴다(sim.js dayKey). */
-const gaFreeReady = () => gaOn() ? !!PARCEL.state().freeReady : (gaS().free !== dayKey());
 
 const GA_S3 = 460, GA_S2 = 220;
 /* 가구는 값이 등급이고, 가구가 아닌 것은 표에 등급을 직접 적는다(star).
@@ -188,14 +185,13 @@ function gaGrant(it){
   S.shop[it.id] = (typeof shopCount === 'function' ? shopCount(it.id) : (S.shop[it.id] | 0)) + 1;
 }
 
-function gaPull(n, opts){
+function gaPull(n){
   const g = gaS();
-  const free = !!(opts && opts.free);
-  if (free && !gaFreeReady()) return null;
-  if (!free && g.tix < n) return null;
+  /* 공짜 갈래가 있었다(하루 한 번) — 뺐다. 상자는 사는 것이다(머리말). */
+  if (g.tix < n) return null;
   if (!gaPool().length) return null;
 
-  if (free) g.free = dayKey(); else g.tix -= n;
+  g.tix -= n;
   const out = [];
   /* 확정은 **뽑는 중에 이미 나왔는지** 보고 마지막 한 장에만 건다. 처음에 마지막
      칸을 무조건 확정으로 만들었더니, 앞에서 ★3 이 나온 판도 끝에서 또 하나를
@@ -209,18 +205,8 @@ function gaPull(n, opts){
     gaGrant(it);
   }
   g.pulls += out.length;
-  /* 누적 보상은 뽑은 자리에서 바로 준다 — 「받기」 단추를 하나 더 만들면
-     그건 보상이 아니라 심부름이다. */
-  GA_MILE.forEach(x => {
-    if (g.pulls < x.at || gaGot().includes(x.at)) return;
-    g.got.push(x.at);
-    g.tix += x.tix;
-    if (typeof pushLog === 'function') pushLog(L({
-      ko: `누적 ${x.at}상자 — <b>📦 상자 ${x.tix}개</b>가 더 왔습니다.`,
-      en: `${x.at} opened — <b>📦 ${x.tix} more box(es)</b> arrived.`,
-      ja: `累計${x.at}回 — <b>チケット${x.tix}枚</b>が届きました。`,
-    }), 'good');
-  });
+  /* 누적 보상도 없앴다(위 머리말) — 뜯은 수는 그대로 센다. 확정(열 상자)과
+     기록이 그 수를 쓰기 때문이다. 상자를 더 주지 않을 뿐이다. */
   save();
   return out;
 }
@@ -232,9 +218,9 @@ function gaPull(n, opts){
    서버는 **무엇이 나왔는지만** 돌려준다. 그것을 어디에 넣을지(가구는 창고, 멸치는
    잔고)는 게임의 규칙이라 여기서 그대로 한다 — 서버가 그 규칙을 또
    알 이유가 없다. 벽돌만 예외다: 세는 곳이 서버라 여기서 또 세면 두 번 센다. */
-async function gaOpen(n, opts){
-  if (!gaOn()) return gaPull(n, opts);
-  const r = await PARCEL.open(n, opts);
+async function gaOpen(n){
+  if (!gaOn()) return gaPull(n);
+  const r = await PARCEL.open(n);
   if (!r || !r.ok) return null;
   const byId = {};
   gaAll().forEach(it => { byId[it.id] = it; });
@@ -245,33 +231,18 @@ async function gaOpen(n, opts){
     out.push(it);
     if (it.kind !== 'brick') gaGrant(it);
   });
-  (r.granted || []).forEach(x => {
-    if (typeof pushLog !== 'function') return;
-    pushLog(L({
-      ko: `누적 ${x.at}상자 — <b>📦 상자 ${x.tix}개</b>가 더 왔습니다.`,
-      en: `${x.at} opened — <b>📦 ${x.tix} more box(es)</b> arrived.`,
-      ja: `累計${x.at}回 — <b>チケット${x.tix}枚</b>が届きました。`,
-    }), 'good');
-  });
+  /* 누적 상자 보상(서버가 아직 돌려주는 r.granted)은 **적지 않는다** — 그 체계를
+     뺐으므로(2026-09-10) 게임 안에 그 말이 남아 있으면 없는 규칙을 설명하게 된다. */
   save();
   return out;
 }
 
-/* ── 결재가 뽑기권을 만든다 ──
-   하루 무료 한 번만 두면 뽑기가 게임 밖의 일이 된다. 결재는 이 게임의 유일한
-   본업이므로 거기에 붙인다 — 10건마다 한 장. */
-if (typeof bus !== 'undefined' && bus.on) bus.on('reward', () => {
-  const g = gaS();
-  g.since = (g.since | 0) + 1;
-  if (g.since < 10) return;
-  g.since = 0;
-  g.tix += 1;
-  if (typeof toast === 'function') toast(L({
-    ko: '결재 10건 — 본사에서 <b>📦 택배 상자</b> 하나가 왔습니다.',
-    en: '10 approvals — a <b>📦 parcel</b> arrived from HQ.',
-    ja: '決裁10件 — 本社から<b>📦 宅配の箱</b>が1つ届きました。',
-  }));
-});
+/* ── 상자는 **일해서 벌 수 없다** ──
+   결재 10건마다 한 장, 하루 한 번 무료, 누적 횟수 보상 — 셋 다 뺐다(2026-09-10).
+   상자는 사는 것이고, 그것이 이 게임이 파는 유일한 물건이다. 공짜 길이 하나라도
+   열려 있으면 그 물건의 값이 「기다리면 되는 것」이 된다.
+
+   결재는 멸치와 성과로 갚는다 — 그건 그대로다. 여기서 뺀 것은 상자뿐이다. */
 
 /* ══════════════════ 화면 ══════════════════ */
 const gaEsc = s => String(s == null ? '' : s).replace(/[&<>"]/g,
@@ -415,11 +386,6 @@ function gaGuaranteeHTML(){
   const r = gaRates();
   const top = [3, 2, 1].find(s => r[s] > 0) || 1;
   const floor = Math.min(GA_TEN_FLOOR, top);
-  const mile = GA_MILE.map(x => L({
-    ko: `${x.at}회 → 상자 ${x.tix}개`,
-    en: `${x.at} → ${x.tix} boxes`,
-    ja: `${x.at}回 → 箱${x.tix}個`,
-  })).join(' · ');
   return `<div class="garow"><div class="galeft"><b>${L({
       ko: '열 상자 확정', en: 'Ten-box guarantee', ja: '10箱の確定' })}</b></div>
       <div class="garate">★${floor}↑</div></div>
@@ -427,10 +393,7 @@ function gaGuaranteeHTML(){
       ko: `한 번에 열 상자를 뜯으면 ★${floor} 이상이 하나는 나옵니다. 확정이 걸려도 그 안에서 등급 비율은 위 표를 따릅니다.`,
       en: `Opening ten at once guarantees at least one ★${floor}+. Within the guarantee the grade split still follows the table above.`,
       ja: `10箱まとめて開けると★${floor}以上が1つ確定します。確定の中でも等級比率は上の表に従います。` })}</div>
-    <div class="garow"><div class="galeft"><b>${L({
-      ko: '누적 보상', en: 'Milestones', ja: '累計報酬' })}</b></div>
-      <div class="garate">${GA_MILE.length}</div></div>
-    <div class="gapool">${mile}</div>`;
+`;
 }
 
 function showGachaOdds(){
@@ -888,15 +851,10 @@ function showGachaResult(items){
 function showGacha(){
   const g = gaS();
   const pool = gaPool(), rates = gaRates();
-  /* 다음 보상은 **아직 안 받았고 아직 안 지난** 것이다. 「안 받은 것」만 찾으면
-     이미 지나친 정거장이 잡혀서 「다음 보상까지 -7상자」 같은 음수가 뜬다. */
-  const nextM = GA_MILE.find(x => !gaGot().includes(x.at) && x.at > g.pulls)
-             || GA_MILE.find(x => !gaGot().includes(x.at));
   /* 이 분류의 **최고 등급**. 업무·수납·데코에는 ★3 가 아예 없다(가장 비싼 것이
      420·420·340 멸치라 460 문턱에 못 닿는다). 그런 분류에서 「★3 0.00%」만
      보여 주면 고장으로 읽히므로, 실제로 나올 수 있는 제일 높은 별을 말한다. */
   const top = [3, 2, 1].find(x => rates[x] > 0) || 1;
-  const last = GA_MILE[GA_MILE.length - 1].at;
   const m = modal(`
     <div class="mhead"><div class="q">PARCEL</div>
       <h3>${L({ ko: '본사 택배', en: 'Parcel from HQ', ja: '本社からの宅配' })}</h3>
@@ -925,29 +883,12 @@ function showGacha(){
           <i>${L({ ko: `★${GA_TEN_FLOOR}↑ 확정`, en: `★${GA_TEN_FLOOR}+ sure`, ja: `★${GA_TEN_FLOOR}↑確定` })}</i></button>
       </div>
 
-      <button class="gafree" id="gaFree" ${gaFreeReady() ? '' : 'disabled'}>
-        ${gaFreeReady()
-          ? L({ ko: '오늘 온 택배 한 상자 (무료)', en: 'Today’s parcel (free)', ja: '今日届いた分（無料）' })
-          : L({ ko: '오늘 온 택배는 이미 뜯었습니다', en: 'Today’s parcel is already open', ja: '今日の分はもう開けました' })}
-      </button>
       ${gaShopHTML()}
       ${(g.brick | 0) ? `<div class="gabrick">🧱 ${L({
           ko: `본사가 보낸 벽돌 ${g.brick | 0}개`,
           en: `${g.brick | 0} brick(s) from HQ`,
           ja: `本社から届いたレンガ ${g.brick | 0}個` })}</div>` : ''}
 
-      <div class="gamile">
-        <div class="gamhead"><b>${L({ ko: '누적 횟수 보상', en: 'Pull milestones', ja: '累計報酬' })}</b>
-          <span>${L({ ko: `${g.pulls}회`, en: `${g.pulls} pulls`, ja: `${g.pulls}回` })}</span></div>
-        <div class="gambar"><i style="width:${Math.min(100, g.pulls / last * 100)}%"></i></div>
-        <div class="gamrow">${GA_MILE.map(x => `<div class="gamstop ${gaGot().includes(x.at) ? 'on' : ''}">
-            <span class="gaem">${gaGot().includes(x.at) ? '✅' : '📦'}</span>
-            <b>${x.at}</b><span>+${x.tix}</span></div>`).join('')}</div>
-        ${nextM ? `<div class="tiny">${L({
-          ko: `다음 보상까지 ${Math.max(0, nextM.at - gaPulls())}상자 — 📦 ${nextM.tix}개`,
-          en: `${Math.max(0, nextM.at - gaPulls())} more to open — 📦 ${nextM.tix}`,
-          ja: `次の報酬まで${Math.max(0, nextM.at - gaPulls())}箱 — 📦 ${nextM.tix}個` })}</div>` : ''}
-      </div>
     </div>
     <div class="mfoot"><button class="okbtn" data-close>${L({ ko: '닫기', en: 'Close', ja: '閉じる' })}</button></div>`);
 
@@ -959,8 +900,6 @@ function showGacha(){
       /* 못 뜯었으면 **단추를 돌려준다.** 서버가 잠깐 안 받은 것일 수 있는데
          잠긴 채로 두면 창을 닫았다 여는 수밖에 없다. */
       V.querySelectorAll('[data-pull]').forEach(b => { b.disabled = gaTix() < +b.dataset.pull; });
-      const f = V.querySelector('#gaFree');
-      if (f) f.disabled = !gaFreeReady();
       if (typeof toast === 'function' && !gaOn())
         toast(L({ ko: '지금은 상자를 못 뜯습니다 — 서버에 연결되면 됩니다.',
                   en: 'Can’t open boxes right now — needs the server.',
@@ -977,8 +916,6 @@ function showGacha(){
   V.querySelectorAll('[data-pull]').forEach(b => {
     b.onclick = () => { b.disabled = true; gaOpen(+b.dataset.pull).then(done); };
   });
-  const fb = V.querySelector('#gaFree');
-  if (fb) fb.onclick = () => { fb.disabled = true; gaOpen(1, { free: true }).then(done); };
   const ob = V.querySelector('#gaOdds');
   if (ob) ob.onclick = () => showGachaOdds();
 
@@ -1129,7 +1066,7 @@ function gaTestOffline(){
   setTimeout(put, 1200);
 })();
 
-window.GACHA = { show: showGacha, tix: gaTix, freeReady: gaFreeReady,
+window.GACHA = { show: showGacha, tix: gaTix,
                  pool: gaPool, rates: gaRates,
                  /* 임시 — 위 gaGive 의 머리말. 다 보고 나면 이 줄도 같이 지운다. */
                  give: gaGive };

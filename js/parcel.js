@@ -24,8 +24,7 @@
     balance: 0,
     bricks: 0,
     pulls: 0,
-    got: [],          // 받은 누적 보상 지점
-    freeReady: false,
+    got: [],          // 받은 누적 보상 지점(서버가 아직 세는 값 — 게임은 안 쓴다)
     rates: null,      // parcel_rates() 그대로
   };
 
@@ -54,9 +53,6 @@
       ST.pulls = st.pulls | 0;
       ST.got = st.got || [];
       ST.rates = rt;
-      /* 오늘 무료를 받았는지는 서버가 적어 둔 날짜로 판단한다 */
-      const today = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
-      ST.freeReady = st.free_day !== today;
       ST.on = true; ST.why = '';
       return true;
     } catch (e){ return off((e && e.message) || L({ ko:'서버가 안 받는다', en:'the server refused', ja:'サーバーが受け付けません' })); }
@@ -66,19 +62,20 @@
      가구는 창고로, 멸치는 잔고로, 장비는 가방으로 들어가는 자리가 전부 게임 안이라
      그쪽 규칙을 서버가 다시 알 이유가 없다(벽돌만 서버가 센다 — 세기만 한다,
      벽돌은 재화가 아니라 꽝 그 자체다: js/gacha.js 머리말). */
-  async function open(n, opts){
+  async function open(n){
     const sb = sbOf();
     if (!sb || !ST.on) return { ok:false, why:'offline' };
     try {
-      const { data, error } = await sb.rpc('parcel_open',
-        { p_n: n, p_free: !!(opts && opts.free) });
+      /* **공짜로 까는 길은 없다**(2026-09-10 · js/gacha.js 머리말). 서버 함수는
+         아직 p_free 를 받으므로 false 를 또렷이 넘긴다 — 서버를 고치지 않아도
+         게임 쪽에서 그 길이 닫힌다. */
+      const { data, error } = await sb.rpc('parcel_open', { p_n: n, p_free: false });
       if (error) return { ok:false, why:'error', msg:error.message };
       if (!data || !data.ok) return { ok:false, why:(data && data.why) || 'error' };
       ST.balance = data.balance | 0;
       ST.bricks = data.bricks | 0;
       ST.pulls = data.pulls | 0;
       (data.granted || []).forEach(x => { if (x && x.at != null) ST.got.push(x.at | 0); });
-      if (opts && opts.free) ST.freeReady = false;
       return { ok:true, items:data.items || [], granted:data.granted || [],
                balance:ST.balance, bricks:ST.bricks };
     } catch (e){ return { ok:false, why:'error', msg:(e && e.message) }; }
