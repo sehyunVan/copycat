@@ -21,8 +21,8 @@ android {
            사람 눈에(스토어·폰 설정·게임 시작화면 도장) 뜨는 것은 versionName 이다.
            예전엔 versionName 을 계속 "1.0" 으로 두어서, 폰에 깔린 것이 몇 번 판인지
            확인할 길이 없었다 — 뒷자리를 versionCode 와 맞춘다. */
-        versionCode 19
-        versionName "1.0.19"
+        versionCode 20
+        versionName "1.0.20"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
