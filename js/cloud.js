@@ -807,9 +807,7 @@
           <button class="buy alt" data-cloud="email">보내기</button></div>` : ''}
       ${ST.on && linked ? `<div class="codebox" style="margin-top:9px">
           <button class="buy alt" data-cloud="out">로그아웃</button>
-          <button class="buy alt" data-cloud="erase">계정 삭제</button></div>
-        <div class="hint">계정 삭제는 서버에 있는 사무실·지점·친구를 지웁니다.
-          이 기기의 사무실은 남습니다.</div>` : ''}
+          <button class="buy alt" data-cloud="erase">계정 삭제</button></div>` : ''}
       ${ST.on ? `<div class="hint" style="margin-top:8px">
           <a href="${SITE}/privacy.html" target="_blank" rel="noopener">개인정보처리방침</a>
           · <a href="${SITE}/delete.html" target="_blank" rel="noopener">계정 삭제 안내</a>

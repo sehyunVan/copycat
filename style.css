@@ -1190,7 +1190,10 @@ body.gacut .deco, body.gacut .bubble, body.gacut .tag3d, body.gacut #tags3d{
 .obar.top{top:0} .obar.bot{bottom:0}
 .ofade{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;z-index:3}
 
-.osub{position:absolute;left:0;right:0;bottom:calc(7.5vh + 26px);z-index:4;text-align:center;
+/* 자막은 띠 바로 위가 아니라 **한 뼘 위**에 둔다. 바닥에 붙여 놨더니 폰에서
+   힌트("화면을 누르면 다음 장면")와 붙어 한 덩어리로 읽혔고, 시선이 그림에서
+   화면 끝까지 내려갔다 오는 길이 매번 길었다. */
+.osub{position:absolute;left:0;right:0;bottom:calc(10.25vh + 26px);z-index:4;text-align:center;
   padding:0 8vw;pointer-events:none;opacity:0;transition:opacity .32s ease}
 .osub.on{opacity:1}
 .osub span{display:inline-block;font-size:clamp(15px,2.05vw,25px);line-height:1.5;font-weight:600;
@@ -1223,22 +1226,33 @@ body.gacut .deco, body.gacut .bubble, body.gacut .tag3d, body.gacut #tags3d{
   opacity:0;pointer-events:none;transition:opacity .8s ease;
   background:radial-gradient(circle at 42% 52%,rgba(10,14,26,.35),rgba(6,8,14,.86))}
 .oletter.on{opacity:1;pointer-events:auto}
-.oletterbox{width:min(560px,100%);max-height:82vh;overflow-y:auto;background:#FDF7EA;
-  border:3px solid #2A2520;box-shadow:8px 8px 0 rgba(0,0,0,.5);padding:20px 24px 22px;
+/* ── 인수인계 한 장 ──
+   **지금 UI 의 종이**로 그린다. 예전에는 검은 3px 테두리에 8px 짜리 딱딱한 그림자였다 —
+   그건 스티커의 문법이고, 이 게임의 창들은 이제 **떠 있는 종이**다(모서리 둥글게 ·
+   부드러운 그림자 · 테두리 없음). 프롤로그 끝에서 게임으로 넘어가는 마지막 화면이라
+   여기가 옛 판이면 그 이음매에서 「다른 게임으로 넘어갔다」로 읽힌다.
+   토큰에 기본값을 같이 적는다: 이 화면은 #app 밖(.opening)이라 스킨 규칙이 안 닿는
+   판에서도 색이 무너지면 안 된다. */
+.oletterbox{width:min(560px,100%);max-height:82vh;overflow-y:auto;
+  background:var(--ui-paper,#FFFCF6);border:0;border-radius:18px;
+  box-shadow:var(--ui-lift,0 6px 18px rgba(74,55,40,.22));padding:20px 22px 20px;
   animation:oletterIn .7s cubic-bezier(.2,.9,.3,1) both}
 @keyframes oletterIn{from{transform:translateY(14px) scale(.985);opacity:0}}
-.olhead{display:flex;justify-content:space-between;font-size:11px;color:#8B7466;
-  border-bottom:2px dashed #D9C9AF;padding-bottom:8px;margin-bottom:12px;letter-spacing:.2px}
-.ollead{margin:0 0 12px;font-size:14px;font-weight:700;line-height:1.6;color:#3A2E28}
-.olist{margin:0;padding-left:20px;font-size:12.8px;line-height:1.85;color:#4A3C33}
+.olhead{display:flex;justify-content:space-between;font-size:11px;color:var(--ui-soft,#8B7A68);
+  border-bottom:2px dashed rgba(139,122,104,.32);padding-bottom:8px;margin-bottom:12px;letter-spacing:.2px}
+.ollead{margin:0 0 12px;font-size:14px;font-weight:700;line-height:1.6;color:var(--ui-ink,#4A3B2E)}
+.olist{margin:0;padding-left:20px;font-size:12.8px;line-height:1.85;color:var(--ui-ink,#4A3B2E)}
 .olist li{margin-bottom:3px}
-.olist b{color:#B5561F}
-.olout{margin:14px 0 2px;font-size:13px;line-height:1.6;color:#3A2E28}
-.olsign{margin:0;font-size:13px;font-weight:800;text-align:right;color:#3A2E28}
-.olfoot{margin-top:10px;padding-top:9px;border-top:2px dashed #D9C9AF;font-size:10.5px;color:#8B7466}
-.olgo{width:100%;margin-top:14px;padding:12px;background:var(--accent);color:#fff;font-weight:800;
-  font-size:15px;border-radius:3px;box-shadow:0 4px 0 var(--accent-d)}
-.olgo:active{transform:translateY(4px);box-shadow:none}
+.olist b{color:#B5701A}
+.olout{margin:14px 0 2px;font-size:13px;line-height:1.6;color:var(--ui-ink,#4A3B2E)}
+.olsign{margin:0;font-size:13px;font-weight:800;text-align:right;color:var(--ui-ink,#4A3B2E)}
+.olfoot{margin-top:10px;padding-top:9px;border-top:2px dashed rgba(139,122,104,.32);
+  font-size:10.5px;color:var(--ui-soft,#8B7A68)}
+/* 단추도 지금 창들과 같은 것으로 — 갈색 · 둥근 · 그림자 없음(.modal .mfoot button). */
+.olgo{width:100%;margin-top:16px;padding:13px;border:0;border-radius:13px;
+  background:var(--ui-on,#8A6A4A);color:var(--ui-onink,#F7F1E6);
+  font-weight:700;font-size:15px;box-shadow:none}
+.olgo:active{transform:translateY(1px)}
 
 /* 근로계약서 — 이름을 정하는 창. 닫을 수 없다(이 고양이가 곧 플레이어다) */
 .mhead.contract{background:#2A3550;color:#FFF6E9;border-bottom-color:#18203a}
@@ -1252,7 +1266,7 @@ body.gacut .deco, body.gacut .bubble, body.gacut .tag3d, body.gacut #tags3d{
   .obar{height:5vh}
   /* 띠가 낮아지면 힌트도 같이 내려간다 — 안 내리면 폰에서 혼자 장면 위에 떠 있다 */
   .ohint{bottom:calc(5vh + 3px)}
-  .osub{bottom:calc(5vh + 20px)}
+  .osub{bottom:calc(8vh + 20px)}
   .oletterbox{padding:14px 15px 16px}
   .olist{font-size:12px;line-height:1.7}
 }
@@ -2826,7 +2840,7 @@ body.eerie #app.tabbar .parcelbtn.has::after{content:'';position:absolute;top:6p
 
 /* 자리는 **왼쪽**이다. 오른쪽에는 카메라·녹화 단추가 세로로 서 있어서(.iconbtn 줄)
    미리보기가 그 줄의 넷째처럼 보였다 — 배치 UI 의 일원이어야 하는 단추다. */
-body.eerie #app.tabbar .peekbtn{position:fixed;left:14px;z-index:8;display:none;
+body.eerie #app.tabbar .peekbtn{position:fixed;right:14px;z-index:8;display:none;
   bottom:calc(var(--decoh, 56vh) + 10px);flex-direction:column;align-items:center;gap:2px;
   width:56px;padding:8px 4px 7px;border:0;border-radius:14px;
   background:var(--ui-glass);color:var(--ui-glassink);
@@ -2839,6 +2853,17 @@ body.eerie #app.tabbar .peekbtn{position:fixed;left:14px;z-index:8;display:none;
 body.eerie #app.tabbar .decorail button[hidden]{display:none}
 body.eerie #app.tabbar .peekbtn.show{display:flex}
 body.eerie #app.tabbar .peekbtn svg{display:block;width:19px;height:19px;fill:currentColor}
+/* ── 배치 중에는 배치만 남긴다 ──
+   따라가기 카메라와 택배 상자는 배치와 상관없는 문이다. 열려 있으면 손잡이·화살표·
+   미리보기와 자리를 다투고, 미리보기로 방만 볼 때는 그 둘이 화면에 남아 「방을 보는
+   중」이 아니라 「게임 화면」이 된다. 표시는 게임 쪽이 단다(js/edit.js 의 #app.editing). */
+body.eerie #app.tabbar.editing .cambtn,
+body.eerie #app.tabbar.editing .parcelbtn{display:none!important}
+
+/* 배치 모드의 안내 막대는 안 띄운다 — 폰에서는 손잡이(✓ ↻ ✕)와 화살표가 그 자리에
+   이미 있고, 같은 말을 글로 한 번 더 하면 방을 가리는 띠가 하나 느는 것뿐이다. */
+body.eerie #app.tabbar .edithint{display:none!important}
+
 body.eerie #app.tabbar .peekbtn.on{background:var(--ui-accent);color:var(--ui-accentink);
   backdrop-filter:none;-webkit-backdrop-filter:none}
 /* 시트는 **내용만큼만** 높다(위 .deco 의 height:auto). 그래서 단추 자리를 56vh 로

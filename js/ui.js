@@ -147,7 +147,8 @@ try {
   else if (localStorage.getItem('copycat.sound') === '0') soundVol = 0;   // 옛 저장의 음소거를 잇는다
 } catch(e){}
 let soundOn = soundVol > 0;
-/* 0~1. 0 이면 음소거. 효과음·BGM·유튜브가 전부 이 값을 곱한다. */
+/* 0~1. 0 이면 음소거. 효과음과 BGM 이 전부 이 값을 곱한다.
+   (유튜브도 여기 걸려 있었는데 노동요를 걷으면서 같이 나갔다 — TODO 79.) */
 function setVolume(v){
   soundVol = Math.max(0, Math.min(1, v));
   soundOn = soundVol > 0;
@@ -2125,11 +2126,6 @@ function showSettings(){
           <button class="buy alt" data-set="outro">${L({ ko:'다시 보기', en:'Replay', ja:'もう一度' })}</button>
         </div>
       </div>
-      <div class="hint center" style="margin-top:8px">${L({
-        ko:'음악과 음량은 <b>사무실의 CD 플레이어</b>에서 만집니다. 음량 0 이 곧 전체 음소거입니다.',
-        en:'Music and volume are both handled at the <b>CD player in the office</b>. Volume 0 is the master mute.',
-        ja:'音楽も音量も<b>オフィスのCDプレーヤー</b>で扱います。音量0が全体ミュートです。',
-      })}</div>
     </div>
     <div class="mfoot"><button class="okbtn" data-close>${L({ ko:'닫기', en:'Close', ja:'閉じる' })}</button></div>`);
 
@@ -2339,9 +2335,7 @@ function showBranchSetup(onDone){
   const m = modal(`
     <div class="mhead contract"><div class="q">BRANCH REGISTRATION</div>
       <h3>${L({ ko:'지점 등록', en:'Branch Registration', ja:'支店登録' })}</h3>
-      <p>${L({ ko:'간판과 지점명 · 나중에 벽의 액자에서 바꿉니다',
-               en:'Sign and branch name · change it later at the wall frame',
-               ja:'看板と支店名・あとで壁の額縁から変えられます' })}</p></div>
+      </div>
     <div class="mbody">
       <div class="sigrow"><span class="em">🏢</span>
         <b>${L({ ko:'이 사무실은 본사의 한 지점입니다.',
@@ -2353,10 +2347,6 @@ function showBranchSetup(onDone){
                value="${esc((S.branch && S.branch.name) || '')}">
         <span class="brsuf" id="brSuf">${L({ ko:'점', en:'Br.', ja:'店' })}</span>
       </div>
-      <div class="tiny">${L({
-        ko:'친구가 방문하면 이 이름으로 보입니다. 비워 두면 이름 없이 갑니다.',
-        en:'Visitors will see this name. Leave it blank to go without one.',
-        ja:'訪ねてきた人にはこの名前で見えます。空欄なら名前なしです。' })}</div>
       <div class="hint">${L({ ko:'간판', en:'Sign', ja:'看板' })}</div>
       <div class="logogrid" id="brGrid">${files.map(cell).join('')}</div>
     </div>
@@ -2459,7 +2449,7 @@ function showHelp(){
          총무가 사보에 어디쯤인지 흘릴 때가 있습니다.</p>
       <p><b>10. CD 플레이어</b> — 사무실에 <b>💿 CD 플레이어</b>가 놓여 있습니다. <b>누르면 배경음악을 고릅니다.</b>
          기본 두 곡이 있고, 음반은 멸치로 살 수 있으며, <b>사무실 어딘가에서 나오는 테이프</b>도 있습니다.
-         유튜브 링크를 넣으면 그게 배경음악이 됩니다. 밤에는 소리가 절반이 되고,
+         밤에는 소리가 절반이 되고,
          <b>음량도 여기서 조절합니다</b> — 0 으로 내리면 효과음까지 전부 멈춥니다(전체 음소거).
          배치 모드에서 옮기고 돌릴 수 있고, 고양이들도 그 앞에 모입니다.</p>
       <ul>
@@ -2467,8 +2457,7 @@ function showHelp(){
             자정을 넘겨도 됩니다</b>(22–06 등). 단계·수당·케어 방송·「퇴근까지」가 전부 그 시간에서 나옵니다</li>
         <li>고양이는 <b>시각이 아니라 기력으로 잡니다</b> — 근무 밖이라고 다 눕지 않고,
             <b>올린 서류는 새벽에도 처리됩니다</b></li>
-        <li>⚙️ 설정에서 언어(한국어/English/日本語)·데스크탑 알림·근무 시간을 정합니다.
-            <b>음악과 음량은 사무실의 CD 플레이어에 있습니다</b></li>
+        <li>⚙️ 설정에서 언어(한국어/English/日本語)·데스크탑 알림·근무 시간을 정합니다</li>
         <li>채용은 <b>면접창</b>에서 — 이름(🎲 또는 직접 입력)과 털색·색조를 정합니다.
             능력치는 4d6이 정하고, 지원자는 창을 닫아도 그대로 기다립니다</li>
         <li>비품은 사무실 안에 실제로 배치되고 고양이가 이용합니다</li>
@@ -2554,8 +2543,7 @@ function showHelp(){
          card. Admin sometimes drops a note in the newsletter about roughly where to look.</p>
       <p><b>10. The CD player</b> — there is a <b>💿 CD player</b> standing in the office. <b>Click it to pick
          the music.</b> Two tracks to start, records you can buy with anchovies, and <b>tapes that only turn
-         up somewhere in the office</b>. Paste a YouTube link and that becomes the background music.
-         Everything halves in volume at night. <b>The volume lives here too</b> — drag it to 0 and the sound
+         up somewhere in the office</b>. Everything halves in volume at night. <b>The volume lives here too</b> — drag it to 0 and the sound
          effects stop as well (that is the master mute). You can move and rotate it in decorate mode, and the
          cats gather in front of it.</p>
       <ul>
@@ -2563,8 +2551,7 @@ function showHelp(){
             cross midnight</b> (22–06 and so on). Phases, pay rate, the care broadcasts and the countdown all follow them</li>
         <li>Cats sleep on <b>energy, not the hour</b> — being off-shift doesn't put them all to bed, and
             <b>a document filed at 3 AM still gets stamped</b></li>
-        <li>⚙️ Settings: language (한국어/English/日本語), desktop notifications, work hours.
-            <b>Music and volume live at the CD player in the office.</b></li>
+        <li>⚙️ Settings: language (한국어/English/日本語), desktop notifications, work hours</li>
         <li>Hiring happens in an <b>interview window</b> — you pick the name (🎲 or type it)
             and the coat and tint. 4d6 sets the stats, and the applicant waits even if you close it</li>
         <li>Supplies are physically placed in the office and used by the cats</li>
@@ -2648,7 +2635,7 @@ function showHelp(){
          総務が社報にだいたいの場所を漏らすことがあります。</p>
       <p><b>10. CDプレーヤー</b> — オフィスに<b>💿 CDプレーヤー</b>が置いてあります。<b>押すとBGMを選べます。</b>
          最初から2曲あり、レコードは煮干しで買え、<b>オフィスのどこかから出てくるテープ</b>もあります。
-         YouTubeのリンクを入れればそれがBGMになります。夜は音量が半分になり、
+         夜は音量が半分になり、
          <b>音量もここで調整します</b>——0にすると効果音まで全部止まります（全体ミュート）。
          模様替えモードで動かして回せますし、猫たちもその前に集まります。</p>
       <ul>
@@ -2656,8 +2643,7 @@ function showHelp(){
             （22–06など）。段階・手当・ケア放送・「退勤まで」が全部その時間から出ます</li>
         <li>猫は<b>時刻ではなく気力で寝ます</b>——勤務外だからと全員が横になることはなく、
             <b>出した書類は深夜でも処理されます</b></li>
-        <li>⚙️ 設定で言語（한국어/English/日本語）・デスクトップ通知・勤務時間を決めます。
-            <b>音楽と音量はオフィスのCDプレーヤーにあります。</b></li>
+        <li>⚙️ 設定で言語（한국어/English/日本語）・デスクトップ通知・勤務時間を決めます</li>
         <li>採用は<b>面接ウィンドウ</b>で——名前（🎲か直接入力）と毛色・色調を決めます。
             能力値は4d6が決め、閉じても同じ応募者が待っています</li>
         <li>備品はオフィス内に実際に配置され、猫が利用します</li>
