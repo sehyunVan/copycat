@@ -321,6 +321,66 @@ function bindInput(){
     else startIntro();
   };
 
+  /* ============================================================
+     안드로이드의 **뒤로**
+     ------------------------------------------------------------
+     웹에는 「뒤로」가 없다. 그래서 아무도 안 듣고 있었고, 폰에서 뒤로를 눌러도
+     아무 일도 안 났다 — 앱이 안 닫힌다는 제보가 그것이다(2026-09-11).
+     (기본 동작은 WebView 의 히스토리 뒤로인데, 이 게임은 화면이 하나뿐이라
+      돌아갈 곳이 없어서 그대로 먹힌다.)
+
+     뒤로는 **한 겹씩 벗기는 단추**다. 곧바로 앱을 닫으면, 창 하나 닫으려던 사람이
+     사무실을 닫게 된다. 그래서 위에 덮인 것부터 차례로 걷고, 아무것도 안 남았을 때만
+     나간다:
+
+       1. 컷신 중이면       — 아무것도 안 한다 (프롤로그·엔딩은 자기 규칙이 있다)
+       2. 창이 떠 있으면    — 닫는다. **닫기 손잡이가 있는 창만** 닫는다 —
+                              계약서와 지점 등록에는 그 손잡이가 없다(거기서 나가면
+                              게임이 시작을 못 한다). 그 규칙이 곧 「닫아도 되는 창」의 정의다
+       3. 안내가 떠 있으면  — 건너뛴다
+       4. 배치 모드면       — 배치를 끝낸다
+       5. 사무실 탭이 아니면 — 사무실로 돌아간다
+       6. 그 다음이 종료다  — 다만 **한 번 더**를 묻는다. 이 게임은 켜 두는 물건이라
+                              주머니 속 오작동 한 번으로 닫히면 안 된다.
+     ============================================================ */
+  (function backButton(){
+    const A = (() => { try { return (window.Capacitor.Plugins || {}).App || null; } catch (e){ return null; } })();
+    if (!A || !A.addListener) return;                 // 웹에서는 이 단추 자체가 없다
+    let armed = 0;                                    // 「한 번 더」를 물어 둔 시각
+    A.addListener('backButton', () => {
+      const $1 = sel => DOC.querySelector(sel);
+      if ($1('.opening') || $1('.outro')) return;
+
+      const veil = [...DOC.querySelectorAll('.veil')].pop();
+      if (veil){
+        const x = veil.querySelector('[data-close]');
+        if (x){ x.click(); return; }
+        return;                                       // 손잡이가 없는 창 = 나갈 수 없는 창
+      }
+      const skip = $1('.coach [data-tut="skip"]');
+      if (skip){ skip.click(); return; }
+      if (typeof EDIT !== 'undefined' && EDIT.on && typeof toggleEdit === 'function'){
+        toggleEdit(false); return;
+      }
+      const app = $1('#app');
+      if (app && app.dataset.col && app.dataset.col !== 'stage' && typeof setCol === 'function'){
+        setCol('stage'); return;
+      }
+      const now = Date.now();
+      if (now - armed < 2200){
+        try { save(); } catch (e) {}
+        try { A.exitApp(); } catch (e) {}
+        return;
+      }
+      armed = now;
+      if (typeof toast === 'function') toast(L({
+        ko:'한 번 더 누르면 사무실을 닫습니다.',
+        en:'Press back again to close the office.',
+        ja:'もう一度押すと事務所を閉じます。',
+      }));
+    });
+  })();
+
   window.addEventListener('resize', fitWorld);
   window.addEventListener('beforeunload', save);
   document.addEventListener('visibilitychange', () => {

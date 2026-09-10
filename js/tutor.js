@@ -173,10 +173,46 @@ function tutorPlace(now){
       R.style.width = (b.width + 12) + 'px'; R.style.height = (b.height + 12) + 'px';
     }
   }
-  /* 안내판은 대상 옆 — 오른쪽에 자리가 있으면 오른쪽, 없으면 아래, 그것도 없으면 위.
+  /* ── 화면 아래에서 **못 쓰는 높이** ──
+   내비게이션 바(안전영역) + 폰 스킨의 탭 막대. env() 는 CSS 안에서만 읽히므로,
+   그 값을 높이로 준 빈 칸을 하나 만들어 **재서** 알아낸다. 기기를 돌리거나 내비 방식이
+   바뀌면 값이 달라지므로 캐시하지 않는다 — 한 프레임에 한 번 재는 값이라 싸다. */
+let TUT_PROBE = null;
+function safeBottom(){
+  try {
+    if (!TUT_PROBE || !TUT_PROBE.isConnected){
+      TUT_PROBE = document.createElement('div');
+      TUT_PROBE.style.cssText = 'position:fixed;left:-9999px;bottom:0;width:1px;'
+        + 'height:env(safe-area-inset-bottom, 0px);pointer-events:none;visibility:hidden';
+      document.body.appendChild(TUT_PROBE);
+    }
+    return TUT_PROBE.offsetHeight || 0;
+  } catch (e){ return 0; }
+}
+function bottomBlocked(){
+  let h = safeBottom();
+  /* 탭 막대는 폰 스킨에서만 있다. 높이는 CSS 가 정하므로(--tabbar) 거기서 읽는다. */
+  try {
+    const app = document.querySelector('#app');
+    if (app && app.classList.contains('tabbar')){
+      const v = parseFloat(getComputedStyle(app).getPropertyValue('--tabbar'));
+      h += (isFinite(v) && v > 0) ? v : 54;
+      h += 10;                      // 막대에 딱 붙지 않게 한 숨
+    }
+  } catch (e) {}
+  return h;
+}
+
+/* 안내판은 대상 옆 — 오른쪽에 자리가 있으면 오른쪽, 없으면 아래, 그것도 없으면 위.
      그리고 화면 밖으로는 절대 안 나간다. 나간 안내판은 없는 안내판이다. */
   const pw = P.offsetWidth || 320, ph = P.offsetHeight || 160;
-  const vw = innerWidth, vh = innerHeight;
+  /* ── 아래 끝은 화면 끝이 아니다 ──
+     `innerHeight` 는 **내비게이션 바 밑까지** 센다(viewport-fit=cover · 안드로이드
+     edge-to-edge). 거기에 맞춰 안내판을 놓으면 단추 줄이 그 바 뒤로 들어가서 안 눌린다 —
+     제스처 내비 기기는 띠가 얇아 티가 안 나고 3버튼 내비 기기는 통째로 가린다.
+     그리고 폰 스킨에서는 그 위에 탭 막대가 한 겹 더 있다. 둘 다 빼고 잡는다.
+     env() 는 CSS 안에서만 읽히므로 **재 본다**(아래 safeBottom). */
+  const vw = innerWidth, vh = innerHeight - bottomBlocked();
   let x, y;
   if (el){
     const b = el.getBoundingClientRect();
