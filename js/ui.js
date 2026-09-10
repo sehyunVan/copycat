@@ -466,6 +466,11 @@ function applyStatic(){
   $('#ctLog').textContent   = L({ ko:'사보', en:'News', ja:'社報' });
   $('#btnCard').title     = L({ ko:'근무 기록증 — 함께한 시간', en:'Time card — how long we have been at it', ja:'勤務記録証——一緒にいた時間' });
   $('#btnEdit').title     = L({ ko:'배치 모드 — 가구 옮기기', en:'Decorate — move furniture', ja:'模様替え——家具を動かす' });
+  /* 접기 둘과 카메라는 index.html 의 title 이 그대로 남아 있었다 — 나머지 단추는
+     여기서 갈아 끼우는데 이 셋만 빠져서, 영어로 놓아도 한국어 툴팁이 떴다. */
+  if ($('#btnFoldL')) $('#btnFoldL').title = L({ ko:'왼쪽 패널 접기', en:'Collapse left panel', ja:'左パネルをたたむ' });
+  if ($('#btnFoldR')) $('#btnFoldR').title = L({ ko:'오른쪽 패널 접기', en:'Collapse right panel', ja:'右パネルをたたむ' });
+  if ($('#btnCam'))   $('#btnCam').title   = L({ ko:'카메라', en:'Camera', ja:'カメラ' });
   $('#btnSettings').title = L({ ko:'설정', en:'Settings', ja:'設定' });
   $('#btnHelp').title     = L({ ko:'사규', en:'Company rules', ja:'社則' });
   $('#btnReset').title    = L({ ko:'처음부터', en:'Start over', ja:'最初から' });

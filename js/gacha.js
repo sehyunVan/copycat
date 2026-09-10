@@ -322,7 +322,8 @@ function gaShopHTML(){
       return !!(c && (c.isNativePlatform ? c.isNativePlatform() : c.getPlatform));
     } catch (e){ return false; } })();
     if (!native) return '';
-    const why = (st && st.why) || '아직 준비되지 않았습니다';
+    const why = (st && st.why) || L({ ko:'아직 준비되지 않았습니다',
+                                       en:'not ready yet', ja:'まだ準備できていません' });
     return `<div class="gashop"><div class="gashophead">${L({
         ko: '상자 사기', en: 'Buy boxes', ja: '箱を買う' })}</div>
       <div class="tiny" style="opacity:.6">${esc(why)}</div></div>`;
@@ -673,7 +674,9 @@ function gaOpeningFlat(items, onDone){
     /* **왜 평면으로 내려왔는지 그 자리에 적는다.** 조용한 폴백은 「어느 날 갑자기 예전
        것이 나온다」로 나타나고, 폰에서는 콘솔을 열 수가 없어서 물어볼 곳이 없다.
        (임시다 — 원인이 잡히면 이 줄은 지운다.) */
-    + (window.__gaWhy ? `<div class="gaowhy">평면으로 내려왔습니다 — ${gaEsc(window.__gaWhy)}</div>` : '');
+    + (window.__gaWhy ? `<div class="gaowhy">${L({ ko:'평면으로 내려왔습니다 — ',
+                                                    en:'fell back to the flat scene — ',
+                                                    ja:'平面演出に切り替えました——' })}${gaEsc(window.__gaWhy)}</div>` : '');
   document.body.appendChild(root);
   root.addEventListener('click', done);
 

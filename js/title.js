@@ -221,9 +221,9 @@ body.titleon .veil{z-index:10000}
   el.id = 'cctitle';
   el.innerHTML = `<div class="in"><div class="logo">${LOGO}</div>
     <div class="btns">
-      <button class="go" type="button">게임 시작</button>
-      <button class="login" type="button" hidden>로그인</button>
-      <button class="cfg" type="button">설정</button>
+      <button class="go" type="button">${L({ ko:'게임 시작', en:'Start', ja:'ゲーム開始' })}</button>
+      <button class="login" type="button" hidden>${L({ ko:'로그인', en:'Sign in', ja:'ログイン' })}</button>
+      <button class="cfg" type="button">${L({ ko:'설정', en:'Settings', ja:'設定' })}</button>
       <div class="note" hidden>계정에 저장되고 있습니다</div>
     </div>
     <div class="build"></div></div>`;
@@ -324,7 +324,7 @@ body.titleon .veil{z-index:10000}
      보고 그냥 나가므로 영영 안 풀린다.
      그래서 **화면이 다시 보일 때마다** 원래대로 돌린다. 로그인이 실제로 됐으면
      cloudTick 이 곧 이 단추를 감춘다(linked). */
-  const LOGIN_LABEL = '로그인';
+  const LOGIN_LABEL = L({ ko:'로그인', en:'Sign in', ja:'ログイン' });
   const revive = () => {
     if (!btnIn || btnIn.hidden) return;
     btnIn.disabled = false;
@@ -353,18 +353,20 @@ body.titleon .veil{z-index:10000}
   const askLogin = () => {
     const m = modal(`
       <div class="mhead"><div class="q">ACCOUNT</div>
-        <h3>사무실을 계정에 연동합니다</h3>
-        <p>연동하면 고양이들이 따라옵니다.</p></div>
+        <h3>${L({ ko:'사무실을 계정에 연동합니다', en:'Link the office to an account', ja:'事務所をアカウントにつなぎます' })}</h3>
+        <p>${L({ ko:'연동하면 고양이들이 따라옵니다.',
+                 en:'Link it and the cats come with you.',
+                 ja:'つないでおけば猫たちもついてきます。' })}</p></div>
       <div class="mbody">
         <div class="codebox">
           <input id="lgMail" class="mail" maxlength="80" autocomplete="email" inputmode="email"
-                 placeholder="메일 주소">
-          <button class="buy alt" id="lgSend">보내기</button></div>
+                 placeholder="${L({ ko:'메일 주소', en:'Email address', ja:'メールアドレス' })}">
+          <button class="buy alt" id="lgSend">${L({ ko:'보내기', en:'Send', ja:'送信' })}</button></div>
         <div class="hint" id="lgNote" style="margin-top:9px"></div>
         <button class="lgg" id="lgGoogle" style="margin-top:14px">
-          <span class="gmark">${G_MARK}</span><span class="lgl">구글로 계속하기</span></button>
+          <span class="gmark">${G_MARK}</span><span class="lgl">${L({ ko:'구글로 계속하기', en:'Continue with Google', ja:'Googleで続ける' })}</span></button>
       </div>
-      <div class="mfoot"><button class="okbtn" data-close>닫기</button></div>`);
+      <div class="mfoot"><button class="okbtn" data-close>${L({ ko:'닫기', en:'Close', ja:'閉じる' })}</button></div>`);
     const V = m.veil;
     const say = t => { const n = V.querySelector('#lgNote'); if (n) n.textContent = t; };
 
@@ -373,11 +375,13 @@ body.titleon .veil{z-index:10000}
       /* **글자만 갈아 끼운다.** 단추째로 `textContent` 를 쓰면 안에 있는 로고까지
          같이 지워진다 — 눌렀더니 구글 마크가 사라지는 단추가 된다. */
       const lab = b.querySelector('.lgl');
-      b.disabled = true; lab.textContent = '구글로 넘어갑니다…';
+      b.disabled = true;
+      lab.textContent = L({ ko:'구글로 넘어갑니다…', en:'Taking you to Google…', ja:'Googleへ移動します…' });
       const r = await CLOUD.google();
       /* 성공하면 이 페이지를 떠난다(구글 → 돌아오면 시작화면이 다시 뜬다).
          실패했을 때만 여기로 돌아온다 — 그때는 왜 안 됐는지 그 자리에 적는다. */
-      if (r && r.error){ b.disabled = false; lab.textContent = '다시 시도'; say(r.error); }
+      if (r && r.error){ b.disabled = false;
+        lab.textContent = L({ ko:'다시 시도', en:'Try again', ja:'もう一度' }); say(r.error); }
     };
     const send = async () => {
       const b = V.querySelector('#lgSend'), inp = V.querySelector('#lgMail');
@@ -385,7 +389,9 @@ body.titleon .veil{z-index:10000}
       const r = await CLOUD.email(inp ? inp.value : '');
       b.disabled = false;
       /* 보냈다고 창을 닫지 않는다 — 주소를 잘못 적었을 때 다시 칠 자리가 없어진다. */
-      say(r && r.error ? r.error : '보냈습니다. 메일함을 확인해 주세요.');
+      say(r && r.error ? r.error : L({ ko:'보냈습니다. 메일함을 확인해 주세요.',
+                                        en:'Sent — check your inbox.',
+                                        ja:'送りました。メールをご確認ください。' }));
     };
     V.querySelector('#lgSend').onclick = send;
     const inp = V.querySelector('#lgMail');
@@ -399,14 +405,16 @@ body.titleon .veil{z-index:10000}
        여기서 그 몇 백 밀리초를 받는다 — 눌렀는데 아무 일도 안 나는 것보다 낫다. */
     if (!window.CLOUD || typeof modal !== 'function'){
       btnIn.disabled = true;
-      btnIn.textContent = '연결 중…';
+      btnIn.textContent = L({ ko:'연결 중…', en:'Connecting…', ja:'接続中…' });
       for (let i = 0; i < 40 && (!window.CLOUD || typeof modal !== 'function'); i++)
         await new Promise(r => setTimeout(r, 100));
       btnIn.disabled = false;
       btnIn.textContent = LOGIN_LABEL;
       if (!window.CLOUD || typeof modal !== 'function'){
         note.hidden = false;
-        note.textContent = '지금은 계정에 연결할 수 없습니다.';
+        note.textContent = L({ ko:'지금은 계정에 연결할 수 없습니다.',
+                                en:'Cannot reach the account service right now.',
+                                ja:'いまはアカウントにつなげません。' });
         return;
       }
     }
@@ -437,7 +445,8 @@ body.titleon .veil{z-index:10000}
   };
   const showNote = who => {
     note.hidden = false;
-    note.textContent = who ? who + ' · 계정에 저장되고 있습니다' : '계정에 저장되고 있습니다';
+    const saving = L({ ko:'계정에 저장되고 있습니다', en:'saving to your account', ja:'アカウントに保存しています' });
+    note.textContent = who ? who + ' · ' + saving : saving;
   };
   {
     const g = guessLinked();

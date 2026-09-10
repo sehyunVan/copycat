@@ -38,7 +38,7 @@
   async function refresh(){
     if (gone) return false;
     const sb = sbOf();
-    if (!sb) return off('로그인 전');
+    if (!sb) return off(L({ ko:'로그인 전', en:'not signed in', ja:'ログイン前' }));
     try {
       const [{ data: st, error: e1 }, { data: rt, error: e2 }] =
         await Promise.all([sb.rpc('ticket_state'), sb.rpc('parcel_rates')]);
@@ -46,9 +46,9 @@
          다시 두드리면 404 가 40번 찍힌다 — 그건 재시도가 아니라 소음이다.
          로그인이 아직 안 붙은 것(그건 곧 붙는다)과 구분해서, 이쪽은 즉시 포기한다. */
       const missing = e => e && (/find the function|does not exist|schema cache/i).test(e.message || '');
-      if (missing(e1) || missing(e2)){ gone = true; return off('서버에 택배 표가 없습니다'); }
-      if (e1 || !st || !st.ok) return off((e1 && e1.message) || (st && st.why) || '잔액을 못 읽었다');
-      if (e2 || !rt) return off((e2 && e2.message) || '확률표를 못 읽었다');
+      if (missing(e1) || missing(e2)){ gone = true; return off(L({ ko:'서버에 택배 표가 없습니다', en:'the server has no parcel table', ja:'サーバーに宅配の表がありません' })); }
+      if (e1 || !st || !st.ok) return off((e1 && e1.message) || (st && st.why) || L({ ko:'잔액을 못 읽었다', en:'could not read the balance', ja:'残高を読めませんでした' }));
+      if (e2 || !rt) return off((e2 && e2.message) || L({ ko:'확률표를 못 읽었다', en:'could not read the odds table', ja:'確率表を読めませんでした' }));
       ST.balance = st.balance | 0;
       ST.bricks = st.bricks | 0;
       ST.pulls = st.pulls | 0;
@@ -59,7 +59,7 @@
       ST.freeReady = st.free_day !== today;
       ST.on = true; ST.why = '';
       return true;
-    } catch (e){ return off((e && e.message) || '서버가 안 받는다'); }
+    } catch (e){ return off((e && e.message) || L({ ko:'서버가 안 받는다', en:'the server refused', ja:'サーバーが受け付けません' })); }
   }
 
   /* 상자를 깐다. 서버가 굴려서 결과를 돌려주고, **적용은 게임이 한다** —

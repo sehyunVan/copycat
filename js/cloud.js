@@ -177,7 +177,9 @@
     if (error) return { error: error.message };
     if (!NATIVE) return { ok: true };            /* 이 줄 다음은 없다 — 페이지가 넘어갔다 */
     const url = data && data.url;
-    if (!url) return { error: '로그인 주소를 받지 못했습니다' };
+    if (!url) return { error: L({ ko:'로그인 주소를 받지 못했습니다',
+                                  en:'No sign-in address came back',
+                                  ja:'ログイン用のアドレスが返りませんでした' }) };
     await openOutside(url, delay);
     return { ok: true };
   }
@@ -209,7 +211,10 @@
     await closeBrowser();
     const say = t => { try { if (typeof toast === 'function') toast(t); } catch (e){} };
     /* 말풍선만으로는 부족하다 — 시작 화면이 그 위를 덮는다. 창으로도 말한다. */
-    const fail = t => { say('로그인하지 못했습니다 — ' + t); landing = false; sayLinked(t); };
+    const fail = t => {
+      say(L({ ko:'로그인하지 못했습니다 — ', en:'Could not sign in — ', ja:'ログインできませんでした——' }) + t);
+      landing = false; sayLinked(t);
+    };
     try {
       /* URL 은 스킴을 https 로 바꿔서 읽는다 — 커스텀 스킴은 브라우저의 URL 파서가
          searchParams 를 안 채워 주는 일이 있다. */
@@ -226,7 +231,9 @@
         }
         if (IDENTITY_TAKEN.test(bad) && !retryUsed()){
           markRetry(true);
-          say('이미 가입한 계정입니다 — 그 사무실로 들어갑니다');
+          say(L({ ko:'이미 가입한 계정입니다 — 그 사무실로 들어갑니다',
+                  en:'That account already exists — signing you into it',
+                  ja:'すでに登録済みのアカウントです——そちらに入ります' }));
           landing = false;
           note('재시도: 로그인 창 다시 엶');
           const r = await signInGoogle(450);      /* 닫힌 탭이 사라질 틈을 준다 */
@@ -332,13 +339,18 @@
     } catch (e){ return ''; }
   })();
 
+  /* 여기 적는 이유는 **설정 창에 그대로 뜬다**(계정 칸의 흐린 줄) — 번역이 필요하다.
+     진단용 note() 와는 다른 자리다: 그쪽은 숨긴 창에만 뜨므로 한국어로 둔다. */
   const off = why => { ST.on = false; ST.why = why; return false; };
 
   /* 돌 수 있는 자리인가 — 하나라도 아니면 조용히 잠든다 */
   function usable(){
-    if (!CFG.url || !CFG.key) return off('설정 없음');
-    if (location.protocol === 'file:') return off('file:// — 출처가 없어 로그인이 안 된다');
-    if (navigator.onLine === false) return off('오프라인');
+    if (!CFG.url || !CFG.key) return off(L({ ko:'설정 없음', en:'not configured', ja:'設定がありません' }));
+    if (location.protocol === 'file:') return off(L({
+      ko:'file:// — 출처가 없어 로그인이 안 된다',
+      en:'file:// — no origin, so sign-in cannot work',
+      ja:'file:// — オリジンが無いためログインできません' }));
+    if (navigator.onLine === false) return off(L({ ko:'오프라인', en:'offline', ja:'オフライン' }));
     return true;
   }
 
@@ -365,7 +377,7 @@
 
   async function start(){
     if (!usable()) return;
-    try { await loadSDK(); } catch (e){ return off('SDK 없음'); }
+    try { await loadSDK(); } catch (e){ return off(L({ ko:'SDK 없음', en:'SDK missing', ja:'SDKがありません' })); }
     try {
       sb = window.supabase.createClient(CFG.url, CFG.key, {
         /* 게임의 저장(copycat.save.v1)과 **다른 칸**을 쓴다. 한 칸에 섞으면
@@ -377,7 +389,7 @@
       let { data: { session } } = await sb.auth.getSession();
       if (!session){
         const { data, error } = await sb.auth.signInAnonymously();
-        if (error) return off('로그인 실패: ' + error.message);
+        if (error) return off(L({ ko:'로그인 실패: ', en:'sign-in failed: ', ja:'ログイン失敗: ' }) + error.message);
         session = data.session;
       }
       who(session.user);
@@ -412,7 +424,7 @@
            조용히 넘기면 사람은 됐는지 안 됐는지를 모른 채 한 번 더 누른다. */
         sayLinked(why);
       }
-    } catch (e){ return off('시작 실패: ' + (e && e.message)); }
+    } catch (e){ return off(L({ ko:'시작 실패: ', en:'startup failed: ', ja:'開始失敗: ' }) + (e && e.message)); }
 
     await pull();
     hooks();
@@ -471,7 +483,7 @@
      그냥 로그인으로 내려간다: 로컬 저장이 진실이므로 새 계정으로 들어가도 다음 전송에
      이 사무실이 그대로 올라간다(익명 줄은 주인 없이 남지만 아무 해가 없다). */
   async function linkGoogle(){
-    if (!ST.on) return { error: '동기화가 꺼져 있습니다' };
+    if (!ST.on) return { error: L({ ko:'동기화가 꺼져 있습니다', en:'Sync is off', ja:'同期がオフです' }) };
     /* 웹은 SDK 가 페이지를 그대로 넘긴다. 앱은 skipBrowserRedirect 로 **주소만**
        받아서(웹뷰가 구글 화면으로 가면 안 된다) 시스템 브라우저로 띄운다 — oauthGo 가 한다. */
     /* 누를 때마다 **새 판이다.** 자동 재시도 표시가 지난 판에서 남아 있으면, 두 번째
@@ -552,9 +564,9 @@
      ※ 메일이 실제로 도착하려면 프로젝트에 **내 도메인 SMTP** 를 붙여야 한다.
         기본 발송기는 개발용이라 시간당 몇 통에서 막힌다. */
   async function linkEmail(addr){
-    if (!ST.on) return { error: '동기화가 꺼져 있습니다' };
+    if (!ST.on) return { error: L({ ko:'동기화가 꺼져 있습니다', en:'Sync is off', ja:'同期がオフです' }) };
     const a = String(addr || '').trim();
-    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(a)) return { error: '메일 주소 형식이 아닙니다' };
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(a)) return { error: L({ ko:'메일 주소 형식이 아닙니다', en:'That is not an email address', ja:'メールアドレスの形ではありません' }) };
     try {
       if (ST.anon){
         const { error } = await sb.auth.updateUser({ email: a },
@@ -582,7 +594,7 @@
      **로컬 저장은 남긴다.** 지우는 것은 「서버에 있는 나」이고, 이 기계의 사무실까지
      같이 지우면 그건 계정 삭제가 아니라 게임 삭제다(그 문은 설정에 따로 있다). */
   async function eraseAccount(){
-    if (!ST.on) return { error: '동기화가 꺼져 있습니다' };
+    if (!ST.on) return { error: L({ ko:'동기화가 꺼져 있습니다', en:'Sync is off', ja:'同期がオフです' }) };
     try {
       const { data, error } = await sb.rpc('account_delete');
       if (error) return { error: error.message };
@@ -683,28 +695,37 @@
       try {
         const d = new Date(ST.serverAt);
         if (isNaN(d)) return '';
-        const p = n => ('0' + n).slice(-2);
-        return (d.getMonth() + 1) + '월 ' + d.getDate() + '일 ' + p(d.getHours()) + ':' + p(d.getMinutes());
+        /* 날짜 꼴은 나라마다 다르다(9월 8일 / Sep 8 / 9月8日) — 브라우저가 아는 것을 쓴다.
+           언어는 우리가 고른 그 언어다(LANG). */
+        const loc = L({ ko:'ko-KR', en:'en-US', ja:'ja-JP' });
+        return d.toLocaleString(loc, { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
       } catch (e){ return ''; }
     })();
     const m = modal(`
       <div class="mhead"><div class="q">CLOUD</div>
-        <h3>어느 사무실로 이어 갈까요</h3>
-        <p>계정에 저장된 사무실과 이 기기의 사무실이 서로 다릅니다.
-           고른 쪽이 <b>계정에도 그대로</b> 남습니다.</p></div>
+        <h3>${L({ ko:'어느 사무실로 이어 갈까요', en:'Which office do you keep?', ja:'どちらの事務所で続けますか' })}</h3>
+        <p>${L({ ko:'계정에 저장된 사무실과 이 기기의 사무실이 서로 다릅니다. 고른 쪽이 <b>계정에도 그대로</b> 남습니다.',
+                 en:'The office saved to your account and the one on this device are different. Whichever you pick <b>becomes the one on the account too.</b>',
+                 ja:'アカウントに保存された事務所と、この端末の事務所が違います。選んだほうが<b>アカウントにもそのまま</b>残ります。' })}</p></div>
       <div class="mbody">
         <div class="card"><div class="crow"><span class="em">🏢</span>
-          <div class="info"><b>이 사무실로 계속 — ${mine}일째</b>
-            <span>지금 보고 있는 사무실을 계속 쓰고, <b>계정의 기록을 이것으로 덮어씁니다.</b>
-              계정에 있던 ${there}일째 사무실은 사라집니다.</span></div></div></div>
+          <div class="info"><b>${L({ ko:'이 사무실로 계속 — ' + mine + '일째',
+                                      en:'Keep this office — day ' + mine,
+                                      ja:'この事務所を続ける — ' + mine + '日目' })}</b>
+            <span>${L({ ko:'지금 보고 있는 사무실을 계속 쓰고, <b>계정의 기록을 이것으로 덮어씁니다.</b> 계정에 있던 ' + there + '일째 사무실은 사라집니다.',
+                        en:'Keep playing the office you see now and <b>overwrite what the account has.</b> The day-' + there + ' office on the account is gone.',
+                        ja:'いま見ている事務所を使い、<b>アカウントの記録をこれで上書きします。</b>アカウントにあった' + there + '日目の事務所は消えます。' })}</span></div></div></div>
         <div class="card"><div class="crow"><span class="em">☁️</span>
-          <div class="info"><b>저장된 기록 불러오기 — ${there}일째${when ? ' · ' + when : ''}</b>
-            <span>계정에 저장된 사무실로 되돌아갑니다. 이 기기에서 지금 보고 있는
-              ${mine}일째 사무실은 사라집니다.</span></div></div></div>
+          <div class="info"><b>${L({ ko:'저장된 기록 불러오기 — ' + there + '일째',
+                                      en:'Load the saved office — day ' + there,
+                                      ja:'保存された記録を読み込む — ' + there + '日目' })}${when ? ' · ' + when : ''}</b>
+            <span>${L({ ko:'계정에 저장된 사무실로 되돌아갑니다. 이 기기에서 지금 보고 있는 ' + mine + '일째 사무실은 사라집니다.',
+                        en:'Go back to the office saved on the account. The day-' + mine + ' office on this device is gone.',
+                        ja:'アカウントに保存された事務所に戻ります。この端末で見ている' + mine + '日目の事務所は消えます。' })}</span></div></div></div>
       </div>
       <div class="mfoot" style="display:flex;gap:8px">
-        <button class="okbtn" id="cloudKeep" style="flex:1">이 사무실로 계속</button>
-        <button class="okbtn" id="cloudBack" style="flex:1">불러오기</button>
+        <button class="okbtn" id="cloudKeep" style="flex:1">${L({ ko:'이 사무실로 계속', en:'Keep this one', ja:'これで続ける' })}</button>
+        <button class="okbtn" id="cloudBack" style="flex:1">${L({ ko:'불러오기', en:'Load saved', ja:'読み込む' })}</button>
       </div>`);
 
     /* **고른 것을 서버까지 밀고 간다.** 전에는 「이대로 둔다」가 그저 잠금을 푸는
@@ -716,8 +737,11 @@
       m.close();
       const was = ST.pushed;
       await flush(true);
-      say(ST.pushed > was ? '계정을 이 사무실로 맞췄습니다'
-                          : '아직 못 올렸습니다 — 잠시 뒤 다시 올립니다');
+      say(ST.pushed > was
+        ? L({ ko:'계정을 이 사무실로 맞췄습니다', en:'The account now matches this office.', ja:'アカウントをこの事務所に合わせました' })
+        : L({ ko:'아직 못 올렸습니다 — 잠시 뒤 다시 올립니다',
+              en:'Not uploaded yet — it will go up shortly.',
+              ja:'まだ送れていません——少し後にもう一度送ります' }));
     };
     /* 불러오기는 저장 칸을 갈아 끼우고 새로 고친다(restore). 새로 고친 뒤에는 이 기기와
        계정이 같은 사무실이라 더 물을 것이 없다 — 그래서 여기서 계정을 기억해 둔다. */
@@ -762,8 +786,8 @@
         updated_at: new Date().toISOString(),
       });
       if (!error){ lastSent = body; dirty = false; ST.pushed++; ST.lastPush = Date.now(); }
-      else ST.why = '올리기 실패: ' + error.message;
-    } catch (e){ ST.why = '올리기 실패'; }
+      else ST.why = L({ ko:'올리기 실패: ', en:'upload failed: ', ja:'アップロード失敗: ' }) + error.message;
+    } catch (e){ ST.why = L({ ko:'올리기 실패', en:'upload failed', ja:'アップロード失敗' }); }
     finally { sending = false; }
   }
 
@@ -781,36 +805,44 @@
     /* **마지막으로 성공한 전송**을 적는다. 「저장되고 있습니다」만 띄우면 서버가
        하루 종일 안 받아 줘도 같은 문구가 떠 있다 — 그건 안심시키는 거짓말이다. */
     const agoTxt = () => {
-      if (!ST.lastPush) return '아직 안 올렸습니다';
+      if (!ST.lastPush) return L({ ko:'아직 안 올렸습니다', en:'not uploaded yet', ja:'まだ送っていません' });
       const m = Math.round((Date.now() - ST.lastPush) / 60000);
-      return m < 1 ? '방금 저장했습니다'
-           : m < 60 ? m + '분 전에 저장했습니다'
-           : Math.round(m / 60) + '시간 전에 저장했습니다';
+      if (m < 1) return L({ ko:'방금 저장했습니다', en:'saved just now', ja:'たった今保存しました' });
+      if (m < 60) return L({ ko: m + '분 전에 저장했습니다', en: 'saved ' + m + ' min ago', ja: m + '分前に保存しました' });
+      const h = Math.round(m / 60);
+      return L({ ko: h + '시간 전에 저장했습니다', en: 'saved ' + h + ' h ago', ja: h + '時間前に保存しました' });
     };
     const paint = () => {
       const linked = ST.on && !ST.anon;
       const bad = ST.on && /실패/.test(ST.why || '');
       box.innerHTML = `<div class="crow"><span class="em">${!ST.on ? '⚠️' : linked ? '🔒' : '☁️'}</span>
-        <div class="info"><b>${!ST.on ? '서버에 안 올라가고 있습니다'
-            : linked ? '계정에 저장되고 있습니다' : '이 기기에만 저장됩니다'}</b>
+        <div class="info"><b>${!ST.on
+            ? L({ ko:'서버에 안 올라가고 있습니다', en:'Not backing up', ja:'サーバーに上がっていません' })
+            : linked
+              ? L({ ko:'계정에 저장되고 있습니다', en:'Saving to your account', ja:'アカウントに保存しています' })
+              : L({ ko:'이 기기에만 저장됩니다', en:'Saved on this device only', ja:'この端末にだけ保存されます' })}</b>
           <span>${!ST.on
-            ? (ST.why || '꺼짐')
+            ? (ST.why || L({ ko:'꺼짐', en:'off', ja:'オフ' }))
             : bad
               ? ST.why + ' · ' + agoTxt()
               : linked
                 ? (ST.who || '연결됨') + ' · ' + agoTxt()
-                : '구글이나 메일을 연결해 두면 기기를 바꾸거나 앱을 지워도 사무실이 남습니다.'}</span></div>
-        ${ST.on && !linked ? '<button class="buy" data-cloud="google">구글로 지키기</button>' : ''}
+                : L({ ko:'구글이나 메일을 연결해 두면 기기를 바꾸거나 앱을 지워도 사무실이 남습니다.',
+                      en:'Link Google or an email and the office survives a new phone or a reinstall.',
+                      ja:'Googleかメールをつないでおくと、端末を変えてもアプリを消しても事務所は残ります。' })}</span></div>
+        ${ST.on && !linked ? '<button class="buy" data-cloud="google">'
+          + L({ ko:'구글로 지키기', en:'Protect with Google', ja:'Googleで守る' }) + '</button>' : ''}
       </div>
       ${ST.on && !linked ? `<div class="codebox" style="margin-top:9px">
-          <input class="mail" data-cloud-mail maxlength="80" autocomplete="email" placeholder="메일 주소로 받기">
-          <button class="buy alt" data-cloud="email">보내기</button></div>` : ''}
+          <input class="mail" data-cloud-mail maxlength="80" autocomplete="email"
+                 placeholder="${L({ ko:'메일 주소로 받기', en:'or get a link by email', ja:'メールで受け取る' })}">
+          <button class="buy alt" data-cloud="email">${L({ ko:'보내기', en:'Send', ja:'送信' })}</button></div>` : ''}
       ${ST.on && linked ? `<div class="codebox" style="margin-top:9px">
-          <button class="buy alt" data-cloud="out">로그아웃</button>
-          <button class="buy alt" data-cloud="erase">계정 삭제</button></div>` : ''}
+          <button class="buy alt" data-cloud="out">${L({ ko:'로그아웃', en:'Sign out', ja:'ログアウト' })}</button>
+          <button class="buy alt" data-cloud="erase">${L({ ko:'계정 삭제', en:'Delete account', ja:'アカウント削除' })}</button></div>` : ''}
       ${ST.on ? `<div class="hint" style="margin-top:8px">
-          <a href="${SITE}/privacy.html" target="_blank" rel="noopener">개인정보처리방침</a>
-          · <a href="${SITE}/delete.html" target="_blank" rel="noopener">계정 삭제 안내</a>
+          <a href="${SITE}/privacy.html" target="_blank" rel="noopener">${L({ ko:'개인정보처리방침', en:'Privacy policy', ja:'プライバシーポリシー' })}</a>
+          · <a href="${SITE}/delete.html" target="_blank" rel="noopener">${L({ ko:'계정 삭제 안내', en:'How to delete your account', ja:'アカウント削除の案内' })}</a>
         </div>` : ''}`;
     };
     paint();
@@ -823,7 +855,8 @@
       if (kind === 'google'){
         b.disabled = true;
         const r = await linkGoogle();
-        if (r && r.error){ b.disabled = false; say('연결하지 못했습니다 — ' + r.error); }
+        if (r && r.error){ b.disabled = false;
+          say(L({ ko:'연결하지 못했습니다 — ', en:'Could not connect — ', ja:'つなげませんでした——' }) + r.error); }
         /* 앱은 페이지가 안 넘어간다 — 취소하고 돌아올 수 있으니 다시 누를 길을 남긴다.
            다만 **곧바로 되살리지 않는다**: 탭이 뜨는 두어 박자 사이에 한 번 더 누르면
            로그인 창이 두 장 뜬다(실제로 그렇게 났다). 3초 뒤에 되살린다. */
@@ -835,24 +868,36 @@
         b.disabled = true;
         const r = await linkEmail(inp ? inp.value : '');
         b.disabled = false;
-        say(r && r.ok ? '메일을 보냈습니다 — 링크를 누르면 이 계정이 됩니다.'
-                      : '보내지 못했습니다 — ' + ((r && r.error) || ''));
+        say(r && r.ok ? L({ ko:'메일을 보냈습니다 — 링크를 누르면 이 계정이 됩니다.',
+                             en:'Mail sent — open the link and this account is yours.',
+                             ja:'メールを送りました——リンクを開くとこのアカウントになります。' })
+                      : L({ ko:'보내지 못했습니다 — ', en:'Could not send — ', ja:'送れませんでした——' })
+                        + ((r && r.error) || ''));
         return;
       }
       if (kind === 'out'){
-        if (!confirm('로그아웃할까요? 이 기기의 사무실은 그대로 남습니다.')) return;
+        if (!confirm(L({ ko:'로그아웃할까요? 이 기기의 사무실은 그대로 남습니다.',
+                         en:'Sign out? The office on this device stays where it is.',
+                         ja:'ログアウトしますか？この端末の事務所はそのまま残ります。' }))) return;
         signOut();
         return;
       }
       if (kind === 'erase'){
         /* 되돌릴 수 없는 조작이라 **두 번 묻는다.** 이 게임에서 두 번 묻는 것은
            여기와 「처음부터 다시 시작」뿐이다. */
-        if (!confirm('계정을 지울까요? 서버의 사무실·지점·친구가 사라집니다.')) return;
-        if (!confirm('되돌릴 수 없습니다. 정말 지울까요?')) return;
+        if (!confirm(L({ ko:'계정을 지울까요? 서버의 사무실·지점·친구가 사라집니다.',
+                         en:'Delete the account? The office, branch and friends on the server go away.',
+                         ja:'アカウントを削除しますか？サーバーの事務所・支店・友だちが消えます。' }))) return;
+        if (!confirm(L({ ko:'되돌릴 수 없습니다. 정말 지울까요?',
+                         en:'This cannot be undone. Really delete?',
+                         ja:'取り消せません。本当に削除しますか？' }))) return;
         b.disabled = true;
         const r = await eraseAccount();
-        if (r && r.ok){ say('계정을 지웠습니다.'); setTimeout(() => location.reload(), 800); }
-        else { b.disabled = false; say('지우지 못했습니다 — ' + ((r && r.error) || '')); }
+        if (r && r.ok){ say(L({ ko:'계정을 지웠습니다.', en:'Account deleted.', ja:'アカウントを削除しました。' }));
+          setTimeout(() => location.reload(), 800); }
+        else { b.disabled = false;
+          say(L({ ko:'지우지 못했습니다 — ', en:'Could not delete — ', ja:'削除できませんでした——' })
+              + ((r && r.error) || '')); }
       }
     });
     body.appendChild(box);

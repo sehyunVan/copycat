@@ -287,8 +287,10 @@
     if (tabs.length < 5) return;
     const t4 = tabs[3], t5 = tabs[4];
     if (t4.dataset.nav || t5.dataset.nav) {
-      t4.dataset.col = 'shop'; t4.querySelector('b').textContent = '상점';
-      t5.dataset.col = 'log';  t5.querySelector('b').textContent = '사보';
+      t4.dataset.col = 'shop';
+      t4.querySelector('b').textContent = L({ ko:'비품', en:'Supplies', ja:'備品' });
+      t5.dataset.col = 'log';
+      t5.querySelector('b').textContent = L({ ko:'사보', en:'News', ja:'社報' });
       [t4, t5].forEach(b => { delete b.dataset.nav; const sp = b.querySelector('span'); if (sp) delete sp.dataset.icon; });
       swap(t4.querySelector('span'), 'shop');
       swap(t5.querySelector('span'), 'log');
@@ -374,8 +376,11 @@
      「자주 안 여는 것」의 방이지 「안 열게 된 것」의 창고가 아니다. 둘 다 폰에서
      들어가는 길이 없어졌다(데스크톱의 ⋯ 에는 그대로 있다). */
   const EXTRA = [
-    { sel:'#btnReset', icon:'trash', t:'처음부터 다시 시작하기',
-      d:'저장을 지우고 전단을 보던 그 밤부터 다시 — 되돌릴 수 없습니다', bad:true },
+    { sel:'#btnReset', icon:'trash',
+      t: L({ ko:'처음부터 다시 시작하기', en:'Start over from scratch', ja:'最初からやり直す' }),
+      d: L({ ko:'저장을 지우고 전단을 보던 그 밤부터 다시 — 되돌릴 수 없습니다',
+             en:'Wipes the save and puts you back at the night of the flyer — no undo',
+             ja:'セーブを消してチラシを見たあの夜から——取り消せません' }), bad:true },
   ];
   function dressSettings(veil) {
     const q = veil.querySelector('.mhead .q');
@@ -415,7 +420,7 @@
      설정만 밖으로 꺼냈다(나머지는 각자 자리를 찾았다). */
   const gearBtn = doc.createElement('button');
   gearBtn.className = 'iconbtn gearbtn';
-  gearBtn.title = '설정';
+  gearBtn.title = L({ ko:'설정', en:'Settings', ja:'設定' });
   swap(gearBtn, 'gear');
   {
     const more = $('#btnMore');
@@ -526,7 +531,9 @@
     card.innerHTML = `<div class="crow">
         <span class="em" data-q="1"></span>
         <div class="info">
-          <b>${left === null ? num : '분기까지 성과 ' + left}</b>
+          <b>${left === null ? num : L({ ko:'분기까지 성과 ' + left,
+                                              en: left + ' more before the quarter',
+                                              ja:'四半期まで成果 ' + left })}</b>
           <span>${lab}${lab && num ? ' · ' : ''}${num}</span>
           <div class="bar"><i style="width:${pct}"></i></div>
         </div>
@@ -579,7 +586,8 @@
     /* 레퍼런스의 자리 확장 칸에는 값(🐟300)이 붙어 있는데, 이 게임에는 **자리를 사는
        길이 없다** — 분기 성과를 채워 등급이 오르면 늘어난다. 없는 값을 그리는 대신
        진짜 조건을 같은 자리에 넣는다. 상단에서 감춰 둔 분기 숫자가 여기서 되살아난다. */
-    const qn = (($('#qNum') || {}).textContent || '').trim() || '분기 결산';
+    const qn = (($('#qNum') || {}).textContent || '').trim()
+      || L({ ko:'분기 결산', en:'Quarter close', ja:'四半期決算' });
 
     const sized = (el, px) => {
       if (!el) return '<span class="pix"></span>';
@@ -642,12 +650,12 @@
           ${/* 폰에서는 인사 파일 모달이 안 열린다 — 카드를 누르면 고르기만 한다.
                 그래서 꾸미기 입구가 여기 사원증 옆에 선다. 여는 창은 넓은 화면의
                 인사 파일이 여는 그 창과 같은 것이다(js/ui.js customizeCat). */''}
-          <button class="dexdeco" data-deco="1"><i data-ic="paw"></i>커스터마이징</button>
+          <button class="dexdeco" data-deco="1"><i data-ic="paw"></i>${L({ ko:'커스터마이징', en:'Customize', ja:'カスタマイズ' })}</button>
         </div>
       </div>
       <div class="dexbhead">
-        <span class="dexlabel"><i data-ic="paw"></i>인사</span>
-        <span class="dexplaque"><i data-ic="chair"></i><b>자리</b><span>${list.length} / ${total}</span></span>
+        <span class="dexlabel"><i data-ic="paw"></i>${L({ ko:'인사', en:'Staff', ja:'人事' })}</span>
+        <span class="dexplaque"><i data-ic="chair"></i><b>${L({ ko:'자리', en:'Seats', ja:'席' })}</b><span>${list.length} / ${total}</span></span>
       </div>
       <div class="dexboard">
         <div class="dexlist">
@@ -660,7 +668,7 @@
           </div>`).join('')}
         ${hire ? `<div class="dexcard hire${hire.disabled ? ' dim' : ''}" data-hire="1">
             <span class="plus">+</span><b>${hire.textContent.trim()}</b></div>` : ''}
-        <div class="dexcard grow"><span class="lock"></span><b>자리 확장</b>
+        <div class="dexcard grow"><span class="lock"></span><b>${L({ ko:'자리 확장', en:'More seats', ja:'席を増やす' })}</b>
           <span class="growchip">${qn}</span></div>
         </div>
       </div>`;
@@ -729,11 +737,11 @@
   /* 가구 톤은 견본책(binder.js)의 넷째 칸인데 폰에서는 이 시트가 견본책의 문이라
      여기 없으면 폰에서 벌을 갈 길이 없다 — 갈래 순서도 견본책과 같게 맨 뒤다. */
   const TABS = [
-    { k: 'shop',  icon: 'hammer', t: '가구' },
-    { k: 'wall',  icon: 'brush',  t: '벽지' },
-    { k: 'floor', icon: 'floor',  t: '바닥' },
-    { k: 'rug',   icon: 'rug',    t: '러그' },
-    { k: 'tone',  icon: 'chair',  t: '가구 톤' },
+    { k: 'shop',  icon: 'hammer', t: L({ ko:'가구',    en:'Furniture', ja:'家具' }) },
+    { k: 'wall',  icon: 'brush',  t: L({ ko:'벽지',    en:'Walls',     ja:'壁紙' }) },
+    { k: 'floor', icon: 'floor',  t: L({ ko:'바닥',    en:'Floor',     ja:'床' }) },
+    { k: 'rug',   icon: 'rug',    t: L({ ko:'러그',    en:'Rugs',      ja:'ラグ' }) },
+    { k: 'tone',  icon: 'chair',  t: L({ ko:'가구 톤', en:'Tone', ja:'家具の色味' }) },
   ];
   /* 견본은 **낮 하나로만** 보여 준다 — 고르는 사람에게 필요한 건 「이 벽지가 어떤
      색인가」 하나다. binder.js 의 BINDER_LIGHT 와 같은 값을 쓴다. */
@@ -922,8 +930,8 @@
      같은 위계는 같은 자리에 있어야 어느 것이 어느 것인지 외울 필요가 없다. */
   const decoBtn = doc.createElement('button');
   decoBtn.className = 'decobtn';
-  decoBtn.title = '배치 · 인테리어';
-  decoBtn.innerHTML = '<span></span><b>배치</b>';
+  decoBtn.title = L({ ko:'배치 · 인테리어', en:'Decorate · interiors', ja:'模様替え・インテリア' });
+  decoBtn.innerHTML = '<span></span><b>' + L({ ko:'배치', en:'Decorate', ja:'模様替え' }) + '</b>';
   swap(decoBtn.querySelector('span'), 'hammer');
   decoBtn.addEventListener('click', () => decoToggle());
 
@@ -933,9 +941,9 @@
      망치 밑에 세로로 세 칸을 두고 같은 화면을 연다. 가구는 그대로 둔다(둘 다 문이다) —
      「조작은 세계 안에」를 지키면서 처음 오는 사람에게도 길을 준다. */
   const DOORS = [
-    { icon:'cal',   t:'달력',   fn:'showCalendar' },
-    { icon:'board', t:'게시판', fn:'showBoard' },
-    { icon:'disc',  t:'음악',   fn:'showJuke' },
+    { icon:'cal',   t: L({ ko:'달력',   en:'Calendar', ja:'カレンダー' }), fn:'showCalendar' },
+    { icon:'board', t: L({ ko:'게시판', en:'Board',    ja:'掲示板' }),     fn:'showBoard' },
+    { icon:'disc',  t: L({ ko:'음악',   en:'Music',    ja:'音楽' }),       fn:'showJuke' },
   ];
   const rail = doc.createElement('div');
   rail.className = 'doorrail';
@@ -950,8 +958,9 @@
      왼쪽 아래, 분기 안내 카드 바로 위에 따로 선다 — 그 자리는 「지금 온 것」의 자리다. */
   const boxBtn = doc.createElement('button');
   boxBtn.className = 'parcelbtn';
-  boxBtn.title = '본사 택배';
-  boxBtn.innerHTML = '<span class="em">📦</span><b>택배</b>';
+  boxBtn.title = L({ ko:'본사 택배', en:'Parcel from HQ', ja:'本社の宅配' });
+  boxBtn.innerHTML = '<span class="em">📦</span><b>'
+    + L({ ko:'택배', en:'Parcel', ja:'宅配' }) + '</b>';
   /* 카드 **위**에 선다 — 위 stagestack 의 세로 줄에서 첫 칸이다. */
   stack.insertBefore(boxBtn, stack.firstChild);
   const doorBadge = () => {
@@ -983,7 +992,9 @@
      시점 조작(드래그·회전·줌)은 그대로 살아 있어서 구도를 잡고 찍는다. */
   const photoBtn = doc.createElement('button');
   photoBtn.className = 'photobtn';
-  photoBtn.title = '카메라 모드 — UI를 걷고 방만 남깁니다';
+  photoBtn.title = L({ ko:'카메라 모드 — UI를 걷고 방만 남깁니다',
+                       en:'Camera mode — hides the UI and leaves the room',
+                       ja:'カメラモード——UIを外して部屋だけ残します' });
   swap(photoBtn, 'photo');
   app.appendChild(photoBtn);
   photoBtn.addEventListener('click', () => {
@@ -991,7 +1002,9 @@
     photoBtn.classList.toggle('on', on);
     if (on && typeof setCol === 'function') setCol('stage');   // 방을 찍는 모드다
     if (on && typeof toast === 'function')
-      toast('카메라 모드 — 스크린샷을 찍으세요. 다시 누르면 돌아옵니다');
+      toast(L({ ko:'카메라 모드 — 스크린샷을 찍으세요. 다시 누르면 돌아옵니다',
+                en:'Camera mode — take your screenshot. Tap again to go back.',
+                ja:'カメラモード——スクリーンショットをどうぞ。もう一度押すと戻ります' }));
     try { sfx.add(); } catch (e) {}
   });
 
@@ -1062,10 +1075,13 @@
            둘을 같은 말로 덮으면 뒤쪽 사람은 「내 가구가 사라졌다」로 읽는다. */
         body.innerHTML = all.length
           ? `<div class="decomove">
-              <p>창고가 비었습니다 — 가진 가구는 <b>모두 방에 있습니다.</b>
-              물건을 골라 ✕ 로 치우면 여기로 돌아옵니다.</p></div>`
+              <p>${L({ ko:'창고가 비었습니다 — 가진 가구는 <b>모두 방에 있습니다.</b> 물건을 골라 ✕ 로 치우면 여기로 돌아옵니다.',
+                        en:'Storage is empty — everything you own is <b>already in the room.</b> Pick a piece and press ✕ to put it back here.',
+                        ja:'倉庫は空です——持っている家具は<b>すべて部屋にあります。</b>物を選んで✕で片づけるとここに戻ります。' })}</p></div>`
           : `<div class="decomove">
-              <p>아직 가진 가구가 없습니다. <b>비품</b>에서 들이면 여기에 쌓입니다.</p></div>`;
+              <p>${L({ ko:'아직 가진 가구가 없습니다. <b>비품</b>에서 들이면 여기에 쌓입니다.',
+                        en:'No furniture yet. Bring some in from <b>Supplies</b> and it stacks up here.',
+                        ja:'まだ家具がありません。<b>備品</b>で買うとここに積まれます。' })}</p></div>`;
         bar.className = 'decopick'; bar.innerHTML = '';
         return;
       }
@@ -1082,7 +1098,8 @@
       if (!it) { bar.className = 'decopick'; bar.innerHTML = ''; return; }
       bar.className = 'decopick show';
       bar.innerHTML = `<span class="pickbox">${furnCell(it, 96, 'pickimg')}</span>
-        <div class="decoinfo"><b>${it.n}</b><span>방 ${it.placed} · 창고 ${it.stored}</span></div>
+        <div class="decoinfo"><b>${it.n}</b><span>${L({ ko:'방', en:'Room', ja:'部屋' })} ${it.placed}
+          · ${L({ ko:'창고', en:'Storage', ja:'倉庫' })} ${it.stored}</span></div>
         <button class="decoapply big${it.stored ? '' : ' off'}" data-put="${it.tile}" ${it.stored ? '' : 'disabled'}>
           <em>놓기</em><small>${it.stored ? '창고 ' + it.stored : '다 놓여 있음'}</small></button>`;
       return;
@@ -1122,7 +1139,9 @@
     const put = e.target.closest('[data-put]');
     if (put) {
       const ok = furnPlace(+put.dataset.put);
-      if (typeof toast === 'function') toast(ok ? '놓았습니다' : '놓을 자리가 없습니다');
+      if (typeof toast === 'function') toast(ok
+        ? L({ ko:'놓았습니다', en:'Placed.', ja:'置きました' })
+        : L({ ko:'놓을 자리가 없습니다', en:'No room for it.', ja:'置く場所がありません' }));
       try { ok ? sfx.add() : sfx.err(); } catch (er) {}
       decoRender(); return;
     }
@@ -1140,7 +1159,8 @@
       const okk = decorApply(ap.dataset.apply);
       if (!okk && typeof toast === 'function')
         toast(typeof shopHas === 'function' && !shopHas('binder')
-          ? '인테리어 견본책이 있어야 합니다' : '멸치가 모자랍니다');
+          ? L({ ko:'인테리어 견본책이 있어야 합니다', en:'You need the interior sample book.', ja:'インテリア見本帳が必要です' })
+          : L({ ko:'멸치가 모자랍니다', en:'Not enough anchovies.', ja:'煮干しが足りません' }));
       try { okk ? sfx.buy() : sfx.err(); } catch (e) {}
       decoRender();
     }
@@ -1189,7 +1209,10 @@
            그린다** — 안 그리면 「치웠는데 창고에 없다」로 보이고, 그러면 사람은 그것이
            사라진 줄 안다. 시트가 안 열려 있으면 아무 일도 안 한다. */
         try { if (app.classList.contains('decoon')) decoRender(); } catch (er) {}
-        if (typeof toast === 'function') toast('창고로 보냈습니다 — 「가구」 칸에서 다시 놓을 수 있습니다');
+        if (typeof toast === 'function') toast(L({
+          ko:'창고로 보냈습니다 — 「가구」 칸에서 다시 놓을 수 있습니다',
+          en:'Sent to storage — put it back from the Furniture tab.',
+          ja:'倉庫に送りました——「家具」から また置けます' }));
         try { sfx.add(); } catch (er) {}
       } else key('Escape');
     }
@@ -1216,7 +1239,7 @@
 
   const peek = doc.createElement('button');
   peek.className = 'peekbtn';
-  peek.innerHTML = '<span></span><b>미리보기</b>';
+  peek.innerHTML = '<span></span><b>' + L({ ko:'미리보기', en:'Preview', ja:'プレビュー' }) + '</b>';
   app.appendChild(peek);
   swap(peek.querySelector('span'), 'eye');
   peek.addEventListener('click', () => {
