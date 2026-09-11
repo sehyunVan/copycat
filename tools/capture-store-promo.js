@@ -26,18 +26,34 @@
    실행:
      node tools/pack-mobile.js       # 배포본을 먼저 굽는다 (찍는 대상이 이것이다)
      node tools/serve-mobile.js      # 다른 창에서 띄운다
-     node tools/capture-store-promo.js [--lang ko|en|ja] [--out dist/store/promo]
-   출력: <out>/01..06-*.png  (1290×2796 · 24비트 PNG)
+     node tools/capture-store-promo.js [--device iphone|ipad] [--lang ko|en|ja]
+   출력: dist/store/promo/<기기>/01..06-*.png  (24비트 PNG)
    ============================================================ */
 const fs = require('fs'), path = require('path'), { spawn } = require('child_process');
 const ROOT = path.join(__dirname, '..');
 const argOf = (k, d) => { const i = process.argv.indexOf(k); return i > -1 ? process.argv[i + 1] : d; };
 const LANG = argOf('--lang', 'ko');
-const OUT = path.join(ROOT, argOf('--out', path.join('dist', 'store', 'promo')));
 const BASE = process.env.COPYCAT_BASE || 'http://localhost:8188';
-/* 6.9" 아이폰 = 430×932 논리 픽셀 × 3. 플레이도 이 크기를 그대로 받는다
-   (세로 스크린샷 · 최대 3840px · 가로세로비 2:1 이내). */
-const W = 430, H = 932, SCALE = 3;
+/* ── 어느 크기로 내보내나 ──
+   **찍는 것은 언제나 폰 화면**이다(430×932). 이 게임은 배포본에 `copycat-dist=mobile` 이
+   박혀 있어 창 폭과 무관하게 폰 배치로 뜬다 — 아이패드에서도 같은 화면이다.
+   달라지는 것은 **판의 크기와 글 자리**뿐이라, 찍기는 한 번만 하고 판만 두 번 씌운다.
+
+     iphone  1290×2796  6.9" — 플레이도 이 크기를 그대로 받는다
+     ipad    2064×2752  13"  — 앱이 iPhone/iPad 둘 다로 서 있으면(TARGETED_DEVICE_FAMILY "1,2")
+                               애플이 아이패드 사진을 **따로 요구한다**
+
+   아이패드 판은 가로가 넓다. 폰 화면을 늘려서 채우지 않는다 — 늘린 폰 화면은
+   「아이패드용으로 안 만든 앱」이라고 스스로 말한다. 대신 **글을 왼쪽에, 화면을 오른쪽에**
+   두 칸으로 세운다. 넓은 판에서 그게 제일 정직한 배치다. */
+const SHOT = { w: 430, h: 932, scale: 3 };          // 찍는 크기 — 늘 이것
+const DEVICES = {
+  iphone: { w: 430,  h: 932,  scale: 3, wide: false, dir: 'iphone-69' },
+  ipad:   { w: 1032, h: 1376, scale: 2, wide: true,  dir: 'ipad-13'   },
+};
+const DEV = DEVICES[argOf('--device', 'iphone')] || DEVICES.iphone;
+const W = SHOT.w, H = SHOT.h, SCALE = SHOT.scale;
+const OUT = path.join(ROOT, argOf('--out', path.join('dist', 'store', 'promo')), DEV.dir);
 const PORT = 9420 + (process.pid % 40);
 const CHROME = ['C:/Program Files/Google/Chrome/Application/chrome.exe',
   'C:/Program Files (x86)/Google/Chrome/Application/chrome.exe',
@@ -112,29 +128,52 @@ function poster(p, dataURI){
   const rule  = night ? 'rgba(242,232,216,.20)' : 'rgba(65,51,36,.18)';
   const lift  = night ? '0 22px 52px rgba(0,0,0,.55)' : '0 22px 46px rgba(74,55,40,.30)';
   const lead = L(p.lead).split('\n').map(x => `<span>${x}</span>`).join('');
+  const wide = DEV.wide;
+  const layout = wide
+    /* 넓은 판 — 글 왼쪽, 화면 오른쪽. 화면은 폰 크기 그대로 두고 아래로 흘려 보낸다. */
+    /* 글 칸이 화면 칸보다 **넓어야** 한다. 처음엔 폰을 원래 크기(430)로 두고 남는 자리를
+       글에 줬는데, 그러면 글 칸이 346px 이라 큰 글씨가 「당신의 시계입 / 니다」로 갈렸다.
+       폰을 372 로 줄이고 여백을 좁혀 글 칸을 436 으로 넓혔다 — 이 판의 주인공은 글이다. */
+    /* ── 넓은 판에서는 화면을 **통째로** 보여 준다 ──
+       폰 판에서는 화면이 아래로 잘려 나간다(계속된다는 뜻이다). 같은 손을 여기서 쓰려고
+       `object-fit:cover` 를 얹었더니 **좌우가 잘렸다** — 틀(372×1226)이 그림(430×932)보다
+       훨씬 홀쭉해서, 높이를 채우는 동안 폭이 밀려 나간 것이다.
+       태블릿 판에서 폰 모양 화면을 끝까지 보여 주는 편이 오히려 정직하다:
+       이 앱은 폰 앱이고, 아이패드에서도 같은 화면이 뜬다. 가운데에 한 장 세운다. */
+    ? `body{display:grid;grid-template-columns:1fr 372px;align-items:center;
+        column-gap:72px;padding:0 88px}
+       .head{padding:0}
+       .code{font-size:16px;letter-spacing:.3em;margin-bottom:24px}
+       .lead{font-size:40px;line-height:1.38}
+       .sub{margin-top:22px;font-size:18px;line-height:1.8;max-width:470px}
+       .shot{margin:0;position:relative}
+       .shot .frame{position:relative;height:auto;border-radius:26px;overflow:hidden}
+       .shot img{width:100%;height:auto}`
+    : `body{display:flex;flex-direction:column}
+       .head{padding:60px 34px 0;flex:0 0 auto}
+       .code{font-size:11px;letter-spacing:.26em;margin-bottom:16px}
+       .lead{font-size:27px;line-height:1.42}
+       .sub{margin-top:13px;font-size:12.5px;line-height:1.75;max-width:344px}
+       .shot{flex:1 1 auto;margin:34px 34px 0;position:relative;min-height:0}
+       .shot .frame{border-radius:20px 20px 0 0}`;
   return `<!doctype html><meta charset="utf-8">
 <style>
   @font-face{font-family:'Galmuri11';src:url('assets/font/Galmuri11.woff2') format('woff2');font-weight:400;font-display:block}
   @font-face{font-family:'Galmuri11';src:url('assets/font/Galmuri11-Bold.woff2') format('woff2');font-weight:700 900;font-display:block}
   *{margin:0;padding:0;box-sizing:border-box}
-  html,body{width:${W}px;height:${H}px;overflow:hidden}
-  body{background:${bg};font-family:'Galmuri11',sans-serif;color:${ink};
-    display:flex;flex-direction:column;-webkit-font-smoothing:none}
-  /* 위쪽 말 — 여백이 이 판의 절반이다. 빽빽하면 홍보물이 아니라 안내문이 된다 */
-  .head{padding:60px 34px 0;flex:0 0 auto}
-  .code{display:flex;align-items:center;gap:10px;font-size:11px;font-weight:700;
-    letter-spacing:.26em;color:${code};margin-bottom:16px}
+  html,body{width:${DEV.w}px;height:${DEV.h}px;overflow:hidden}
+  body{background:${bg};font-family:'Galmuri11',sans-serif;color:${ink};-webkit-font-smoothing:none}
+  .code{display:flex;align-items:center;gap:10px;font-weight:700;color:${code}}
   .code i{display:block;flex:1 1 auto;height:1px;background:${rule};font-style:normal}
-  .lead{font-size:27px;font-weight:700;line-height:1.42;letter-spacing:-.4px}
+  .lead{font-weight:700;letter-spacing:-.4px}
   .lead span{display:block}
-  .sub{margin-top:13px;font-size:12.5px;line-height:1.75;color:${soft};max-width:344px}
-  /* 아래 그림 — **잘려 나간다.** 한 화면을 통째로 넣으면 그 안의 잔글씨까지 들어가고,
+  .sub{color:${soft}}
+  /* 화면은 **잘려 나간다.** 한 판을 통째로 넣으면 그 안의 잔글씨까지 들어가고,
      엄지손톱 크기에서는 그게 전부 회색 얼룩이다. 위쪽만 보여 주고 잘라 낸다. */
-  .shot{flex:1 1 auto;position:relative;margin:34px 34px 0;min-height:0}
   .shot .frame{position:absolute;left:0;right:0;top:0;height:calc(100% + 40px);
-    border-radius:20px 20px 0 0;overflow:hidden;box-shadow:${lift};
-    background:${night ? '#100C08' : '#fff'}}
+    overflow:hidden;box-shadow:${lift};background:${night ? '#100C08' : '#fff'}}
   .shot img{display:block;width:100%;height:auto}
+  ${layout}
 </style>
 <div class="head">
   <div class="code">${p.code}<i></i>${p.n} / ${PANELS.length}</div>
@@ -277,7 +316,16 @@ function poster(p, dataURI){
   await tab('shop', 1800);
   raw['04-shop'] = await png();
 
-  /* 05 — 배치 모드. 방 위에 격자가 깔리고 가구를 집어 옮기는 그 화면이다. */
+  /* 05 — 배치 모드. 방 위에 격자가 깔리고 가구를 집어 옮기는 그 화면이다.
+     **창고를 먼저 채운다.** 새 판은 창고가 비어 있어서 그 칸이 「아직 가진 가구가
+     없습니다」로 뜬다 — 홍보물에 없는 걸 말하는 칸을 넣을 이유가 없다.
+     창고에 쌓이는 것은 **산 개수에서 놓은 개수를 뺀 것**이라(cozy.js 의 stored),
+     사 두기만 하고 안 놓으면 그대로 창고다. */
+  await ev(`(() => { try {
+      ['f_bookrack', 'f_openshelf', 'f_cabinet', 'f_papertray', 'f_plant', 'f_box']
+        .forEach(id => { S.shop[id] = (S.shop[id] | 0) + 1; });
+      save(); renderAll(); return 1;
+    } catch (e){ return 0; } })()`);
   await tab('stage', 1200);
   await clear(); await sleep(400);
   /* **오른쪽 레일의 「배치」를 누른다.** toggleEdit(true) 를 직접 부르면 상태만 켜지고
@@ -287,6 +335,7 @@ function poster(p, dataURI){
     + " if (b) { b.click(); return 1; }"
     + ' try { toggleEdit(true); return 2; } catch (e){ return 0; } })()');
   await sleep(2400);
+  await sleep(1200);
   raw['05-decor'] = await png();
   await ev('(() => { try { toggleEdit(false); } catch (e) {} return 1; })()');
   await sleep(900);
@@ -311,7 +360,13 @@ function poster(p, dataURI){
     return 1;
   })()`);
 
-  console.log('꾸민 장 ' + PANELS.length + '개 · ' + (W * SCALE) + '×' + (H * SCALE) + ' · ' + LANG);
+  /* 찍기는 폰 크기로 끝났다. 이제 **판의 크기**로 창을 바꾼다. */
+  await send('Emulation.setDeviceMetricsOverride',
+    { width: DEV.w, height: DEV.h, deviceScaleFactor: DEV.scale, mobile: !DEV.wide });
+  await sleep(400);
+
+  console.log('꾸민 장 ' + PANELS.length + '개 · ' + (DEV.w * DEV.scale) + '×' + (DEV.h * DEV.scale)
+    + ' · ' + DEV.dir + ' · ' + LANG);
   let n = 0;
   for (const p of PANELS){
     p.n = String(++n).padStart(2, '0');
