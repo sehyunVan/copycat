@@ -26,7 +26,7 @@
    실행:
      node tools/pack-mobile.js       # 배포본을 먼저 굽는다 (찍는 대상이 이것이다)
      node tools/serve-mobile.js      # 다른 창에서 띄운다
-     node tools/capture-store-promo.js [--device iphone|ipad] [--lang ko|en|ja]
+     node tools/capture-store-promo.js [--device iphone|iphone65|ipad|ipad129] [--lang ko|en|ja]
    출력: dist/store/promo/<기기>/01..06-*.png  (24비트 PNG)
    ============================================================ */
 const fs = require('fs'), path = require('path'), { spawn } = require('child_process');
@@ -48,8 +48,15 @@ const BASE = process.env.COPYCAT_BASE || 'http://localhost:8188';
    두 칸으로 세운다. 넓은 판에서 그게 제일 정직한 배치다. */
 const SHOT = { w: 430, h: 932, scale: 3 };          // 찍는 크기 — 늘 이것
 const DEVICES = {
-  iphone: { w: 430,  h: 932,  scale: 3, wide: false, dir: 'iphone-69' },
-  ipad:   { w: 1032, h: 1376, scale: 2, wide: true,  dir: 'ipad-13'   },
+  /* 6.9" — 애플의 지금 칸이고, 플레이도 이 크기를 그대로 받는다 */
+  iphone:   { w: 430,  h: 932,  scale: 3, wide: false, dir: 'iphone-69' },
+  /* 6.5" — App Store Connect 가 **아직 이 칸을 내미는 계정이 있다.**
+     받는 크기는 1242×2688 또는 1284×2778 이다. 뒤쪽(428×926 ×3)으로 굽는다. */
+  iphone65: { w: 428,  h: 926,  scale: 3, wide: false, dir: 'iphone-65' },
+  /* 13" 아이패드 — TARGETED_DEVICE_FAMILY 가 "1,2" 라 따로 요구한다 */
+  ipad:     { w: 1032, h: 1376, scale: 2, wide: true,  dir: 'ipad-13'   },
+  /* 12.9" 아이패드 — 옛 칸(2048×2732)을 내미는 계정용 */
+  ipad129:  { w: 1024, h: 1366, scale: 2, wide: true,  dir: 'ipad-129'  },
 };
 const DEV = DEVICES[argOf('--device', 'iphone')] || DEVICES.iphone;
 const W = SHOT.w, H = SHOT.h, SCALE = SHOT.scale;
