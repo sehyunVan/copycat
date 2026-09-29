@@ -85,10 +85,19 @@ function branchPhoto(snap, w, h){
   return url;
 }
 /* 사진 여러 장을 찍고 **내 사무실로 되돌린다.** 되돌리는 걸 부르는 쪽에 맡기면
-   언젠가 한 곳에서 빼먹고, 그날부터 게시판을 열면 남의 방이 남는다. */
+   언젠가 한 곳에서 빼먹고, 그날부터 게시판을 열면 남의 방이 남는다.
+
+   **무대를 실제로 건드렸을 때만 되돌린다.** 게시판은 다시 그릴 때마다 이 함수를
+   지나는데(인사를 보낼 때 · 요청을 수락할 때 · 서버를 기다리며 몇 번 두드릴 때 —
+   js/board.js), 사진이 전부 캐시에서 나오는 그 판까지 되돌리면 **방을 통째로 다시
+   세우는 일**(restoreOffice 는 R3.build 다)이 1초에 한 번씩 일어난다. 아무것도 안
+   바뀐 화면에서 폰이 그 값을 치를 이유가 없다.
+   `PHOTOS.size` 로 보는 이유: 위 branchPhoto 는 무대를 건드리는 길에서만 표에 한 줄을
+   더한다 — 캐시로 돌아가는 길도, 3D 가 없어 못 찍는 길도 표를 안 건드린다. */
 function branchPhotos(snaps, w, h){
+  const before = PHOTOS.size;
   const out = snaps.map(s => branchPhoto(s, w, h));
-  if (!visiting()) restoreOffice();
+  if (PHOTOS.size !== before && !visiting()) restoreOffice();
   return out;
 }
 

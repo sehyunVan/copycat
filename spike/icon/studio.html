@@ -1,0 +1,355 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>copycat icon studio</title>
+<!--
+  아이콘 스튜디오 — 게임이 찍은 사무실(bg/*.png) 위에 게임이 구운 고양이(assets/logo-cat.png)를
+  얹어 아이콘 안을 여러 벌 만든다. 게임 파일은 안 건드린다(spike 규칙).
+
+    node spike/serve.js  →  http://localhost:8123/spike/icon/studio.html
+    node spike/icon/render.js   헤드리스로 같은 페이지를 열어 out/ 에 PNG 로 저장
+
+  안의 숫자는 512 기준으로 받은 값을 1024 로 곱해 둔 것이다(GPT 디자인 답, 2026-09-27).
+-->
+<style>
+  :root{color-scheme:light}
+  body{margin:0;background:#EEE6D8;font:13px/1.4 system-ui,sans-serif;color:#2A2420;padding:18px}
+  h1{font-size:15px;margin:0 0 10px;font-weight:600}
+  .row{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start;margin-bottom:22px}
+  .card{background:#FFF9EF;border:1px solid #D8CCB8;border-radius:10px;padding:10px;width:290px}
+  .card canvas.big{width:270px;height:270px;border-radius:60px;display:block}
+  .card b{display:block;margin:8px 0 2px}
+  .card p{margin:0;color:#6B5F52;font-size:12px}
+  .ladder{display:flex;gap:10px;align-items:center;margin-top:8px;padding:8px;border-radius:8px}
+  .ladder.dark{background:#1B1A22}
+  .ladder.light{background:#F3EEE4}
+  .ladder canvas{display:block}
+  #sheet{display:block;max-width:100%;border:1px solid #D8CCB8;background:#fff}
+</style>
+<h1>copycat · 앱 아이콘 안 — 사무실 배경 + 고양이 얼굴</h1>
+<div class="row" id="cards"></div>
+<h1>대조표 (render.js 가 이걸 저장한다)</h1>
+<canvas id="sheet"></canvas>
+<script>
+const S = 1024;
+const CAT_SRC = '../../assets/logo-cat.png';
+const CUR_SRC = '../../assets/icons/icon-maskable-512.png';
+
+/* ---------- 안 ----------
+   bg.src   spike/icon/bg 의 파일. crop 은 그 사진에서 잘라 올 정사각(중심 cx·cy 비율, zoom 배).
+   head     고양이 머리 폭 = 아이콘 한 변 × head. at 은 머리 중심(비율).
+   값은 전부 1024 기준 px. */
+const DIRS = [
+  { id:'A-nightshift', name:'A · Night Shift Window', ship:true,
+    why:'고양이가 일하다 돌아본 것처럼. 따뜻한 림 + 찬 림, 뒤에 켜진 책상.',
+    /* 오후, 책상 높이. 잘라 온 자리: 오른쪽 위 책상 + 스탠드 + 정수기 + 블라인드.
+       GPT 가 준 블러 22 는 사무실을 죽으로 만들었다(1차 대조표) — 사무실이 배경이려면
+       책상·스탠드가 **읽혀야** 하므로 절반 아래로 내리고 대신 크게 당겨 온다. */
+    bg:{ src:'bg/afternoon-mid.png', crop:{ cx:0.66, cy:0.31, zoom:1.7 },
+         blur:8, bright:1.10, sat:0.80, con:0.92 },
+    wash:{ color:'#C7BAA7', a:0.22 },
+    window:{ color:'#E5DACA', a:0.20, x:0.50, y:0.45, r:0.38 },
+    shadow:{ color:'#171310', a:0.30, grow:36, blur:44 },
+    glow:[ { color:'#F08C4B', a:0.24, x:0.68, y:0.39, r:0.19 },
+           { color:'#6FA9D9', a:0.16, x:0.78, y:0.36, r:0.07 } ],
+    /* 2차 비평: 고른 림은 스티커다 → 위쪽만, 약하게. 턱은 D 와 같은 그늘 띠. */
+    rims:[ { color:'#F5D5A9', a:0.40, dx:-10, dy:-8, blur:12, upperOnly:true },
+           { color:'#AAB7C9', a:0.22, dx:8,   dy:2,   blur:8, upperOnly:true } ],
+    rimBreak:{ x:0.30, y:0.62, r:0.16 },
+    ground:{ color:'#171310', a:0.30, x:0.50, y:0.86, w:0.50, h:0.09, blur:34 },
+    dusk:{ color:'#171310', from:0.70, stops:[[0.835, 0.88], [1.0, 0.93]] },
+    catFade:{ from:0.62, stops:[[0.79, 0.06], [1.0, 0.12]] },
+    head:0.60, at:{ x:0.50, y:0.53 }, lift:1.06, con:1.06, contour:{ color:'#706A72', a:0.38 },
+    catch:{ d:25, a:0.70 },
+    vignette:{ color:'#171310', a:0.30, r0:0.60 } },
+
+  { id:'B-eclipse', name:'B · Cubicle Eclipse',
+    why:'고양이가 형광등을 가린다. 뒷빛이 후광이 되어 실루엣이 산다. 가장 eerie.',
+    bg:{ src:'bg/day-low.png', crop:{ cx:0.52, cy:0.42, zoom:1.45 },
+         blur:12, bright:1.07, sat:0.62, con:0.84 },
+    haze:{ color:'#D7DEE2', a:0.14 },
+    halo:{ color:'#E7E5D8', a:0.38, x:0.58, y:0.35, r:0.31 },
+    glow:[ { color:'#F08C4B', a:0.32, x:0.73, y:0.39, r:0.10 } ],
+    rims:[ { color:'#D8E1E4', a:0.70, dx:12, dy:-12, blur:12, upperOnly:true } ],
+    dusk:{ a:0.50, above:0.10 },
+    head:0.59, at:{ x:0.48, y:0.53 }, lift:1.16,
+    vignette:{ color:'#171310', a:0.42, r0:0.50, oval:true } },
+
+  { id:'C-witness', name:'C · Desk Witness',
+    why:'게임과 같은 높은 시점. 큰 얼굴 아래 책상 한 줄이 디오라마처럼 남는다.',
+    bg:{ src:'bg/afternoon-high.png', crop:{ cx:0.50, cy:0.52, zoom:1.25 },
+         blur:6, bright:1.14, sat:0.84, con:0.90 },
+    wash:{ color:'#C7BAA7', a:0.18 },
+    topfill:{ color:'#FFF6E9', a:0.12 },
+    glow:[ { color:'#F08C4B', a:0.27, x:0.67, y:0.67, r:0.18 } ],
+    rims:[ { color:'#F0C89C', a:0.66, dx:-10, dy:12, blur:10 } ],
+    ground:{ color:'#171310', a:0.18, x:0.50, y:0.80, w:0.50, h:0.10, blur:30 },
+    dusk:{ a:0.40, above:0.10 },
+    head:0.65, at:{ x:0.50, y:0.50 }, lift:1.04,
+    vignette:{ color:'#171310', a:0.28, r0:0.66 } },
+
+  { id:'D-afterhours', name:'D · After Hours Glass',
+    why:'야근. 어두운 창에 비친 얼굴, 뒤에 스탠드 하나. 제일 개성 있고 제일 위험.',
+    /* 밤, 왼쪽 위 — 파란 창 + 책상 스탠드. 창의 파랑이 유일한 유채색이라 시간을 말한다.
+       2차 GPT 비평(2026-09-27)의 값: 보라 후광 제거 → 위쪽만 약한 찬 림 + 왼쪽 볼에 좁은
+       따뜻한 빛, 고양이는 안전구역 안으로, 턱은 그늘 띠 속으로, 배경은 「찬 방 + 따뜻한 등」
+       둘만 읽히게. */
+    bg:{ src:'bg/night-mid.png', crop:{ cx:0.30, cy:0.30, zoom:1.7 },
+         blur:9, bright:0.94, sat:0.82, con:1.14 },
+    wash:{ color:'#151925', a:0.24 },
+    glow:[ { color:'#CFA36B', a:0.16, x:0.27, y:0.56, r:0.19 } ],
+    rims:[ { color:'#AEB7D8', a:0.18, dx:0, dy:3, blur:10, upperOnly:true },
+           { color:'#D2C2AE', a:0.20, dx:-2, dy:1, blur:3, grow:4, mask:{ x0:0.21, y0:0.22, x1:0.39, y1:0.57, feather:30 } } ],
+    ground:{ color:'#090A0D', a:0.38, x:0.50, y:0.822, w:0.43, h:0.072, blur:38 },
+    /* 턱선(y 0.803)에서 덮개가 거의 꽉 차야 직선이 사라진다 — 띠 하나로는 안 됐다(3차 실측) */
+    dusk:{ color:'#0D0E14', from:0.68, stops:[[0.80, 0.86], [1.0, 0.94]] },
+    head:0.555, at:{ x:0.50, y:0.508 }, lift:1.04, con:1.09,
+    faceLift:{ color:'#6F6257', a:0.12, x:0.50, y:0.59, r:0.22 },
+    catFade:{ from:0.62, stops:[[0.79, 0.06], [1.0, 0.12]] },
+    catch:{ d:18, a:0.80 },
+    vignette:{ color:'#090B11', a:0.46, r0:0.66 } },
+
+  { id:'E-closeup', name:'E · Close-up (턱을 프레임 밖으로)',
+    why:'잘린 턱을 숨기는 대신 **프레임이 자른다** — 얼굴이 아이콘을 채우고 창·스탠드는 위에 남는다. D 의 색.',
+    bg:{ src:'bg/night-mid.png', crop:{ cx:0.30, cy:0.30, zoom:1.7 },
+         blur:9, bright:0.94, sat:0.82, con:1.14 },
+    wash:{ color:'#151925', a:0.24 },
+    glow:[ { color:'#CFA36B', a:0.16, x:0.22, y:0.50, r:0.19 } ],
+    rims:[ { color:'#AEB7D8', a:0.18, dx:0, dy:3, blur:10, upperOnly:true },
+           { color:'#D2C2AE', a:0.20, dx:-2, dy:1, blur:3, grow:4, mask:{ x0:0.10, y0:0.22, x1:0.34, y1:0.62, feather:30 } } ],
+    dusk:{ color:'#0D0E14', a:0.36, from:0.80 },
+    head:0.74, at:{ x:0.50, y:0.64 }, lift:1.04, con:1.09,
+    faceLift:{ color:'#6F6257', a:0.12, x:0.50, y:0.78, r:0.26 },
+    catFade:{ from:0.70, stops:[[0.85, 0.08], [1.0, 0.18]] },
+    catch:{ d:22, a:0.80 },
+    vignette:{ color:'#090B11', a:0.46, r0:0.66 } },
+];
+
+const load = src => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error('못 읽음 ' + src)); i.src = src; });
+const mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h || w; return c; };
+const rgba = (hex, a) => { const n = parseInt(hex.slice(1), 16); return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; };
+
+/* 고양이 원본의 경계와 눈 위치. 눈은 고양이에서 유일하게 밝은 점이다. */
+function measureCat(img){
+  const c = mk(img.width, img.height), x = c.getContext('2d');
+  x.drawImage(img, 0, 0);
+  const d = x.getImageData(0, 0, c.width, c.height).data, W = c.width, H = c.height;
+  let x0 = W, y0 = H, x1 = -1, y1 = -1;
+  const eyes = [{ n:0, x:0, y:0 }, { n:0, x:0, y:0 }];
+  for (let y = 0; y < H; y++) for (let xx = 0; xx < W; xx++){
+    const i = (y * W + xx) * 4; if (d[i + 3] < 8) continue;
+    if (xx < x0) x0 = xx; if (xx > x1) x1 = xx; if (y < y0) y0 = y; if (y > y1) y1 = y;
+    const lum = d[i] * 0.299 + d[i+1] * 0.587 + d[i+2] * 0.114;
+    /* 입(더 아래)은 빼고, 오른눈은 그늘이라 왼눈보다 어둡다 — 문턱을 낮춘다 */
+    if (d[i + 3] > 200 && lum > 105 && y < H * 0.78){ const e = eyes[xx < W / 2 ? 0 : 1]; e.n++; e.x += xx; e.y += y; }
+  }
+  return { x0, y0, x1, y1, w: x1 - x0 + 1, h: y1 - y0 + 1,
+           eyes: eyes.map(e => e.n ? { x: e.x / e.n, y: e.y / e.n } : null) };
+}
+
+/* 고양이 실루엣 한 장을 색으로. */
+function silhouette(cat, geo, color, grow = 0){
+  const c = mk(S), x = c.getContext('2d');
+  const g = grow / geo.dw;                      // 비율로 키운다
+  x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+  x.drawImage(cat, geo.sx, geo.sy, geo.sw, geo.sh,
+              geo.dx - grow, geo.dy - grow * geo.dh / geo.dw, geo.dw + grow * 2, geo.dh + grow * 2 * geo.dh / geo.dw);
+  x.globalCompositeOperation = 'source-in';
+  x.fillStyle = color; x.fillRect(0, 0, S, S);
+  return c;
+}
+
+function radial(ctx, x, y, r, color, a, op = 'screen'){
+  const g = ctx.createRadialGradient(x * S, y * S, 0, x * S, y * S, r * S);
+  g.addColorStop(0, rgba(color, a)); g.addColorStop(1, rgba(color, 0));
+  ctx.save(); ctx.globalCompositeOperation = op; ctx.fillStyle = g; ctx.fillRect(0, 0, S, S); ctx.restore();
+}
+
+function compose(dir, bg, cat, meta){
+  const c = mk(S), ctx = c.getContext('2d');
+  ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+
+  /* 1 판 — 불투명. iOS 는 알파를 못 받는다 */
+  ctx.fillStyle = '#C7BAA7'; ctx.fillRect(0, 0, S, S);
+
+  /* 2 사무실 — 정사각으로 잘라 흐리고 누른다. 블러가 가장자리를 투명하게 갉으므로 넉넉히 넘겨 그린다 */
+  const B = dir.bg, cr = B.crop, side = Math.min(bg.width, bg.height) / cr.zoom;
+  const sx = bg.width * cr.cx - side / 2, sy = bg.height * cr.cy - side / 2;
+  const bleed = B.blur * 3;
+  ctx.save();
+  ctx.filter = `blur(${B.blur}px) brightness(${B.bright}) saturate(${B.sat}) contrast(${B.con})`;
+  ctx.drawImage(bg, sx, sy, side, side, -bleed, -bleed, S + bleed * 2, S + bleed * 2);
+  ctx.restore();
+
+  if (dir.wash){ ctx.fillStyle = rgba(dir.wash.color, dir.wash.a); ctx.fillRect(0, 0, S, S); }
+  if (dir.tint){ ctx.save(); ctx.globalCompositeOperation = 'color'; ctx.fillStyle = rgba(dir.tint.color, dir.tint.a); ctx.fillRect(0, 0, S, S); ctx.restore(); }
+  if (dir.haze){ const g = ctx.createLinearGradient(0, 0, 0, S * 0.5); g.addColorStop(0, rgba(dir.haze.color, dir.haze.a)); g.addColorStop(1, rgba(dir.haze.color, 0));
+    ctx.save(); ctx.globalCompositeOperation = 'screen'; ctx.fillStyle = g; ctx.fillRect(0, 0, S, S); ctx.restore(); }
+  if (dir.topfill){ const g = ctx.createLinearGradient(0, 0, 0, S * 0.5); g.addColorStop(0, rgba(dir.topfill.color, dir.topfill.a)); g.addColorStop(1, rgba(dir.topfill.color, 0));
+    ctx.fillStyle = g; ctx.fillRect(0, 0, S, S); }
+  if (dir.window) radial(ctx, dir.window.x, dir.window.y, dir.window.r, dir.window.color, dir.window.a, 'source-over');
+  if (dir.halo) radial(ctx, dir.halo.x, dir.halo.y, dir.halo.r, dir.halo.color, dir.halo.a, 'screen');
+
+  /* 3 고양이 자리 */
+  const dw = dir.head * S, k = dw / meta.w, dh = meta.h * k;
+  const geo = { sx: meta.x0, sy: meta.y0, sw: meta.w, sh: meta.h,
+                dx: dir.at.x * S - dw / 2, dy: dir.at.y * S - dh / 2, dw, dh };
+
+  /* 4 고양이 뒤 그늘·받침 — 바쁜 배경을 얼굴 둘레에서만 가라앉힌다 */
+  for (const sh of [dir.shadow, dir.underlay].filter(Boolean)){
+    const sil = silhouette(cat, geo, sh.color, sh.grow);
+    ctx.save(); ctx.globalAlpha = sh.a; ctx.filter = `blur(${sh.blur}px)`; ctx.drawImage(sil, 0, 0); ctx.restore();
+  }
+  if (dir.ground){ const g = dir.ground; ctx.save(); ctx.filter = `blur(${g.blur}px)`; ctx.fillStyle = rgba(g.color, g.a);
+    ctx.beginPath(); ctx.ellipse(g.x * S, g.y * S, g.w * S / 2, g.h * S / 2, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
+
+  /* 5 불빛 — 책상등·모니터. 고양이 뒤에 있으므로 고양이보다 먼저 */
+  for (const g of dir.glow || []) radial(ctx, g.x, g.y, g.r, g.color, g.a, 'screen');
+
+  /* 6 림 라이트 — 색 실루엣을 밀어 흐리고, 고양이 자리는 도려낸다 */
+  for (const r of dir.rims || []){
+    const layer = mk(S), lx = layer.getContext('2d');
+    lx.filter = `blur(${r.blur}px)`;
+    lx.drawImage(silhouette(cat, geo, r.color, r.grow != null ? r.grow : 10), r.dx, r.dy);
+    lx.filter = 'none';
+    lx.globalCompositeOperation = 'destination-out';
+    lx.drawImage(cat, geo.sx, geo.sy, geo.sw, geo.sh, geo.dx, geo.dy, geo.dw, geo.dh);
+    if (r.upperOnly){ const g = lx.createLinearGradient(0, geo.dy + dh * 0.45, 0, geo.dy + dh * 0.9);
+      g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,1)'); lx.fillStyle = g; lx.fillRect(0, 0, S, S); }
+    if (dir.rimBreak){ const b = dir.rimBreak; const g = lx.createRadialGradient(b.x * S, b.y * S, 0, b.x * S, b.y * S, b.r * S);
+      g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)'); lx.fillStyle = g; lx.fillRect(0, 0, S, S); }
+    /* 창을 하나 두고 그 안만 남긴다 — 방의 빛은 한쪽에서 온다 */
+    if (r.mask){ const m = r.mask, f = m.feather || 40; const mk2 = mk(S), mx = mk2.getContext('2d');
+      mx.filter = `blur(${f}px)`; mx.fillStyle = '#000'; mx.fillRect(m.x0 * S, m.y0 * S, (m.x1 - m.x0) * S, (m.y1 - m.y0) * S);
+      lx.globalCompositeOperation = 'destination-in'; lx.drawImage(mk2, 0, 0); }
+    ctx.save(); ctx.globalAlpha = r.a; ctx.drawImage(layer, 0, 0); ctx.restore();
+  }
+
+  /* 7 고양이 — 조형은 그대로, 중간톤만 살짝 들고 윤곽에 얇은 빛 */
+  const cl = mk(S), cx = cl.getContext('2d');
+  cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = 'high';
+  cx.filter = `brightness(${dir.lift || 1}) contrast(${dir.con || 1})`;
+  cx.drawImage(cat, geo.sx, geo.sy, geo.sw, geo.sh, geo.dx, geo.dy, geo.dw, geo.dh);
+  cx.filter = 'none';
+  cx.globalCompositeOperation = 'source-atop';
+  if (dir.contour){ cx.globalAlpha = dir.contour.a; cx.drawImage(silhouette(cat, geo, dir.contour.color, 0), -4, -4); cx.globalAlpha = 1; }
+  /* 얼굴만 든다 — 실루엣 전체를 밝히면 eerie 가 죽고, 얼굴만 들면 32px 에서 형태가 남는다 */
+  if (dir.faceLift){ const f = dir.faceLift; const g = cx.createRadialGradient(f.x * S, f.y * S, 0, f.x * S, f.y * S, f.r * S);
+    g.addColorStop(0, rgba(f.color, f.a)); g.addColorStop(1, rgba(f.color, 0)); cx.fillStyle = g; cx.fillRect(0, 0, S, S); }
+  /* 턱 쪽으로 갈수록 어두워진다 — 잘린 직선을 그늘 속으로 보낸다(고양이 안에서만) */
+  if (dir.catFade){ const f = dir.catFade; const y0 = geo.dy + dh * f.from, y1 = geo.dy + dh;
+    const g = cx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, 'rgba(0,0,0,0)');
+    for (const [p, a] of f.stops) g.addColorStop(Math.min(1, (p - f.from) / (1 - f.from)), `rgba(0,0,0,${a})`);
+    cx.fillStyle = g; cx.fillRect(0, 0, S, S); }
+  if (dir.reflect){ const g = cx.createLinearGradient(geo.dx + dw, geo.dy + dh, geo.dx + dw * 0.5, geo.dy + dh * 0.5);
+    g.addColorStop(0, rgba(dir.reflect.color, dir.reflect.a)); g.addColorStop(1, rgba(dir.reflect.color, 0)); cx.fillStyle = g; cx.fillRect(0, 0, S, S); }
+  ctx.drawImage(cl, 0, 0);
+
+  /* 8 눈의 반사점 — 원본 눈의 왼쪽 위. 오른쪽 것은 1px 내려 마스코트 같은 대칭을 깬다 */
+  if (dir.catch && meta.eyes[0] && meta.eyes[1]){
+    ctx.fillStyle = rgba('#FFF6E9', dir.catch.a);
+    meta.eyes.forEach((e, i) => {
+      const ex = geo.dx + (e.x - meta.x0) * k - dir.catch.d * 0.35, ey = geo.dy + (e.y - meta.y0) * k - dir.catch.d * 0.35 + (i ? 2 : 0);
+      ctx.beginPath(); ctx.arc(ex, ey, dir.catch.d / 2, 0, Math.PI * 2); ctx.fill();
+    });
+  }
+
+  /* 8b 아래 그늘 — 구운 머리는 턱 아래가 **직선으로 잘려 있다**(bake-logo.js 의 BELOW).
+     밝은 사무실 위에 놓으면 그 직선이 종이 인형처럼 읽혀서, 턱 언저리부터 바닥까지를
+     한 번 가라앉힌다. 스탠드 하나 켠 방에서 얼굴만 떠 있는 것 — eerie 의 문법 그대로다. */
+  if (dir.band){ const b = dir.band; ctx.save(); ctx.filter = `blur(${b.feather}px)`; ctx.fillStyle = rgba(b.color, b.a);
+    ctx.fillRect(b.x * S - b.w * S / 2, b.y * S - b.h * S / 2, b.w * S, b.h * S); ctx.restore(); }
+  /* 고양이와 배경을 **같이** 가라앉힌다 — 고양이 쪽만 어둡히면(catFade) 검은 네모가
+     회색 띠 위에 남는다(3차 실측: 턱 10 vs 옆 35). 둘 다 같은 덮개를 쓰면 차이가
+     (1-a) 배로 줄어 턱선이 사라진다. stops 는 [아이콘 세로 비율, 알파]. */
+  if (dir.dusk){ const d = dir.dusk, col = d.color || '#171310', y0 = d.from != null ? d.from * S : geo.dy + dh - S * (d.above || 0.12);
+    const g = ctx.createLinearGradient(0, y0, 0, S); g.addColorStop(0, rgba(col, 0));
+    if (d.stops) for (const [p, a] of d.stops) g.addColorStop(Math.max(0, Math.min(1, (p * S - y0) / (S - y0))), rgba(col, a));
+    else g.addColorStop(1, rgba(col, d.a));
+    ctx.fillStyle = g; ctx.fillRect(0, 0, S, S); }
+
+  /* 9 비네트 */
+  if (dir.vignette){ const v = dir.vignette;
+    ctx.save(); if (v.oval) ctx.setTransform(1, 0, 0, 1.25, 0, -S * 0.125);
+    const g = ctx.createRadialGradient(S / 2, S / 2, S / 2 * v.r0, S / 2, S / 2, S * 0.75);
+    g.addColorStop(0, rgba(v.color, 0)); g.addColorStop(1, rgba(v.color, v.a));
+    ctx.fillStyle = g; ctx.fillRect(0, -S, S, S * 3); ctx.restore(); }
+  return c;
+}
+
+/* 아이폰 모양(연속 곡률 근사)과 안드로이드 원 */
+function masked(src, size, shape, bgColor){
+  const c = mk(size), x = c.getContext('2d');
+  if (bgColor){ x.fillStyle = bgColor; x.fillRect(0, 0, size, size); }
+  x.save(); x.beginPath();
+  if (shape === 'circle'){ x.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2); }
+  else { const r = size * 0.225; x.roundRect(0, 0, size, size, r); }
+  x.clip();
+  x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
+  x.drawImage(src, 0, 0, size, size);
+  x.restore();
+  return c;
+}
+
+/* 여러 단계로 줄일 때는 한 번에 안 줄인다 — 1024→48 을 한 번에 하면 브라우저가 픽셀을 버린다 */
+function down(src, size){
+  let cur = src;
+  while (cur.width / 2 >= size){ const n = mk(cur.width / 2), x = n.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(cur, 0, 0, n.width, n.height); cur = n; }
+  const n = mk(size), x = n.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(cur, 0, 0, size, size); return n;
+}
+
+const RESULTS = {};
+(async () => {
+  const cat = await load(CAT_SRC), meta = measureCat(cat);
+  const cur = await load(CUR_SRC);
+  const curC = mk(S); curC.getContext('2d').drawImage(cur, 0, 0, S, S);
+  const all = [{ id:'0-current', name:'지금', why:'오트밀 판 + 비네트. 배경이 없다.', canvas: curC }];
+  for (const d of DIRS){
+    let bg; try { bg = await load(d.bg.src); } catch(e){ console.warn(e.message); continue; }
+    all.push({ ...d, canvas: compose(d, bg, cat, meta) });
+  }
+  for (const a of all) RESULTS[a.id] = a.canvas;
+
+  /* 카드 */
+  const cards = document.getElementById('cards');
+  for (const a of all){
+    const card = document.createElement('div'); card.className = 'card';
+    const big = masked(a.canvas, 540, 'ios'); big.className = 'big'; card.appendChild(big);
+    const b = document.createElement('b'); b.textContent = a.name + (a.ship ? '  ← 추천' : ''); card.appendChild(b);
+    const p = document.createElement('p'); p.textContent = a.why; card.appendChild(p);
+    for (const [cls, bgc] of [['dark', null], ['light', null]]){
+      const l = document.createElement('div'); l.className = 'ladder ' + cls;
+      for (const [sz, shape] of [[96, 'ios'], [64, 'circle'], [48, 'ios'], [32, 'circle']]) l.appendChild(masked(down(a.canvas, sz), sz, shape));
+      card.appendChild(l);
+    }
+    cards.appendChild(card);
+  }
+
+  /* 대조표 — 열마다 한 안. 위에서부터 256 아이폰 · 128 안드로이드 원(어두운 바탕) · 96 · 64 · 48 · 32 */
+  const COL = 300, PADX = 20, TOP = 44;
+  const sheet = document.getElementById('sheet');
+  sheet.width = PADX * 2 + COL * all.length; sheet.height = 700;
+  const sx = sheet.getContext('2d');
+  sx.fillStyle = '#F3EEE4'; sx.fillRect(0, 0, sheet.width, sheet.height);
+  sx.fillStyle = '#1B1A22'; sx.fillRect(0, 330, sheet.width, 200);
+  sx.font = '600 15px system-ui, sans-serif'; sx.fillStyle = '#2A2420';
+  all.forEach((a, i) => {
+    const x0 = PADX + i * COL;
+    sx.fillStyle = '#2A2420'; sx.fillText(a.name + (a.ship ? ' ★' : ''), x0, 28);
+    sx.drawImage(masked(down(a.canvas, 256), 256, 'ios'), x0 + 12, TOP);
+    let xx = x0 + 12;
+    for (const [sz, shape] of [[128, 'circle'], [64, 'circle'], [48, 'ios'], [32, 'ios']]){ sx.drawImage(masked(down(a.canvas, sz), sz, shape), xx, 340 + (128 - sz) / 2); xx += sz + 12; }
+    xx = x0 + 12;
+    for (const [sz, shape] of [[96, 'ios'], [64, 'ios'], [48, 'circle'], [32, 'circle'], [24, 'ios']]){ sx.drawImage(masked(down(a.canvas, sz), sz, shape), xx, 560 + (96 - sz) / 2); xx += sz + 10; }
+  });
+  sx.fillStyle = '#8A7D6E'; sx.font = '12px system-ui, sans-serif';
+  sx.fillText('위: 아이폰 256 · 가운데(어두운 홈): 안드로이드 원 128·64, 아이폰 48·32 · 아래(밝은 홈): 96·64·48·32·24', PADX, 690);
+
+  window.ICON_STUDIO = {
+    ready: true,
+    list: () => all.map(a => a.id),
+    png: id => RESULTS[id].toDataURL('image/png'),
+    sheet: () => sheet.toDataURL('image/png'),
+    meta,
+  };
+})().catch(e => { document.body.insertAdjacentHTML('afterbegin', '<pre style="color:#b00">' + e.message + '</pre>'); window.ICON_STUDIO = { ready:false, error:e.message }; });
+</script>

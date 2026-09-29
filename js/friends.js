@@ -32,7 +32,27 @@ const FRIENDS = (() => {
      그건 「자료가 어디서 오는지 화면은 모른다」는 이 파일의 약속을 깨는 일이다. */
   const CACHE = { on:false, list:[], snaps:{}, reqs:[], got:{} };
   const sbOf = () => { try { return window.CLOUD ? CLOUD.sb() : null; } catch(e){ return null; } };
-  const SOURCE = () => (CACHE.on ? 'server' : 'mock');
+
+  /* ── 서버가 올 판인가, 정말 이 기계 안에서만 도는 판인가 ──
+     이 구분이 없어서 게시판이 **없는 지점 넷을 먼저 보여 주고** 서버 대답이 온
+     순간 지웠다(2026-09-21 제보). 흉내는 서버가 없는 판을 위한 것이지 **서버를
+     기다리는 동안**을 위한 것이 아니다 — 잠깐 떴다 사라지는 사람 넷은 구경거리가
+     아니라 고장으로 읽힌다.
+
+     `why === 'init'` 인 동안은 **아직 모르는 것**이다. 로그인은 게임보다 늦게 붙고
+     (js/cloud.js 는 저장이 생긴 뒤에야 start 한다), 게시판은 그보다 먼저 열릴 수
+     있다. 그 사이를 「서버 없음」으로 읽으면 같은 깜빡임이 그대로 돌아온다. */
+  function coming(){
+    try {
+      if (!window.CLOUD) return false;
+      const c = CLOUD.state();
+      return !!c.on || c.why === 'init';
+    } catch(e){ return false; }
+  }
+  /* 'server' 받아 왔다 · 'wait' 서버는 올 텐데 아직 없다 · 'mock' 이 기계 안에서만 돈다.
+     **화면이 「불러오는 중」과 「못 받아 왔다」를 가른다**(js/board.js) — 몇 번
+     두드려 봤는지는 그 창이 알지 이 파일이 알 일이 아니다. */
+  const SOURCE = () => (CACHE.on ? 'server' : (coming() ? 'wait' : 'mock'));
 
   /* ---------- 내 쪽 상태 (저장에 실린다) ---------- */
   function st(){
@@ -334,12 +354,14 @@ const FRIENDS = (() => {
   /* ---------- 화면이 쓰는 문 ---------- */
   function list(){
     if (CACHE.on) return CACHE.list.map(f => ({ ...f, reacted: !!reacted(f.id) }));
+    if (coming()) return [];          // 아직 모른다 — 흉내를 대신 내놓지 않는다
     return MOCK.map(f => ({ id:f.id, name:f.name, room:f.room, tier:f.tier,
                             working: working(f.shift), days:f.days,
                             reacted: !!reacted(f.id) }));
   }
   function snapshot(id){
     if (CACHE.on) return CACHE.snaps[id] || null;
+    if (coming()) return null;
     const f = MOCK.find(x => x.id === id);
     return f ? snapOf(f) : null;
   }

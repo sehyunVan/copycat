@@ -85,13 +85,20 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   await sleep(1500);
 
   console.log('── 벽에 걸린 게시판 ──');
+  /* **집히는지를 묻지 않는다.** 예전에는 `unitAt` 이 벽 물건도 돌려줬고 이 검사도
+     그걸 봤는데, 그 뒤로 벽에 걸린 것은 아예 안 집기로 정했다(js/edit.js 「벽은 방의
+     일부다」 — 줄 단위로 채운 것이라 한 칸만 빼면 줄이 어긋나고 되돌릴 자리도 없다).
+     제품이 바뀐 자리에 검사만 옛 기대값으로 남아서, 고칠 것이 없는데 매번 빨갛게
+     떴다(2026-09-21). 지금 물어야 하는 것은 둘이다: **한 장 걸려 있나**,
+     그리고 **안 집히나**. 뒤엣것이 그날 내린 결정이므로 같이 박아 둔다. */
   const wall = JSON.parse(await ev(`(() => {
     const b = (W.wallDecor || []).filter(d => d.tile === TILE.BOARD);
     const u = b.length ? unitAt(b[0].x, b[0].y) : null;
-    return JSON.stringify({ n:b.length, unit:u && u.tile, kind:u && u.kind,
+    return JSON.stringify({ n:b.length, 집힘:!!u,
       name:(TILE_INFO[TILE.BOARD]||{}).n, cal:(W.wallDecor||[]).filter(d => d.tile === TILE.CAL).length });
   })()`));
-  ok(wall.n === 1 && wall.kind === 'decor', '사무실 벽에 게시판이 하나 걸려 있다', JSON.stringify(wall));
+  ok(wall.n === 1, '사무실 벽에 게시판이 하나 걸려 있다', JSON.stringify(wall));
+  ok(wall.집힘 === false, '그리고 안 집힌다 — 벽은 방의 일부다 (배치 모드가 못 떼 간다)');
   ok(wall.cal === 1, '달력도 그대로 한 장 (둘이 서로 자리를 안 먹는다)');
 
   const retro = JSON.parse(await ev(`(() => {
@@ -105,7 +112,13 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     W.wallDecor = keep;
     return JSON.stringify(out);
   })()`));
-  ok(retro.had === false && retro.added === true && retro.n === 1 && retro.v === 4,
+  /* `v` 를 **4 인지** 묻지 않고 **코르크로 읽히는지**(v%9===4) 묻는다. 승격 규칙이
+     그렇게 적혀 있고(js/world.js ensureBoard), 방은 판마다 새로 생성되므로 벽에
+     코르크 액자가 둘일 수 있다 — 그때 `find` 는 앞엣것을 집어서 v 가 31 로 나온다
+     (31 % 9 === 4, 같은 그림이다). 4 로 못박아 두면 **방이 어떻게 생겼느냐에 따라**
+     떴다 말았다 하는 검사가 되고, 그건 무엇도 못 지킨다(2026-09-21). */
+  ok(retro.had === false && retro.added === true && retro.n === 1
+     && (retro.v | 0) % 9 === 4,
      '게시판이 없는 옛 저장에는 코르크 그림이던 액자를 승격시킨다', JSON.stringify(retro));
 
   console.log('\n── 목록 ──');

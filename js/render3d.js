@@ -555,9 +555,12 @@ function tickClocks(){
    불꽃이다. 폭은 좁게 둔다(±8%): 원뿔이 가운데를 기준으로 늘어나므로 크게 흔들면
    불꽃이 심지 아래로 파고든다. */
 let flameT = 0;
-function tickFlames(){
+/* **프레임 수가 아니라 흐른 시간으로 센다.** 폰에서 30장으로 끊고 나서(js/main.js)
+   1/60 씩 더하면 초가 절반 속도로 가고, 촛불이 느려진다 — 불꽃은 화면이 몇 장을
+   그리는지와 상관없는 물건이다. */
+function tickFlames(dt){
   if (!flames.length) return;
-  flameT += 1 / 60;
+  flameT += dt;
   for (let i = 0; i < flames.length; i++){
     const f = flames[i], ph = i * 2.39;
     const k = 0.74 + 0.26 * (0.5 + 0.5 * Math.sin(flameT * 5.3 + ph))
@@ -879,7 +882,7 @@ export function init(cv){
   hemi = new THREE.HemisphereLight(0xffffff, 0x888888, 1);
   sun = new THREE.DirectionalLight(0xffffff, 1);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.mapSize.set(SHADOW_BIG, SHADOW_BIG);
   sun.shadow.bias = -0.0016;
   fill = new THREE.DirectionalLight(0xffffff, 0.3);
   fill.position.set(-6, 5, -5);
@@ -900,6 +903,7 @@ export function init(cv){
      그 프레임만 60ms 튀고, 20마리가 각자 깎으면 1초가 멈춘다. */
   if (catLook === 'sculpt') CS.warm();
   ready = true;
+  shadowFit();     // 폰이면 처음부터 작게 굽는다 — 큰 걸 한 번 굽고 버릴 이유가 없다
 }
 
 /* ============================================================
@@ -2313,12 +2317,39 @@ export function night(a, b, t){
    시간대마다 새 머티리얼을 만들면 셰이더가 계속 다시 컴파일된다 —
    색과 세기만 이 하나에 써 넣는다. */
 
+/* ---------- 그림자 맵 크기 ----------
+   **그림자 맵은 매 장 다시 굽는다.** 폰 화면 크기(824×1740)로 재 보면 한 장에
+   8.8ms 가 드는데 그 중 4.5ms 가 이것이다 — 그림자를 아예 끄면 4.3ms 다.
+   두 기기에서 「사무실 탭에 2분 두면 뜨겁다」로 돌아온 열의 절반이 여기 있었다
+   (2026-09-21 제보).
+
+   폰에서는 절반(1024)으로 굽는다 — 한 장이 6.7ms 가 되고(-24%), 화면이 작아서
+   눈에 보이는 차이는 그림자 가장자리 한두 픽셀이다. 그리는 빈도까지 30장으로
+   끊으면(js/main.js) 1초에 쓰는 시간이 529ms → 201ms 가 된다.
+
+   **재는 법**: 두 크기를 번갈아 일곱 번 오가며 중앙값을 본다. 한 번씩만 재면
+   기계가 데워지는 것과 섞여서 같은 설정을 두 번 재도 값이 달라진다(실제로 그랬다).
+   절대값은 이 PC 의 GPU 것이라 폰과 다르지만, **비율은 기기를 안 탄다.**
+
+   폰인지는 **배치가 안다**(js/col.js) — 창 폭 조건을 여기에 한 벌 더 적으면
+   두 곳이 갈리고, 그때는 화면을 보고도 원인을 못 찾는다. */
+const SHADOW_BIG = 2048, SHADOW_PHONE = 1024;
+function shadowFit(){
+  if (!sun) return;
+  let want = SHADOW_BIG;
+  try { if (typeof colMode === 'function' && colMode() === 'm4') want = SHADOW_PHONE; } catch(e){}
+  if (sun.shadow.mapSize.width !== want) shadowPx(want);
+}
+
 /* ---------- 크기 · 그리기 ---------- */
 export function fit(){
   if (!ready || !canvas) return;
   const box = canvas.parentElement;
   const w = box.clientWidth, h = box.clientHeight;
   if (!w || !h) return;
+  /* 화면을 맞추는 자리에서 그림자도 같이 맞춘다 — 가로세로를 돌리거나 창을 넓히면
+     배치가 바뀌고(폰↔데스크톱), 그때 그림자만 옛 크기로 남으면 안 된다. */
+  shadowFit();
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.setSize(w, h, false);
   EERIE.resize(w, h);
@@ -2330,23 +2361,30 @@ export function fit(){
   camera.updateProjectionMatrix();
 }
 
+/* 한 장과 다음 장 사이에 실제로 흐른 시간. 촛불과 필름 그레인이 이걸 쓴다 —
+   둘 다 「몇 장째」가 아니라 「몇 초째」인 물건이라, 그리는 빈도가 바뀌어도
+   같은 속도로 흔들려야 한다. */
+let lastDrawMs = 0;
 export function draw(){
   if (!ready || !statics) return;
+  const nowMs = performance.now();
+  const ddt = lastDrawMs ? Math.min(0.2, (nowMs - lastDrawMs) / 1000) : 1 / 60;
+  lastDrawMs = nowMs;
   tickClocks();
-  tickFlames();
+  tickFlames(ddt);
   /* 아웃트로가 카메라를 잡고 있으면 궤도(CAM)를 안 쓴다 — 그 장면은 궤도가 아니라
      정해진 길을 지나간다(js/three/outro.js). 방·조명·후처리는 그대로다. */
   /* 택배 컷신도 같은 길을 쓴다 — 다만 이쪽은 방 **안**이라 조명도 천장도 그대로다. */
   if (PC){
     camera.position.set(PC.pos[0], PC.pos[1], PC.pos[2]);
     camera.lookAt(PC.look[0], PC.look[1], PC.look[2]);
-    if (EERIE.ON) EERIE.render(); else renderer.render(scene, camera);
+    if (EERIE.ON) EERIE.render(ddt); else renderer.render(scene, camera);
     return;
   }
   if (OUT){
     camera.position.set(OUT.pos[0], OUT.pos[1], OUT.pos[2]);
     camera.lookAt(OUT.target[0], OUT.target[1], OUT.target[2]);
-    if (EERIE.ON) EERIE.render(); else renderer.render(scene, camera);
+    if (EERIE.ON) EERIE.render(ddt); else renderer.render(scene, camera);
     return;
   }
   const d = camera.userData.dist || 20;
@@ -2355,7 +2393,7 @@ export function draw(){
     look.y + Math.sin(CAM.el) * d,
     look.z + Math.sin(CAM.az) * Math.cos(CAM.el) * d);
   camera.lookAt(look);
-  if (EERIE.ON) EERIE.render();
+  if (EERIE.ON) EERIE.render(ddt);
   else renderer.render(scene, camera);
 }
 
@@ -2722,6 +2760,14 @@ export function perf(){
 }
 /* 그리는 쪽만 따로 껐다 켜 본다 — 무엇이 비용인지 **빼 보고** 확인하는 자리다.
    전부 디버그 전용이고 저장하지 않는다. */
+/* 그림자 맵을 다시 굽는 크기로 갈아 끼운다. 이미 구워 둔 텍스처는 버려야
+   three 가 새 크기로 다시 만든다 — 안 버리면 mapSize 만 바뀌고 그림은 그대로다. */
+export function shadowPx(n){
+  if (!sun) return null;
+  sun.shadow.mapSize.set(n, n);
+  if (sun.shadow.map){ sun.shadow.map.dispose(); sun.shadow.map = null; }
+  return perf();
+}
 export function perfToggle(what, on){
   if (what === 'shadow'){ renderer.shadowMap.enabled = !!on; scene.traverse(o => { if (o.isMesh) o.material && (o.material.needsUpdate = true); }); }
   if (what === 'doorlight') doorLights.forEach(l => l.visible = !!on);
@@ -2993,7 +3039,7 @@ window.R3 = { init, build, sync, night, fit, draw, project, info, skyInfo, furnP
               parcelBuild, parcelSeek, parcelStop, parcelOn, parcelInfo, parcelWhy,
               getCatLook, setCatLook, catFur, catStats: CS.stats,
               studio, markPalette, markKey: CS.markKey, faceSets, faceNorm, faceKey: CS.faceKey,
-              paintCoverage, ready:false };
+              paintCoverage, shadowPx, ready:false };
 window.R3E = EERIE;      // 그림체 손잡이는 콘솔에서 바로 돌려야 판정이 된다
 
 /* 이 모듈은 클래식 스크립트가 전부 돈 뒤에 실행된다(모듈은 항상 지연된다).

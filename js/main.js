@@ -432,7 +432,22 @@ function renderAll(){ renderTop(); renderTodos(); renderRight(); renderNight(); 
 
 /* ---------- 루프 ---------- */
 const SIM_HZ = 20, SIM_DT = 1 / SIM_HZ;
-let acc = 0, lastT = 0, panelT = 0;
+let acc = 0, lastT = 0, panelT = 0, drawAcc = 0, topT = 0;
+
+/* ---------- 그리는 빈도 ----------
+   **시뮬레이션과 그리기는 다른 일이다.** 사무실은 20Hz 로 돌지만, 그리기는 여태
+   rAF 가 부르는 대로 전부 했다. 폰에서 그건 초당 60장이고, 한 장이 싸지 않다 —
+   폰 화면 크기(824×1740)로 재 보면 한 장에 8.8ms 가 들고 그 절반이 그림자 맵을
+   다시 굽는 값이다. 두 기기에서 「사무실 탭에 2분 두면 뜨겁다」로 돌아온 열이
+   그것이다(2026-09-21 제보).
+
+   폰에서는 30장으로 끊는다(js/col.js DRAW_GAP). 이 화면에서 움직이는 것은 걸어
+   다니는 고양이와 천천히 도는 카메라뿐이라 30과 60의 차이는 안 보이고, 손에 쥔
+   열은 보인다. 그림자 맵도 같이 절반으로 줄였다(js/render3d.js shadowFit) —
+   둘을 합치면 GPU 가 1초에 쓰는 시간이 529ms → 201ms 가 된다(-62%).
+
+   **시뮬레이션은 한 줄도 안 건드린다.** 덜 그려도 사무실이 도는 속도·벌이·케어는
+   그대로다 — 그게 이 게임에서 절대 손대면 안 되는 값이다. */
 
 /* 루프는 게임이 지금 살고 있는 창에서 돌려야 한다 (HOST — js/widget.js).
    떠 있는 창으로 나갔는데 rAF 를 원래 탭에 걸어 두면, 다른 탭으로 옮기는
@@ -447,9 +462,16 @@ function frame(now){
   while (acc >= SIM_DT && guard++ < 8){ simTick(SIM_DT); acc -= SIM_DT; }
   markLive();
 
-  syncActors(dt);
-  renderTop();
-  renderNight();
+  /* 무대는 DRAW_GAP 마다. 흘린 시간을 그대로 넘겨 준다 — 고양이 걸음은 프레임
+     수가 아니라 dt 로 걷기 때문에, 30장으로 그려도 같은 속도로 걷는다. */
+  drawAcc += dt;
+  if (drawAcc >= DRAW_GAP){ syncActors(drawAcc); renderNight(); drawAcc = 0; }
+
+  /* 상단 바는 **시뮬레이션보다 빨리 바뀔 수 없다.** 20Hz 로 도는 값을 60번 다시
+     쓰면 그 중 둘은 같은 숫자를 다시 그리는 일이고, DOM 을 쓰는 일은 폰에서 공짜가
+     아니다(글꼴 · 레이아웃이 매번 따라온다). 시계 한 줄은 innerHTML 이기도 하다. */
+  topT += dt;
+  if (topT >= SIM_DT){ topT = 0; renderTop(); }
 
   panelT += dt;
   if (panelT > 1.2){

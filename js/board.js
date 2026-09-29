@@ -125,7 +125,14 @@ function showBoard(){
     <div class="mfoot"><button class="okbtn" data-close>${L({ ko:'닫기', en:'Close', ja:'閉じる' })}</button></div>`);
   const body = mo.veil.querySelector('#boardBody');
 
+  /* 서버를 몇 번 두드려 봤나. **「불러오는 중」과 「못 받아 왔다」를 가르는 건
+     이 숫자다** — 자료층(js/friends.js)은 자기가 무엇을 들고 있는지만 알지,
+     이 창이 얼마나 기다려 줬는지는 모른다. */
+  let tries = 0;
+  const TRIES = 6;
+
   const draw = () => {
+    const src = FRIENDS.source();
     /* 사진을 먼저 다 찍고(내 방으로 되돌리는 것까지 branchPhotos 가 한다) 그 다음에 그린다.
        한 장씩 찍으면서 그리면 그 사이 프레임에 남의 방이 무대에 남는다. */
     const list = FRIENDS.list();
@@ -140,7 +147,7 @@ function showBoard(){
           : (f.ago || litLabel(false))}</span>
         ${f.reacted ? `<span class="sent">🐟 ${L({ ko:'오늘 인사함', en:'greeted today', ja:'今日あいさつ済み' })}</span>` : ''}
       </button>`).join('');
-    const live = FRIENDS.source() === 'server';
+    const live = src === 'server';
     /* ── 받은 요청 ──
        코드를 아는 것만으로 서로 보이던 것을 고쳤다(2026-09-03). 이제 코드를 넣으면
        **요청**이 가고, 받은 쪽이 수락해야 걸린다. 그래서 이 줄이 목록보다 위에 있다 —
@@ -155,11 +162,24 @@ function showBoard(){
           <button class="buy" data-yes="${r.id}">${L({ ko:'수락', en:'Accept', ja:'承認' })}</button>
           <button class="buy alt" data-no="${r.id}">${L({ ko:'거절', en:'Decline', ja:'拒否' })}</button>
         </div></div>`).join('') : '';
-    body.innerHTML = boardNote() + reqRows
-      + (rows ? `<div class="polas">${rows}</div>` : (live ? `<div class="empty">${L({
+    /* 지점 칸에 뭘 놓나 — **네 갈래고, 넷이 서로 다른 말을 한다.**
+       목록이 있으면 목록. 없으면: 서버가 대답했는데 비었으면 「아직 없다」,
+       아직 두드리는 중이면 「불러오는 중」, 다 두드려 봤는데 못 받았으면 그렇게 말한다.
+       마지막 둘을 「아직 없다」로 뭉뚱그리면 **친구가 있는데 없다고 말하는 화면**이 된다. */
+    const wait = src === 'wait';
+    const gap = rows ? `<div class="polas">${rows}</div>`
+      : live ? `<div class="empty">${L({
           ko:'아직 묶인 지점이 없습니다. 코드를 주고받으면 여기에 걸립니다.',
           en:'No branches linked yet. Trade codes and they show up here.',
-          ja:'まだつながった支店がありません。コードを交換するとここに並びます。' })}</div>` : ''))
+          ja:'まだつながった支店がありません。コードを交換するとここに並びます。' })}</div>`
+      : wait && tries < TRIES ? `<div class="empty">${L({
+          ko:'지점을 불러오는 중입니다…', en:'Loading branches…', ja:'支店を読み込んでいます…' })}</div>`
+      : wait ? `<div class="empty">${L({
+          ko:'지금은 목록을 못 받아 왔습니다. 잠시 뒤에 다시 열어 주세요.',
+          en:'Couldn’t fetch the list right now. Try opening it again in a moment.',
+          ja:'いまは一覧を受け取れませんでした。少しあとでもう一度開いてください。' })}</div>`
+      : '';
+    body.innerHTML = boardNote() + reqRows + gap
       + `<div class="jukesec">${L({ ko:'내 지점 코드', en:'My branch code', ja:'自分の支店コード' })}</div>
       <div class="codebox"><code>${FRIENDS.code()}</code>
         <button class="buy alt" id="brCopy">${L({ ko:'복사', en:'Copy', ja:'コピー' })}</button></div>`
@@ -169,10 +189,14 @@ function showBoard(){
         ? `<div class="codebox"><input id="brCode" maxlength="9" autocomplete="off"
              placeholder="${L({ ko:'받은 코드', en:'Their code', ja:'もらったコード' })}">
              <button class="buy" id="brAdd">${L({ ko:'묶기', en:'Link', ja:'つなぐ' })}</button></div>`
-        : `<div class="hint">${L({
+        /* **기다리는 동안에는 이 줄을 안 적는다.** 「서버가 온 뒤입니다」는 서버가
+           없는 판에서만 맞는 말이고, 대답을 기다리는 중에 이게 떠 있으면 조금 뒤
+           나타날 묶기 칸과 서로 다른 말을 하게 된다. */
+        : src === 'mock' ? `<div class="hint">${L({
              ko:'이 코드를 주고받아 지점을 묶는 건 서버가 온 뒤입니다. 코드 형식은 그때도 이대로입니다.',
              en:'Trading codes to link branches comes with the server. The format will stay exactly this.',
-             ja:'コードを交換して支店をつなぐのはサーバーが来てからです。形式はそのままです。' })}</div>`);
+             ja:'コードを交換して支店をつなぐのはサーバーが来てからです。形式はそのままです。' })}</div>`
+        : '');
     wire();
   };
   function wire(){
@@ -229,8 +253,24 @@ function showBoard(){
   }
   draw();
   /* 서버 자료는 **뒤늦게** 온다(받아 놓고 쓰는 구조 — js/friends.js). 오면 다시 그린다:
-     처음 한 판은 흉내거나 지난번 목록이고, 그걸 그대로 두면 남의 어제를 보여주게 된다. */
-  try { FRIENDS.sync().then(ok => { if (ok && mo.veil.isConnected) draw(); }); } catch(e){}
+     처음 한 판은 지난번 목록이고, 그걸 그대로 두면 남의 어제를 보여주게 된다.
+
+     **한 번만 두드리면 안 된다.** 로그인은 게임보다 늦게 붙는데(js/cloud.js 는 저장이
+     생긴 뒤에야 start 한다) 게시판은 그보다 먼저 열릴 수 있고, 그때 sync 는 서버
+     손잡이가 없어서 그냥 false 를 돌려준다 — 한 번으로 끝내면 그 판의 게시판은
+     창을 닫았다 다시 열 때까지 영영 비어 있다.
+     창이 열려 있는 동안만, 정해진 횟수만 두드린다. */
+  const pull = () => {
+    let p;
+    try { p = FRIENDS.sync(); } catch(e){ return; }
+    p.then(ok => {
+      if (!mo.veil.isConnected) return;          // 닫혔으면 그만둔다
+      if (!ok) tries++;
+      draw();
+      if (!ok && tries < TRIES) setTimeout(pull, 1200);
+    }, () => {});
+  };
+  pull();
   return mo;
 }
 
@@ -259,8 +299,9 @@ function showBranch(id){
 
   const draw = () => {
     const sent = FRIENDS.reacted(id);
-    const photo = branchPhoto(snap, 420, 250);
-    if (!visiting()) restoreOffice();
+    /* 한 장짜리도 branchPhotos 를 지난다 — 되돌리는 규칙(무대를 건드렸을 때만)이
+       거기 한 곳에만 적혀 있어야 한다. 여기 한 벌 더 적으면 그 둘이 갈린다. */
+    const photo = branchPhotos([snap], 420, 250)[0];
     body.innerHTML = boardNote() + `
       <div class="brlit ${f.working ? 'on' : ''}">${f.working ? '●' : '○'} ${litLabel(!!f.working)}</div>
       <img class="plan ${photo ? 'photo' : ''}" src="${photo || branchPlanURL(snap, 13)}" alt="">

@@ -35,6 +35,24 @@ function shrinkNearest(src, n){
 }
 const uri = buf => 'data:image/png;base64,' + buf.toString('base64');
 
+/* 도트 고양이를 **정사각형으로** 맞춘다.
+   상단바의 `.brand .logo` 는 정사각형이고 배경을 `100% 100%` 로 늘린다. 그래서 그림이
+   세로로 길면 그 비율만큼 **눌린 고양이**가 된다 — 도트 판을 만든 이유가 픽셀을
+   반듯하게 두려는 것인데 거기서 어긋나면 앞뒤가 안 맞는다.
+
+   빈칸은 **좌우에 똑같이** 덧댄다(가운데 정렬). 한쪽에만 붙이면 고양이가 상자 안에서
+   옆으로 밀린다. 도트 한 칸(8px)의 배수로만 덧대므로 격자도 안 틀어진다.
+   (로고를 턱 아래까지 잡게 되면서 그림이 세로로 길어졌다 — 2026-09-21.) */
+function padSquare(src){
+  const side = Math.max(src.w, src.h);
+  if (side === src.w && side === src.h) return src;
+  const out = Buffer.alloc(side * side * 4);
+  const ox = Math.round((side - src.w) / 2), oy = side - src.h;   // 아래에 붙인다
+  for (let y = 0; y < src.h; y++)
+    out.set(src.rgba.subarray(y * src.w * 4, (y + 1) * src.w * 4), ((y + oy) * side + ox) * 4);
+  return { w: side, h: side, rgba: out };
+}
+
 /* ---- 1. 시작화면 워드마크 → js/title.js ---- */
 {
   const p = ROOT + 'js/title.js';
@@ -52,9 +70,10 @@ const uri = buf => 'data:image/png;base64,' + buf.toString('base64');
 {
   const p = ROOT + 'style.css';
   let s = fs.readFileSync(p, 'utf8');
-  const cat = decodePNG(ROOT + 'assets/logo-cat-dot.png');
+  const cat = padSquare(decodePNG(ROOT + 'assets/logo-cat-dot.png'));
   /* 상단바 상자는 36px 다. 288 을 4 로 줄이면 72px = 한 칸 2px 이고, 2배 화면에서
-     한 칸이 정확히 4 물리 픽셀이 된다. 3배 화면에서는 6 이라 여전히 정수다. */
+     한 칸이 정확히 4 물리 픽셀이 된다. 3배 화면에서는 6 이라 여전히 정수다.
+     (도트 그림이 정사각형이 아니면 그 계산이 깨지므로 위에서 정사각형으로 맞춘다.) */
   const small = shrinkNearest(cat, 4);
   const block = `/* DOTLOGO:BEGIN 생성: node tools/logo-dot-embed.js */
 /* 상단바 고양이 — 도트 판. tools/logo.js 가 낸 그림(위 LOGO 블록) 위에 얹는다:

@@ -460,7 +460,10 @@ function createPass(renderer, scene, camera, opt = {}){
   const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat);
   quadScene.add(quad);
   const quadCam = new THREE.Camera();
-  let frame = 0;
+  /* **장 수가 아니라 초를 센다.** 그레인과 등불 떨림은 「몇 장째」가 아니라
+     「몇 초째」인 물건이라, 부르는 쪽이 빈도를 바꿔도(폰에서는 30장 — js/main.js)
+     같은 속도로 흔들려야 한다. 안 넘겨 주면 예전대로 한 장을 1/60 초로 친다. */
+  let tsec = 0;
 
   /* 등불은 살짝 떨어야 한다. 완전히 고른 빛은 "조명" 이 아니라 "설정값" 으로 보인다.
      render3d.js 가 night() 에서 세기를 다시 쓰므로, 우리가 만진 값과 다르면
@@ -486,8 +489,8 @@ function createPass(renderer, scene, camera, opt = {}){
       rt.setSize(rw, rh);
       mat.uniforms.uRes.value.set(rw, rh);
     },
-    render(){
-      const t = frame++ / 60;
+    render(dt){
+      const t = (tsec += (dt || 1 / 60));
       mat.uniforms.uTime.value = t;
 
       /* 안개는 카메라 거리가 아니라 **화면에 담긴 넓이**를 따라간다.
@@ -671,7 +674,7 @@ export function skin(on){
 }
 
 export function resize(w, h){ if (pass) pass.resize(w, h); }
-export function render(){ if (pass) pass.render(); }
+export function render(dt){ if (pass) pass.render(dt); }
 export function set(k, v){ return pass ? pass.set(k, v) : null; }
 export function stats(){ return pass ? pass.stats() : null; }
 

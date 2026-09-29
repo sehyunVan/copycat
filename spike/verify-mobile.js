@@ -181,7 +181,13 @@ const BASE = 'http://localhost:8123/dist/';
 
     /* 안전 영역은 헤드리스에서 **흉내 낼 수 없다**(CDP 에 그 손잡이가 없다).
        그래서 값이 아니라 **규칙**을 본다: 폰 스킨의 topbar 가 padding 을 통째로
-       다시 쓰면서 위쪽 안전 영역을 지우고 있었다 — 그 자리에 env() 가 있는지. */
+       다시 쓰면서 위쪽 안전 영역을 지우고 있었다 — 그 자리에 그 값이 있는지.
+
+       예전에는 `env(safe-area-inset-top)` 이라는 글자를 찾았다. 지금은 그 자리에
+       `var(--safet)` 이 있다 — 위쪽 안전영역을 **낼지 말지**가 기기가 아니라 창의
+       문제라서 한 곳(:root)으로 모았기 때문이다(2026-09-21 · style.css 의 머리말).
+       그래서 찾을 글자가 바뀌었다. **흐르는지**는 여기서 못 보므로
+       `spike/verify-safetop.js` 가 따로 본다 — 부어 보고 가는지 막히는지. */
     const rule = await ev(`(()=>{
       let hit = '';
       for (const sh of document.styleSheets){
@@ -193,8 +199,8 @@ const BASE = 'http://localhost:8123/dist/';
         }
       }
       return hit })()`);
-    ok(/safe-area-inset-top/.test(rule || ''),
-       '폰 스킨 topbar 가 **상태바를 피한다**', rule || '(규칙을 못 찾음)');
+    ok(/var\(\s*--safet\s*\)/.test(rule || ''),
+       '폰 스킨 topbar 가 **상태바를 피한다** (--safet 을 지난다)', rule || '(규칙을 못 찾음)');
 
     const leak = await ev(`(async()=>{
       setCol('stage'); await new Promise(r=>setTimeout(r,400));

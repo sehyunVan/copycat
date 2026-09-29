@@ -8,8 +8,10 @@
 
    고양이는 **검정(fur 0)**. 게임 안에서 그 색은 순검정이 아니라 0x4A4550 이다 —
    render3d.js 의 주석이 이유를 적어 뒀다: "순검정은 형태가 아니라 구멍이 된다."
-   눈은 **뜬 눈**(eyeMode 0), 각도는 **정면**(front)이다. 목록 초상은 감은 눈·3/4 컷이지만
-   로고는 눈이 보여야 고양이로 읽히고, 작게 줄이면 3/4 는 한쪽으로 쏠린 덩어리가 된다.
+   눈은 **뜬 눈**(eyeMode 0), 각도는 **정면**(front), 프레임은 **머리**(frame:'head')다.
+   목록 초상은 감은 눈·3/4 컷이지만 로고는 눈이 보여야 고양이로 읽히고, 작게 줄이면
+   3/4 는 한쪽으로 쏠린 덩어리가 된다. 머리 프레임은 렌더러가 「귀 끝이 겨우 들어오는
+   거리」를 아는 자리다 — 정면 컷은 귀가 위로 잘려 나온다(아래 프레이밍 주석).
 
    먼저: node spike/serve.js
    실행: node tools/bake-logo.js       →  assets/logo-cat.png (구운 원본, 투명 배경)
@@ -76,8 +78,8 @@ function bbox(w, h, rgba){
   if (!ready) throw new Error('3D 렌더러가 안 올라왔다 — node spike/serve.js 가 떠 있나');
 
   /* 검정 고양이, 뜬 눈. hue 0 이라 FUR_BASE[0] 그대로다. */
-  console.log('  굽는다: 검정(fur 0) · 뜬 눈 · 정면 · ' + SIZE + 'px');
-  const url = await ev(`R3.portrait({ fur:0, hue:0 }, ${SIZE}, { eyeMode:0, front:true })`);
+  console.log('  굽는다: 검정(fur 0) · 뜬 눈 · 정면 · 머리 프레임 · ' + SIZE + 'px');
+  const url = await ev(`R3.portrait({ fur:0, hue:0 }, ${SIZE}, { eyeMode:0, front:true, frame:'head' })`);
   if (!url || !url.startsWith('data:image/png')) throw new Error('초상을 못 구웠다: ' + String(url).slice(0, 80));
   ws.close(); chrome.kill();
 
@@ -90,55 +92,90 @@ function bbox(w, h, rgba){
   console.log('  배경: ' + (bb.opaque ? '불투명 — 구석 색으로 찾음' : '투명 — 알파로 찾음'));
   const isCatAt = bb.isCat;
 
-  /* **얼굴만 남긴다.** 초상은 3/4 컷이라 몸통까지 들어오고, 그대로 쓰면 20px 에서
-     고양이가 점이 된다.
+  /* ── 어디를 잘라 내나 ──
+     **턱을 찾아서 그 조금 아래를 바닥으로 삼는다.**
 
-     처음엔 "알파 상자의 위쪽 정사각형" 으로 잘랐다가 **눈과 입이 아래로 잘려 나갔다** —
-     이 고양이는 이마가 크고 얼굴 특징이 머리 아래쪽에 앉아 있어서 그 가정이 틀렸다.
-     그래서 추측하지 않고 **눈을 찾는다**: 어두운 머리에서 눈은 압도적으로 밝은 칸이라
-     밝기 상위 칸의 무게중심이 곧 두 눈의 가운데다. 거기가 얼굴의 중심이고,
-     귀 끝(알파 상자의 위끝)까지의 거리로 머리 크기를 안다. */
-  const lum = i => 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
-  let hi = 0;
-  for (let y = bb.y0; y <= bb.y1; y++)
-    for (let x = bb.x0; x <= bb.x1; x++){
-      const i = (y * w + x) * 4;
-      if (data[i+3] > 128) hi = Math.max(hi, lum(i));
-    }
-  let ex = 0, ey = 0, en = 0;
-  for (let y = bb.y0; y <= bb.y1; y++)
-    for (let x = bb.x0; x <= bb.x1; x++){
-      const i = (y * w + x) * 4;
-      if (data[i+3] > 128 && lum(i) > hi * 0.82){ ex += x; ey += y; en++; }
-    }
-  if (!en) throw new Error('눈을 못 찾았다 — 밝은 칸이 없다');
-  ex /= en; ey /= en;
+     예전에는 「머리 폭 × 1.12」 짜리 정사각형을 귀 끝에 붙여 놓았다. 그러면 아래가
+     턱을 한참 지나 **몸통까지** 들어오는데, 몸통은 머리보다 좁아서 아이콘 밑에
+     **가는 기둥 하나가 삐져나온 채로 잘린다** — 「목이 잘린 것 같다」는 제보가 그
+     그림이다(2026-09-21). 머리는 멀쩡한데 그 기둥 하나가 그림을 시체로 만든다.
 
-  /* 정사각형을 **귀 끝에 붙여** 놓는다. 처음엔 "눈 위로 정사각형의 45%" 로 잡았는데
-     귀가 위로 잘려 나갔다 — 눈 위 여백을 비율로 정하면 귀 높이를 모르는 채로 정하는 것이다.
-     귀 끝(알파 상자의 위끝)은 아는 값이니 거기에 붙이고, 눈이 세로 EYE_AT 에 오도록
-     한 변을 정한다. 그러면 위는 귀까지 꽉 차고 아래는 턱 조금까지만 들어온다. */
-  /* 정사각형 크기는 **머리 폭**으로 정한다. 눈 위치로 정하려 했더니 두 번 틀렸다:
-     0.66 은 턱 아래 몸통이 남고, 0.78 은 귀와 머리 양옆이 잘렸다 — 눈 높이는
-     "얼마나 넓은가" 에 대해 아무것도 안 알려 준다. 머리 띠(귀 끝~눈높이)의 알파 폭은
-     아는 값이고, 이 조형은 머리 폭과 (귀 끝~턱) 높이가 대략 같다. */
+     바뀐 것 둘:
+
+     1. **머리 프레임으로 굽는다**(frame:'head'). 렌더러가 이미 「귀 끝이 겨우 들어오는
+        거리」를 알고 있다(js/three/catsculpt.js). 예전 정면 컷은 귀가 위로 잘려 나와서
+        자를 때 그 손실을 되돌릴 방법이 없었다.
+     2. **턱을 찾는다.** 추측하지 않는다 — 머리는 아래로 갈수록 빠르게 좁아지고
+        **몸통은 거의 수직**이라, 실루엣의 양 끝이 움직임을 멈추는 첫 줄이 곧 경계다.
+
+     BELOW 는 그 턱에서 **몇 줄을 더 내려가 바닥을 잡을지**다. 0 이면 턱이 그대로
+     바닥이 되고, 키우면 어깨가 조금 깔린다. 후보를 +0 · +8 · +16 · +20 · +24 · +44 로
+     구워 앱 아이콘까지 만들어 놓고 나란히 보고 **44 로 정했다**(2026-09-21).
+     숫자 하나로 열어 두는 이유: 이건 계산으로 나오는 값이 아니라 **고른 값**이고,
+     다음에 다시 고를 때 이 줄만 만지면 된다.
+
+     한 변은 두상의 가로·세로 중 큰 쪽이다. 여백은 여기서 안 준다 — 쓰는 쪽
+     (tools/logo.js)이 자리마다 다른 pad 를 주기 때문이고, 여기서 또 주면 두 번이 된다. */
+  const BELOW = 44;
+
+  const L = new Int32Array(h).fill(-1), R = new Int32Array(h).fill(-1);
+  for (let y = bb.y0; y <= bb.y1; y++){
+    for (let x = bb.x0; x <= bb.x1; x++) if (isCatAt((y * w + x) * 4)){ L[y] = x; break; }
+    for (let x = bb.x1; x >= bb.x0; x--) if (isCatAt((y * w + x) * 4)){ R[y] = x; break; }
+  }
+  let yWide = bb.y0, wide = -1;
+  for (let y = bb.y0; y <= bb.y1; y++)
+    if (L[y] >= 0 && R[y] - L[y] > wide){ wide = R[y] - L[y]; yWide = y; }
+  if (wide <= 0) throw new Error('실루엣을 못 읽었다');
+
+  /* K 줄 사이에 실루엣이 **양쪽에서 얼마나 파고들었나**. 머리는 크고 몸통은 0 에 가깝다. */
+  const K = Math.max(4, Math.round(h * 0.012));
+  const narrow = y => (y + K > bb.y1 || L[y] < 0 || L[y + K] < 0) ? 0
+                    : (L[y + K] - L[y]) + (R[y] - R[y + K]);
+  const ON = Math.max(6, Math.round(wide * 0.015));    // 확실히 좁아지는 중
+  const FLAT = Math.max(2, Math.round(wide * 0.004));  // 거의 수직 — 몸통이다
+  /* **가장 넓은 줄 바로 아래에서 찾으면 안 된다.** 거기는 꼭대기라 기울기가 0 이고,
+     그 줄이 「수직」으로 읽혀서 정수리를 턱이라고 답한다(실제로 그랬다).
+     확실히 좁아지기 시작한 자리까지 내려간 다음에 편다. */
+  let yy = yWide;
+  while (yy < bb.y1 - K && narrow(yy) <= ON) yy++;
+  let chin = -1;
+  for (; yy < bb.y1 - K; yy++){
+    /* 한 줄이 우연히 평평한 것과 몸통을 가른다 — 뒤 몇 줄도 같이 평평해야 한다. */
+    let flat = true;
+    for (let d = 0; d <= 40 && yy + d < bb.y1 - K; d += 8) if (narrow(yy + d) > FLAT){ flat = false; break; }
+    if (flat){ chin = yy; break; }
+  }
+  if (chin < 0) chin = bb.y1;          // 몸통이 아예 안 잡히면 알파 바닥까지가 머리다
+
   let hx0 = w, hx1 = -1;
-  for (let y = bb.y0; y <= Math.round(ey); y++)
-    for (let x = bb.x0; x <= bb.x1; x++)
-      if (isCatAt((y * w + x) * 4)){ if (x < hx0) hx0 = x; if (x > hx1) hx1 = x; }
+  for (let y2 = bb.y0; y2 <= chin; y2++)
+    if (L[y2] >= 0){ if (L[y2] < hx0) hx0 = L[y2]; if (R[y2] > hx1) hx1 = R[y2]; }
   const hw = hx1 - hx0 + 1;
-  const hcx = hx1 < 0 ? ex : (hx0 + hx1 + 1) / 2;
-  const side = Math.round(hw * 1.12);            // 12% 는 숨 쉴 자리
-  let sx0 = Math.round(hcx - side / 2), sy0 = Math.round(bb.y0 - side * 0.06);
-  let sx1 = sx0 + side, sy1 = sy0 + side;
-  console.log(`  머리 폭 ${hw} · 가운데 ${Math.round(hcx)} (눈 무게중심 ${Math.round(ex)}, 차이 ${Math.round(hcx - ex)}px)`);
-  console.log(`  알파 상자 ${bb.x1-bb.x0+1}×${bb.y1-bb.y0+1} · 눈 (${Math.round(ex)},${Math.round(ey)}) 밝은칸 ${en}`);
-  console.log(`  얼굴 정사각형 ${side}px @ (${sx0},${sy0})`);
-  sx0 = Math.max(0, sx0); sy0 = Math.max(0, sy0);
-  sx1 = Math.min(w, sx1); sy1 = Math.min(h, sy1);
+  const sy1 = Math.min(bb.y1 + 1, chin + 1 + BELOW);
+  const side = Math.max(hw, sy1 - bb.y0);
+  const hcx = (hx0 + hx1 + 1) / 2;
+  const sx0 = Math.round(hcx - side / 2), sy0 = sy1 - side;
+  console.log(`  알파 상자 ${bb.x1-bb.x0+1}×${bb.y1-bb.y0+1} · 가장 넓은 줄 ${wide+1}@${yWide}`);
+  console.log(`  턱 y=${chin} (그 줄 폭 ${R[chin]-L[chin]+1}) · 두상 폭 ${hw} · 바닥 y=${sy1} (턱+${BELOW})`);
+  console.log(`  네모 ${side}px @ (${sx0},${sy0})`);
+
+  /* 네모가 원본 밖으로 나갈 수 있다(귀 위로 여백이 모자란 경우). resample 은 밖을
+     **가장자리 색으로 늘리므로** 거기 맡기면 귀 위에 줄무늬가 생긴다. 투명한 네모를
+     하나 만들어 놓고 겹치는 곳만 옮겨 담는다. */
+  const sq = Buffer.alloc(side * side * 4);
+  for (let dy = 0; dy < side; dy++){
+    const src = sy0 + dy;
+    if (src < 0 || src >= h) continue;
+    for (let dx = 0; dx < side; dx++){
+      const sxx = sx0 + dx;
+      if (sxx < 0 || sxx >= w) continue;
+      sq.set(data.subarray((src * w + sxx) * 4, (src * w + sxx) * 4 + 4), (dy * side + dx) * 4);
+    }
+  }
 
   const S = 512;
-  const face = resample(w, h, data, S, S, sx0, sy0, sx1, sy1);
+  const face = resample(side, side, sq, S, S);
   fs.writeFileSync(OUT, encodePNG(S, S, face));
   console.log(`→ assets/logo-cat.png  ${S}×${S}  ${(fs.statSync(OUT).size / 1024).toFixed(1)}KB`);
   console.log('  다음: node tools/logo.js  (파비콘·상단바·앱 아이콘에 반영)');

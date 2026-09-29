@@ -42,8 +42,41 @@ const PHONE_DIST = (() => {
   } catch(e){ return false; }
 })();
 
+/* ── 위쪽 안전영역을 **우리가 내야 하나** ──
+   이건 기기 종류가 아니라 **창을 누가 줄였나**의 문제다(style.css 의 `--safet` 머리말).
+
+   아이폰 껍데기는 화면 끝까지 그린다 — 노치 밑을 비켜 주는 건 우리 몫이라 env() 를 쓴다.
+   안드로이드 껍데기는 **창을 이미 상태바 밑에서 시작하게 줄여 놨다**
+   (mobile/android/app/src/main/res/values/styles.xml 의 `fitsSystemWindows`).
+   그런데 안드로이드의 `env(safe-area-inset-top)` 은 상태바가 아니라 **디스플레이
+   컷아웃**(펀치홀·노치)을 잰다 — 창이 이미 줄어 있어도 0 이 아니다. 그래서 상단 띠가
+   컷아웃 높이만큼 한 번 더 밀리고, **펀치홀이 있는 기기에서만** 위에 빈 띠가 남았다
+   (2026-09-21 제보 · 펀치홀 없는 기기에서는 0 이라 여태 안 보였다).
+
+   그래서 안드로이드에서는 0 으로 덮는다. 브라우저·PWA 도 같다 — 크롬은 페이지를
+   상태바 **밑에서** 시작하므로 거기서도 우리가 낼 몫은 없다. 즉 **우리가 내보내는
+   안드로이드 판 전부에서 0 이 맞다.**
+
+   `Capacitor.getPlatform()` 을 먼저 보는 이유: 웹뷰의 UA 는 껍데기가 바꿔 끼울 수 있고,
+   계정층(js/cloud.js)이 이미 같은 손잡이를 쓴다. 없으면 UA 로 떨어진다. */
+(() => {
+  try {
+    const c = window.Capacitor;
+    const plat = (c && c.getPlatform && c.getPlatform()) || '';
+    if (plat === 'ios') return;                       // 아이폰은 우리가 낸다
+    if (plat !== 'android' && !/Android/i.test(navigator.userAgent || '')) return;
+    document.documentElement.style.setProperty('--safet', '0px');
+  } catch(e){}
+})();
+
 let uiCol = 'inbox';
 try { const v = localStorage.getItem(COL_KEY); if (COLS.indexOf(v) >= 0) uiCol = v; } catch(e){}
+
+/* 한 장 그리는 사이 최소 간격(초). 0 이면 rAF 가 부르는 대로 전부 그린다 —
+   **폰에서만 끊는다**(js/main.js frame 의 머리말이 이유를 적어 뒀다).
+   배치를 정하는 자리가 여기이므로 빈도도 여기서 같이 정한다: 사무실이 탭 하나가
+   되는 배치(M4)가 곧 폰이고, 열이 나는 것도 그 기계다. */
+let DRAW_GAP = 0;
 
 const colHost = () => (typeof HOST !== 'undefined' && HOST) ? HOST : window;
 
@@ -95,6 +128,9 @@ function colApply(){
      창을 넓히면 아무 화면도 안 뜨게 되므로 결재함으로 데려온다. */
   if (m !== 'm4' && uiCol === 'stage') uiCol = 'inbox';
   if (m) app.dataset.col = uiCol; else delete app.dataset.col;
+  /* 1/31 로 잡는 이유: 60Hz 화면에서 정확히 1/30 으로 끊으면 반올림이 쌓여
+     두 장에 한 번이 아니라 가끔 세 장에 한 번이 되고, 그 박자가 눈에 띈다. */
+  DRAW_GAP = m === 'm4' ? 1 / 31 : 0;
   colSync();
   if (typeof fitWorld === 'function') fitWorld();
 }
