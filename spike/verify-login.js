@@ -55,6 +55,7 @@ await ev(`(()=>{
   window.CLOUD = {
     state:()=>({on:true,why:'',uid:'u1',anon:true,who:''}),
     google:async()=>{ window.__calls.push(['google']); return { error:'시험판이라 안 넘어갑니다' }; },
+    apple:async()=>{ window.__calls.push(['apple']); return { error:'시험판이라 안 넘어갑니다' }; },
     email:async a=>{ window.__calls.push(['email',a]); return /@/.test(a)?{ok:true}:{error:'메일 주소 형식이 아닙니다'}; },
     sb:()=>null, push:async()=>{}, restore:async()=>{}, out:()=>{}, erase:async()=>{},
   };
@@ -109,6 +110,40 @@ ok('다시 누를 수 있게 되돌린다', /다시/.test(g.btn), g.btn);
 /* 눌렀다고 로고가 사라지면 안 된다 — 글자를 갈아 끼우면서 안에 든 것까지 지우기 쉽다. */
 const stay = await ev(`!!document.querySelector('#lgGoogle .gmark svg')`);
 ok('누른 뒤에도 로고가 남는다', stay, String(stay));
+
+/* ── 애플 (심사지침 4.8) ──
+   구글만 있고 메일은 입력칸이던 때가 **반려 사유였다.** 애플 로그인을 들인 뒤로는
+   「둘이 같은 무게로 서 있는가」가 이 파일의 본론이다 — 크기가 갈리면 "equivalent
+   option" 이 아니다. 그래서 눈으로 보지 말고 px 로 잰다. */
+const look1 = await ev(`(()=>{ const v=document.querySelector('.veil');
+  const g=v.querySelector('#lgGoogle'), a=v.querySelector('#lgApple');
+  if(!a) return { missing:true };
+  const gb=g.getBoundingClientRect(), ab=a.getBoundingClientRect();
+  const svg=a.querySelector('.amark svg');
+  return { below: ab.top > gb.top, sameW: Math.abs(ab.width-gb.width) < 1,
+           sameH: Math.abs(ab.height-gb.height) < 1,
+           w:Math.round(ab.width), h:Math.round(ab.height),
+           svg: !!svg, keep: svg ? svg.getAttribute('data-dot') : '',
+           fill: svg ? getComputedStyle(svg).fill : '' }; })()`);
+ok('애플이 구글 **아래**에 있다', look1.below, look1.below?'그렇다':'아니다');
+ok('애플 단추가 구글과 **같은 크기**다 (4.8 의 equivalent)', look1.sameW && look1.sameH,
+   `${look1.w}×${look1.h}`);
+ok('애플 로고가 붙어 있다', look1.svg, String(look1.svg));
+/* 도트 변환에서 빼 두지 않으면 js/dot.js 가 로고를 다시 그린다 — 남의 상표를
+   우리 마음대로 그린 것이 된다. 구글 마크와 같은 이유로 못 박는다. */
+ok('로고를 도트로 안 바꾼다 (data-dot=keep)', look1.keep==='keep', String(look1.keep));
+/* 애플 규정이 허락하는 색은 검정과 흰색 둘뿐이다. 어두운 단추 위이므로 흰색이어야 한다. */
+ok('로고가 흰색이다 (브랜드 규정)', /255, 255, 255/.test(look1.fill), look1.fill);
+
+await ev(`document.querySelector('#lgApple').click()`);
+await sleep(600);
+const ap=await ev(`(()=>{ const v=document.querySelector('.veil');
+  return { called:(window.__calls[1]||[])[0], open:!!v,
+           logo:!!(v&&v.querySelector('#lgApple .amark svg')),
+           btn:(v&&v.querySelector('#lgApple')||{}).textContent||'' }; })()`);
+ok('애플 갈래가 애플을 부른다', ap.called==='apple', String(ap.called));
+ok('애플도 실패하면 되돌아온다 · 로고가 남는다', ap.open && /다시/.test(ap.btn) && ap.logo,
+   `${ap.btn.trim().slice(0,20)} · 로고 ${ap.logo}`);
 
 /* 메일 — 형식이 틀리면 그 자리에서 말하고, 맞으면 보냈다고 한다 */
 await ev(`(()=>{ const i=document.querySelector('#lgMail'); i.value='그냥글자';

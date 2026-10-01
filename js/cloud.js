@@ -835,16 +835,17 @@
       const h = Math.round(m / 60);
       return L({ ko: h + '시간 전에 저장했습니다', en: 'saved ' + h + ' h ago', ja: h + '時間前に保存しました' });
     };
-    /* 로그인 단추 둘. **같은 class 로 나란히 둔다** — App Store 4.8 은 제3자 로그인을
+    /* 로그인 단추 둘. **같은 class 로, 위아래로 쌓는다** — App Store 4.8 은 제3자 로그인을
        쓰면 조건을 갖춘 다른 수단을 "equivalent option" 으로 같이 내놓으라고 하고,
-       한쪽만 크거나 한쪽이 접혀 있으면 그게 안 된 것으로 읽힌다.
+       한쪽만 크거나 한쪽이 접혀 있으면 그게 안 된 것으로 읽힌다. 가로로 두면 글자 수가
+       다른 만큼 폭이 갈려서 **둘이 다른 무게로 보인다** — 세로로 쌓으면 폭이 같아진다.
        차례만 기기에 맞춘다: 아이폰에서는 애플이 가장 짧은 길이라 위에 둔다. */
     const AUTH_BTNS = () => {
       const g = '<button class="buy" data-cloud="google">'
         + L({ ko:'구글로 지키기', en:'Protect with Google', ja:'Googleで守る' }) + '</button>';
       const a = '<button class="buy" data-cloud="apple">'
         + L({ ko:'애플로 지키기', en:'Protect with Apple', ja:'Appleで守る' }) + '</button>';
-      return IOS ? a + g : g + a;
+      return '<div class="cbtns">' + (IOS ? a + g : g + a) + '</div>';
     };
     const paint = () => {
       const linked = ST.on && !ST.anon;

@@ -203,7 +203,14 @@ body.titleon .veil{z-index:10000}
 .lgg[disabled]{background:#8C7C6D;color:#EBE2D4;box-shadow:none;cursor:default}
 .lgg .gmark{flex:0 0 auto;display:flex;align-items:center;justify-content:center;
   width:22px;height:22px;border-radius:5px;background:#fff}
-.lgg .gmark svg{display:block;width:14px;height:14px}`;
+.lgg .gmark svg{display:block;width:14px;height:14px}
+/* 애플 마크는 **흰 판을 안 깐다.** 애플 규정이 허락하는 색은 검정과 흰색 둘뿐이고,
+   어두운 단추 위에서는 흰색이 그 둘 중 하나다 — 구글처럼 색 로고가 아니라서
+   바탕을 깔 이유가 없다. 자리만 구글 마크와 같게 잡아 두 단추의 글자가 안 어긋나게 한다. */
+.lgg .amark{flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+  width:22px;height:22px}
+.lgg .amark svg{display:block;width:16px;height:16px;fill:#fff}
+.lgg[disabled] .amark svg{fill:#EBE2D4}`;
 
   let done = null;
   const gate = new Promise(res => { done = res; });
@@ -350,6 +357,13 @@ body.titleon .veil{z-index:10000}
     <path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.1-5.5c-2 1.3-4.6 2.1-8.8 2.1-6.4 0-11.7-3.7-13.6-8.9l-7.8 6.1C6.5 42.6 14.6 48 24 48z"/>
   </svg>`;
 
+  /* 애플 마크. 구글 것과 같은 이유로 `data-dot="keep"` 이다 — 애플 규정도 로고를 다시
+     그리거나 비율을 바꾸는 것을 막는다. 색은 검정과 흰색만 허락되므로 흰색으로 둔다
+     (위 .amark). 한 덩어리 실루엣이라 path 하나면 된다. */
+  const A_MARK = `<svg viewBox="0 0 24 24" aria-hidden="true" data-dot="keep">
+    <path d="M16.365 1.43c0 1.14-.42 2.22-1.17 3.03-.9.98-2.37 1.74-3.57 1.64-.14-1.1.42-2.27 1.14-3.03.84-.9 2.3-1.58 3.6-1.64zM20.9 17.1c-.6 1.38-.89 2-1.66 3.22-1.08 1.7-2.6 3.81-4.48 3.83-1.67.02-2.1-1.09-4.37-1.08-2.27.01-2.74 1.1-4.41 1.08-1.88-.02-3.32-1.93-4.4-3.62-3.02-4.74-3.34-10.3-1.47-13.26 1.33-2.1 3.42-3.33 5.39-3.33 2 0 3.26 1.1 4.92 1.1 1.6 0 2.58-1.1 4.9-1.1 1.75 0 3.6.95 4.93 2.6-4.33 2.37-3.63 8.55.65 10.56z"/>
+  </svg>`;
+
   const askLogin = () => {
     const m = modal(`
       <div class="mhead"><div class="q">ACCOUNT</div>
@@ -365,24 +379,36 @@ body.titleon .veil{z-index:10000}
         <div class="hint" id="lgNote" style="margin-top:9px"></div>
         <button class="lgg" id="lgGoogle" style="margin-top:14px">
           <span class="gmark">${G_MARK}</span><span class="lgl">${L({ ko:'구글로 계속하기', en:'Continue with Google', ja:'Googleで続ける' })}</span></button>
+        <button class="lgg" id="lgApple" style="margin-top:8px">
+          <span class="amark">${A_MARK}</span><span class="lgl">${L({ ko:'애플로 계속하기', en:'Continue with Apple', ja:'Appleで続ける' })}</span></button>
       </div>
       <div class="mfoot"><button class="okbtn" data-close>${L({ ko:'닫기', en:'Close', ja:'閉じる' })}</button></div>`);
     const V = m.veil;
     const say = t => { const n = V.querySelector('#lgNote'); if (n) n.textContent = t; };
 
-    V.querySelector('#lgGoogle').onclick = async () => {
-      const b = V.querySelector('#lgGoogle');
-      /* **글자만 갈아 끼운다.** 단추째로 `textContent` 를 쓰면 안에 있는 로고까지
-         같이 지워진다 — 눌렀더니 구글 마크가 사라지는 단추가 된다. */
-      const lab = b.querySelector('.lgl');
-      b.disabled = true;
-      lab.textContent = L({ ko:'구글로 넘어갑니다…', en:'Taking you to Google…', ja:'Googleへ移動します…' });
-      const r = await CLOUD.google();
-      /* 성공하면 이 페이지를 떠난다(구글 → 돌아오면 시작화면이 다시 뜬다).
-         실패했을 때만 여기로 돌아온다 — 그때는 왜 안 됐는지 그 자리에 적는다. */
-      if (r && r.error){ b.disabled = false;
-        lab.textContent = L({ ko:'다시 시도', en:'Try again', ja:'もう一度' }); say(r.error); }
+    /* 구글과 애플이 **같은 손을 쓴다.** 다른 것은 단추 id · 부를 함수 · 넘어가는 동안
+       보일 글자 셋뿐이다. 둘로 복사해 두면 한쪽만 고치는 날이 오고, 그 차이는
+       「한쪽 로그인만 이상하다」로 나타나서 찾기가 나쁘다. */
+    const wireLogin = (id, go, going) => {
+      const b = V.querySelector(id);
+      if (!b) return;
+      b.onclick = async () => {
+        /* **글자만 갈아 끼운다.** 단추째로 `textContent` 를 쓰면 안에 있는 로고까지
+           같이 지워진다 — 눌렀더니 마크가 사라지는 단추가 된다. */
+        const lab = b.querySelector('.lgl');
+        b.disabled = true;
+        lab.textContent = going;
+        const r = await go();
+        /* 성공하면 이 페이지를 떠난다(제공자 → 돌아오면 시작화면이 다시 뜬다).
+           실패했을 때만 여기로 돌아온다 — 그때는 왜 안 됐는지 그 자리에 적는다. */
+        if (r && r.error){ b.disabled = false;
+          lab.textContent = L({ ko:'다시 시도', en:'Try again', ja:'もう一度' }); say(r.error); }
+      };
     };
+    wireLogin('#lgGoogle', () => CLOUD.google(),
+      L({ ko:'구글로 넘어갑니다…', en:'Taking you to Google…', ja:'Googleへ移動します…' }));
+    wireLogin('#lgApple', () => CLOUD.apple(),
+      L({ ko:'애플로 넘어갑니다…', en:'Taking you to Apple…', ja:'Appleへ移動します…' }));
     const send = async () => {
       const b = V.querySelector('#lgSend'), inp = V.querySelector('#lgMail');
       b.disabled = true;

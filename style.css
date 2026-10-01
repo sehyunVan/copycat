@@ -733,6 +733,12 @@ body.gacut .deco, body.gacut .bubble, body.gacut .tag3d, body.gacut #tags3d{
 .crow .info{flex:1;min-width:0}
 .crow .info b{font-size:12.5px;display:block}
 .crow .info span{font-size:10.5px;color:var(--soft);line-height:1.4;display:block}
+/* 로그인 단추 둘을 **위아래로 쌓는다.** 가로로 두면 「구글로 지키기」와 「애플로 지키기」의
+   글자 수 차이만큼 폭이 갈리고, 그러면 둘이 다른 무게로 보인다 — App Store 4.8 이
+   요구하는 "equivalent option" 은 눈에도 같아야 한다. 세로로 쌓으면 stretch 가 폭을
+   맞춰 준다(.buy 의 `flex:0 0 auto` 는 가로 줄에서나 쓰는 값이라 여기서 되돌린다). */
+.crow .cbtns{display:flex;flex-direction:column;gap:6px;flex:0 0 auto}
+.crow .cbtns .buy{flex:1 1 auto;width:100%}
 .buy{padding:6px 10px;background:var(--gold);color:#6B4C10;font-weight:800;font-size:11.5px;
   box-shadow:0 3px 0 #CF9C2A;white-space:nowrap;flex:0 0 auto}
 .buy:active{transform:translateY(3px);box-shadow:none}
