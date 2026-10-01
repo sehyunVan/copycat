@@ -45,7 +45,7 @@ anonymous account and the office starts at once, In-App Purchase included. The m
 and check off tasks), Staff (hire cats with anchovies, the in-game currency) and
 News. Board exchanges a branch code to visit another player's office; Parcel
 ("Head Office Delivery") sells and opens boxes.
-Sign-in (Settings > Account, Google or an email link) is optional and only
+Sign-in (Settings > Account - Apple, Google or an email link) is optional and only
 preserves the office across devices. Once signed in, "Delete account" in that
 panel erases the account and its server data in-app
 (guide: https://copycat.sarl/delete.html).
@@ -98,6 +98,41 @@ balance can take a few seconds.
 - 4번의 서비스별 URL — 이름만으로 심사자가 찾는다
 - 6번의 목록을 줄글로 합침
 - 7번의 번호 목록을 줄글로 합침
+
+---
+
+# 둘째 라운드 — Guideline 4.8 (Login Services)
+
+2026-10-01 에 온 것. 구글 로그인을 쓰면서 조건을 갖춘 **동등한 수단**이 없다는 지적이다.
+메일 매직링크로는 조건 셋 중 **둘째**가 안 맞는다 — 「계정을 만들 때 모든 상대로부터
+메일 주소를 숨길 수 있어야 한다」인데, 매직링크는 우리에게 진짜 주소를 줘야 성립한다.
+그래서 「이미 있다」고 답하지 않고 **Sign in with Apple 을 넣었다**(1.0.26).
+
+이 답변은 **새 빌드와 함께** 보낸다. 고친 앱이 올라가 있지 않으면 같은 지적이 다시 온다.
+
+```
+We have added Sign in with Apple, available in build 1.0.26 (26).
+
+It is offered as an equivalent option, not a secondary one. On the first-run
+account screen "Continue with Apple" sits directly below "Continue with Google"
+as the same control at the same size (330x46), and in Settings > Account the
+two buttons are stacked at equal width. Neither is hidden behind a menu or a
+disclosure.
+
+Sign in with Apple meets the three requirements in 4.8: it limits collection to
+name and email, it lets the user keep the address private with Hide My Email
+(we accept @privaterelay.appleid.com addresses and the account works normally
+with one), and it collects no in-app interactions for advertising - the app has
+no analytics, attribution or advertising SDK of any kind.
+
+Signing in remains optional in every case. Launching the app creates an
+anonymous account and all features, including In-App Purchase, work without any
+sign-in. Signing in only preserves the office across devices, and "Delete
+account" appears in the same Settings > Account panel once an account is linked.
+
+The app's screenshots show gameplay only and contain no login screen, so no
+metadata change was needed.
+```
 
 ## 아직 남은 두 가지
 
