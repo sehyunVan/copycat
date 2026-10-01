@@ -71,6 +71,11 @@
       return !!(c && (c.isNativePlatform ? c.isNativePlatform()
                                          : (c.getPlatform && c.getPlatform() !== 'web')));
     } catch (e){ return false; } })();
+  /* 아이폰인가. 로그인 단추의 **차례**에만 쓴다 — 애플 로그인은 아이폰에서 가장 짧은
+     길이라 거기서는 위에 둔다(App Store 4.8 이 요구하는 "equivalent option" 은 둘이
+     같은 무게로 보이면 되고, 차례는 기기에 맞춰도 된다). */
+  const IOS = (() => { try { const c = window.Capacitor;
+      return !!(c && c.getPlatform && c.getPlatform() === 'ios'); } catch (e){ return false; } })();
   const plug = n => { try { return (window.Capacitor.Plugins || {})[n] || null; } catch (e){ return null; } };
   const backTo = () => (NATIVE ? APP_SCHEME + '://login' : location.href);
 
@@ -159,9 +164,20 @@
   const hadAccount = () => { try { return localStorage.getItem(HAD_ACCT) === '1'; } catch (e){ return false; } };
   const markAccount = () => { try { localStorage.setItem(HAD_ACCT, '1'); } catch (e){} };
 
-  const LINK_OFF = 'copycat.auth.nolink';
-  const linkBlocked = () => { try { return localStorage.getItem(LINK_OFF) === '1'; } catch (e){ return false; } };
-  const blockLink = () => { try { localStorage.setItem(LINK_OFF, '1'); } catch (e){} };
+  /* 얹기가 막혔다는 표시는 **제공자마다 따로 적는다.** 구글이 이미 다른 계정 것이라는
+     사실이 애플에 대해서도 참일 이유가 없다 — 한 칸에 적으면 한쪽의 거절이 다른 쪽의
+     길까지 막는다. (옛 키 `copycat.auth.nolink` 는 버린다. 기억이 한 번 비면 얹기를
+     한 번 더 시도할 뿐이고, 거절당하면 그 자리에서 다시 적힌다.) */
+  const LINK_OFF = p => 'copycat.auth.nolink.' + p;
+  const linkBlocked = p => { try { return localStorage.getItem(LINK_OFF(p)) === '1'; } catch (e){ return false; } };
+  const blockLink = p => { try { localStorage.setItem(LINK_OFF(p), '1'); } catch (e){} };
+
+  /* **어느 제공자로 떠났는가.** 「이미 있는 계정입니다」를 듣고 로그인으로 갈아탈 때 그
+     값이 필요한데, 그 사이에 웹은 페이지가 새로 뜨고 앱은 딥링크로 깨어난다 — 메모리
+     변수로는 못 넘긴다. 그래서 적어 두고 돌아와서 읽는다. */
+  const PROV_KEY = 'copycat.auth.prov';
+  const lastProv = () => { try { return sessionStorage.getItem(PROV_KEY) || 'google'; } catch (e){ return 'google'; } };
+  const markProv = p => { try { sessionStorage.setItem(PROV_KEY, p); } catch (e){} };
 
   const RETRY_KEY = 'copycat.auth.retry';
   const retryUsed = () => { try { return sessionStorage.getItem(RETRY_KEY) === '1'; } catch (e){ return false; } };
@@ -169,10 +185,12 @@
     try { v ? sessionStorage.setItem(RETRY_KEY, '1') : sessionStorage.removeItem(RETRY_KEY); } catch (e){}
   };
 
-  /* 구글로 보내는 손 하나. 얹기(linkIdentity)와 로그인(signInWithOAuth)이 이걸 같이 쓴다 —
-     둘의 차이는 부르는 함수뿐이고, 나머지(주소·앱에서 브라우저 띄우기)는 같다. */
-  async function oauthGo(call, delay){
-    const opt = { provider: 'google', options: { redirectTo: backTo(), skipBrowserRedirect: NATIVE } };
+  /* 제공자에게 보내는 손 하나. 얹기(linkIdentity)와 로그인(signInWithOAuth)이 이걸 같이
+     쓰고, 구글과 애플도 이걸 같이 쓴다 — 셋의 차이는 부르는 함수와 제공자 이름뿐이고
+     나머지(주소·앱에서 브라우저 띄우기·딥링크로 돌아오기)는 **한 글자도 안 다르다.**
+     그래서 애플을 들일 때 새로 만든 길이 없다. */
+  async function oauthGo(prov, call, delay){
+    const opt = { provider: prov, options: { redirectTo: backTo(), skipBrowserRedirect: NATIVE } };
     const { data, error } = await call(opt);
     if (error) return { error: error.message };
     if (!NATIVE) return { ok: true };            /* 이 줄 다음은 없다 — 페이지가 넘어갔다 */
@@ -184,7 +202,7 @@
     return { ok: true };
   }
   /* 재시도는 방금 닫힌 커스텀 탭 뒤에 온다 — 그 자리에서는 한 박자 쉬고 연다 */
-  const signInGoogle = delay => oauthGo(o => sb.auth.signInWithOAuth(o), delay);
+  const signInWith = (prov, delay) => oauthGo(prov, o => sb.auth.signInWithOAuth(o), delay);
 
   let landing = false;
   async function finishLogin(raw){
@@ -226,7 +244,7 @@
         /* 실패가 아니라 **다른 문**이다 — 이미 있는 계정이면 그리로 들어간다 */
         note('돌아온 오류: ' + bad);
         if (IDENTITY_TAKEN.test(bad)){
-          blockLink();                       /* 다음부터는 얹기를 아예 안 시도한다 */
+          blockLink(lastProv());             /* 다음부터는 얹기를 아예 안 시도한다 */
           note('이미 있는 계정 → 로그인으로 갈아탐');
         }
         if (IDENTITY_TAKEN.test(bad) && !retryUsed()){
@@ -236,7 +254,7 @@
                   ja:'すでに登録済みのアカウントです——そちらに入ります' }));
           landing = false;
           note('재시도: 로그인 창 다시 엶');
-          const r = await signInGoogle(450);      /* 닫힌 탭이 사라질 틈을 준다 */
+          const r = await signInWith(lastProv(), 450);   /* 닫힌 탭이 사라질 틈을 준다 */
           if (r && r.error){ note('재시도 실패: ' + r.error); fail(r.error); }
           return;
         }
@@ -304,7 +322,8 @@
        붙어야 하고, 클라이언트를 두 벌 만들면 세션도 두 벌이 된다. */
     sb: () => (ST.on ? sb : null),
     push: () => flush(true),
-    google: () => linkGoogle(),
+    google: () => linkProvider('google'),
+    apple:  () => linkProvider('apple'),
     email: (addr) => linkEmail(addr),
     restore: () => restore(),
     out: () => signOut(),
@@ -414,10 +433,10 @@
         const why = /^fail/.test(CAME_BACK) ? CAME_BACK.slice(5) : '';
         /* 웹에서도 같은 갈림길이다. 「이미 다른 계정에 붙어 있다」면 실패라고 말하지 말고
            **그 계정으로 들어가는 문**을 연다(아래에서 페이지가 그대로 구글로 넘어간다). */
-        if (why && IDENTITY_TAKEN.test(why)) blockLink();
+        if (why && IDENTITY_TAKEN.test(why)) blockLink(lastProv());
         if (why && IDENTITY_TAKEN.test(why) && !retryUsed()){
           markRetry(true);
-          const r = await signInGoogle();
+          const r = await signInWith(lastProv());
           if (!r || !r.error) return;              /* 넘어갔다 — 돌아와서 다시 돈다 */
         }
         /* 성패는 `sayLinked` 가 계정을 보고 가른다 — 돌아왔는데 익명이면 그것도 말한다.
@@ -477,18 +496,19 @@
     } catch (e){}
   }
 
-  /* ---------- 구글 연결 ----------
+  /* ---------- 제공자 연결 (구글 · 애플) ----------
      익명 계정에 신원을 **얹는다**(linkIdentity) — uid 가 그대로라 지금까지 쌓인 사본이
      그 계정 것이 된다. 프로젝트에서 수동 연결을 안 켰으면 그 길이 막히는데, 그때는
      그냥 로그인으로 내려간다: 로컬 저장이 진실이므로 새 계정으로 들어가도 다음 전송에
      이 사무실이 그대로 올라간다(익명 줄은 주인 없이 남지만 아무 해가 없다). */
-  async function linkGoogle(){
+  async function linkProvider(prov){
     if (!ST.on) return { error: L({ ko:'동기화가 꺼져 있습니다', en:'Sync is off', ja:'同期がオフです' }) };
     /* 웹은 SDK 가 페이지를 그대로 넘긴다. 앱은 skipBrowserRedirect 로 **주소만**
        받아서(웹뷰가 구글 화면으로 가면 안 된다) 시스템 브라우저로 띄운다 — oauthGo 가 한다. */
     /* 누를 때마다 **새 판이다.** 자동 재시도 표시가 지난 판에서 남아 있으면, 두 번째
        누름은 아무것도 안 하고 오류만 다시 보여 준다 — 사람 눈에는 「계속 막힌다」다. */
     markRetry(false);
+    markProv(prov);
     try {
       /* 얹기가 막힌다는 것을 이미 안다면 묻지 않고 로그인으로 간다 */
       /* ── 창이 두 번 뜨던 이유 ──
@@ -500,19 +520,19 @@
          (HAD_ACCT). 들어온 적이 있다는 것은 그 구글이 이미 계정을 가졌다는 뜻이고,
          그 경우 얹기는 언제나 거절된다.
          새 기기·앱 데이터를 지운 판에는 그 표시가 없으므로 얹기로 간다(창 한 번). */
-      if (linkBlocked() || hadAccount()){
-        note(linkBlocked() ? '얹기 막힘을 기억함 → 로그인' : '전에 들어온 기기 → 곧장 로그인');
-        return await signInGoogle();
+      if (linkBlocked(prov) || hadAccount()){
+        note(linkBlocked(prov) ? '얹기 막힘을 기억함 → 로그인' : '전에 들어온 기기 → 곧장 로그인');
+        return await signInWith(prov);
       }
       if (ST.anon && sb.auth.linkIdentity){
         note('익명 계정에 얹기 시도');
-        const r = await oauthGo(o => sb.auth.linkIdentity(o));
+        const r = await oauthGo(prov, o => sb.auth.linkIdentity(o));
         if (!r.error) return r;
         /* 여기서 바로 알려 주는 판도 있다(서버가 그 자리에서 거절). 그때도 기억한다. */
-        if (IDENTITY_TAKEN.test(r.error)) blockLink();
+        if (IDENTITY_TAKEN.test(r.error)) blockLink(prov);
       }
       note('로그인 시도');
-      return await signInGoogle();
+      return await signInWith(prov);
     } catch (e){ note('터짐: ' + (e && e.message)); return { error: (e && e.message) || '연결 실패' }; }
   }
 
@@ -815,6 +835,17 @@
       const h = Math.round(m / 60);
       return L({ ko: h + '시간 전에 저장했습니다', en: 'saved ' + h + ' h ago', ja: h + '時間前に保存しました' });
     };
+    /* 로그인 단추 둘. **같은 class 로 나란히 둔다** — App Store 4.8 은 제3자 로그인을
+       쓰면 조건을 갖춘 다른 수단을 "equivalent option" 으로 같이 내놓으라고 하고,
+       한쪽만 크거나 한쪽이 접혀 있으면 그게 안 된 것으로 읽힌다.
+       차례만 기기에 맞춘다: 아이폰에서는 애플이 가장 짧은 길이라 위에 둔다. */
+    const AUTH_BTNS = () => {
+      const g = '<button class="buy" data-cloud="google">'
+        + L({ ko:'구글로 지키기', en:'Protect with Google', ja:'Googleで守る' }) + '</button>';
+      const a = '<button class="buy" data-cloud="apple">'
+        + L({ ko:'애플로 지키기', en:'Protect with Apple', ja:'Appleで守る' }) + '</button>';
+      return IOS ? a + g : g + a;
+    };
     const paint = () => {
       const linked = ST.on && !ST.anon;
       const bad = ST.on && /실패/.test(ST.why || '');
@@ -830,11 +861,10 @@
               ? ST.why + ' · ' + agoTxt()
               : linked
                 ? (ST.who || '연결됨') + ' · ' + agoTxt()
-                : L({ ko:'구글이나 메일을 연결해 두면 기기를 바꾸거나 앱을 지워도 사무실이 남습니다.',
-                      en:'Link Google or an email and the office survives a new phone or a reinstall.',
-                      ja:'Googleかメールをつないでおくと、端末を変えてもアプリを消しても事務所は残ります。' })}</span></div>
-        ${ST.on && !linked ? '<button class="buy" data-cloud="google">'
-          + L({ ko:'구글로 지키기', en:'Protect with Google', ja:'Googleで守る' }) + '</button>' : ''}
+                : L({ ko:'애플·구글·메일 중 하나를 연결해 두면 기기를 바꾸거나 앱을 지워도 사무실이 남습니다.',
+                      en:'Link Apple, Google or an email and the office survives a new phone or a reinstall.',
+                      ja:'Apple・Google・メールのどれかをつないでおくと、端末を変えてもアプリを消しても事務所は残ります。' })}</span></div>
+        ${ST.on && !linked ? AUTH_BTNS() : ''}
       </div>
       ${ST.on && !linked ? `<div class="codebox" style="margin-top:9px">
           <input class="mail" data-cloud-mail maxlength="80" autocomplete="email"
@@ -855,16 +885,16 @@
       const kind = b.dataset.cloud;
       const say = t => { if (typeof toast === 'function') toast(t); };
 
-      if (kind === 'google'){
+      if (kind === 'google' || kind === 'apple'){
         b.disabled = true;
-        const r = await linkGoogle();
+        const r = await linkProvider(kind);
         if (r && r.error){ b.disabled = false;
           say(L({ ko:'연결하지 못했습니다 — ', en:'Could not connect — ', ja:'つなげませんでした——' }) + r.error); }
         /* 앱은 페이지가 안 넘어간다 — 취소하고 돌아올 수 있으니 다시 누를 길을 남긴다.
            다만 **곧바로 되살리지 않는다**: 탭이 뜨는 두어 박자 사이에 한 번 더 누르면
            로그인 창이 두 장 뜬다(실제로 그렇게 났다). 3초 뒤에 되살린다. */
         else if (NATIVE) setTimeout(() => { b.disabled = false; }, 3000);
-        return;   /* 웹은 구글로 넘어갔다가 이 페이지로 돌아온다(redirectTo) · 앱은 딥링크로 돌아온다 */
+        return;   /* 웹은 제공자로 넘어갔다가 이 페이지로 돌아온다(redirectTo) · 앱은 딥링크로 돌아온다 */
       }
       if (kind === 'email'){
         const inp = box.querySelector('[data-cloud-mail]');
