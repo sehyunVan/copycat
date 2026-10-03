@@ -306,8 +306,8 @@ function gaShopHTML(){
         <b><span class="gaem">📦</span> ${x.boxes}</b>
         <i>${esc(x.price)}</i></button>`).join('')}</div>
     <div class="gashopfoot">
-      <button class="gashopres" data-restore>${L({
-        ko: '구매 복원', en: 'Restore purchases', ja: '購入を復元' })}</button>
+      <button class="gashopres" data-resync>${L({
+        ko: '상자가 안 왔나요', en: 'Boxes missing?', ja: '箱が届かない' })}</button>
       <button class="gashopres" data-payinfo>${L({
         ko: '결제 전에 읽어 주세요', en: 'Before you buy', ja: 'purchase の前に' })}</button>
     </div>
@@ -355,6 +355,9 @@ function showPayInfo(){
     L({ ko: '무엇이 들었는지는 <b>확률 정보</b>에 적혀 있습니다.',
         en: 'What is inside is listed under <b>Odds</b>.',
         ja: '中身の確率は<b>確率情報</b>にあります。' }),
+    L({ ko: '상자는 <b>계정</b>에 쌓입니다. 기기를 바꾸거나 앱을 지웠다 깔아도 같은 계정으로 들어오면 그대로 있습니다.',
+        en: 'Boxes are kept on <b>your account</b>. Change phone or reinstall, sign in, and they are still there.',
+        ja: '箱は<b>アカウント</b>に貯まります。端末を変えても入れ直しても、同じアカウントで入れば残っています。' }),
   ];
   const box = m.veil.querySelector('#payNotes');
   if (box) box.innerHTML = NOTES.map(t => `<div class="payrow">${t}</div>`).join('');
@@ -991,14 +994,26 @@ function showGacha(){
               ja: '購入しました——箱はまもなく届きます。' }));
     };
   });
-  const rb = V.querySelector('[data-restore]');
+  /* **스토어 복원이 아니다.** 소모품은 스토어가 돌려줄 것을 안 들고 있고, 그걸 부르면
+     애플 계정 비밀번호만 묻고 끝난다(3.1.1 로 반려된 자리다 — js/store.js 머리말).
+     여기서 하는 일은 **서버 장부를 다시 읽는 것**이다. 상자는 계정에 쌓이므로 기기를
+     바꾼 사람은 로그인만 하면 이미 가지고 있고, 이 단추가 필요한 때는 결제가 끝났는데
+     웹훅이 늦는 몇 초뿐이다. 그래서 이름도 「복원」이 아니라 「상자가 안 왔나요」다. */
+  const rb = V.querySelector('[data-resync]');
   if (rb) rb.onclick = async () => {
     rb.disabled = true;
-    await STORE.restore();
+    const before = (window.PARCEL && PARCEL.state && PARCEL.state().balance) | 0;
+    await STORE.resync();
     rb.disabled = false;
     paint();
-    if (typeof toast === 'function') toast(L({ ko: '확인했습니다.',
-      en: 'Checked.', ja: '確認しました。' }));
+    const now = (window.PARCEL && PARCEL.state && PARCEL.state().balance) | 0;
+    if (typeof toast === 'function') toast(now > before
+      ? L({ ko: `상자 ${now - before}개가 들어왔습니다.`,
+            en: `${now - before} box(es) arrived.`,
+            ja: `箱が${now - before}個届きました。` })
+      : L({ ko: '장부를 다시 읽었습니다 — 들어올 것이 없습니다.',
+            en: 'Re-checked the ledger — nothing pending.',
+            ja: '台帳を読み直しました——届くものはありません。' }));
   };
   return m;
 }

@@ -134,6 +134,44 @@ The app's screenshots show gameplay only and contain no login screen, so no
 metadata change was needed.
 ```
 
+---
+
+# 셋째 라운드 — Guideline 3.1.1 (소모품에 스토어 복원)
+
+2026-10-03, 1.0.26 심사에서. **「구매 복원」 단추가 틀렸다는 지적이다** — 소모품은
+스토어가 돌려줄 것을 아예 안 들고 있어서, 그 단추는 애플 계정 비밀번호만 묻고 끝난다.
+
+우리가 알고 있던 「복원 단추는 심사 필수」는 **비소모품·구독** 이야기였다. 그 오해가
+`js/store.js` 주석에 그대로 적혀 있었고(이제 고쳤다), 검사도 「복원 단추가 있다」를
+통과 조건으로 못 박아 두고 있었다 — 틀린 것을 지켜 주는 검사였다.
+
+**우리에겐 우리 복원 수단이 이미 있다.** 상자는 기기가 아니라 계정에 쌓인다(웹훅 →
+서버 장부 → 잔액). 그래서 스토어 복원을 떼고, 그 자리에 서버 장부를 다시 읽는
+「상자가 안 왔나요」를 뒀다. 1.0.27 에 들어 있다.
+
+```
+Fixed in build 1.0.27 (27).
+
+We removed the StoreKit restore call. You are right that it could not work
+here: all three products are consumables, so there is nothing for the store to
+return, and the button only asked for an Apple Account password.
+
+The app already has its own restore mechanism, and we have made it the only
+one. Boxes are not held on the device. A purchase is confirmed by RevenueCat,
+delivered to our server by webhook, and written to the account's ledger; the
+balance shown in the app is always read back from that ledger. So a player who
+changes phone or reinstalls signs in and the boxes are already there - no
+restore step is involved.
+
+What replaced the button, in the same place on the Parcel screen, is "Boxes
+missing?" It re-reads our server ledger and never calls StoreKit. Its only real
+use is the few seconds between a successful payment and the webhook arriving.
+
+We also added a line to the pre-purchase notice stating that boxes are kept on
+the account and survive a new device or a reinstall, so the behaviour is stated
+before any payment is made.
+```
+
 ## 아직 남은 두 가지
 
 **① 3번의 이동 경로를 실제 빌드와 맞춘다.** 화면 이름(Office · Inbox · Staff ·

@@ -199,20 +199,28 @@
     } finally { ST.busy = false; }
   }
 
-  /* 스토어가 「이미 산 것」을 돌려주는 길. 기기를 바꿨거나 지웠다 깐 사람이 쓴다 —
-     소모품이라 대개 줄 것이 없지만, **없으면 심사에서 걸린다**(복원 수단은 필수다). */
-  async function restore(){
-    const rc = RC();
-    if (!rc || !ready) return { ok: false, why: 'offline' };
+  /* ── 소모품에는 **스토어 복원이 없다** (App Store 3.1.1 · 2026-10-03 반려) ──
+     전에는 여기서 `restorePurchases()` 를 불렀다. 「복원 단추는 필수」라고 알고 있었는데
+     그건 **비소모품·구독** 이야기였다. 소모품은 스토어가 돌려줄 것을 아예 안 들고 있어서,
+     그 단추는 애플 계정 비밀번호만 묻고 아무것도 못 준다 — 심사가 그걸 집었다.
+
+     우리에게는 **우리 복원 수단이 따로 있다.** 상자는 기기가 아니라 **계정에 쌓인다**:
+     결제는 RevenueCat 웹훅을 타고 서버 장부(purchases · tickets)로 들어가고 잔액은 늘
+     거기서 읽는다. 그래서 기기를 바꾸거나 앱을 지웠다 깔아도 **같은 계정으로 들어오면
+     상자는 이미 거기 있다.** 되찾는 일에 스토어가 낄 자리가 없다.
+
+     이 함수가 하는 일은 그 장부를 **다시 읽는 것**뿐이다. 쓸 자리는 하나다: 결제는 됐는데
+     웹훅이 늦어 잔액이 아직 안 오른 몇 초. 애플 계정은 묻지 않는다. */
+  async function resync(){
+    if (!window.PARCEL || !PARCEL.refresh) return { ok: false, why: 'offline' };
     try {
-      await rc.restorePurchases();
       await PARCEL.refresh();
       return { ok: true };
     } catch (e){ return { ok: false, why: 'error', msg: (e && e.message) }; }
   }
 
   window.STORE = { state: () => ({ ...ST, items: ST.items.slice() }),
-                   contact: () => CONTACT, buy, restore, boot };
+                   contact: () => CONTACT, buy, resync, boot };
 
   /* 데모 진열은 **여기서 갈린다.** 아래 줄이 웹에서 이 파일을 통째로 재우기 때문에,
      boot() 안에만 데모를 넣어 두면 그 함수가 아예 안 불린다(처음에 그렇게 만들었다가

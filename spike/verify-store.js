@@ -122,8 +122,9 @@ const shown = await ev(`(async()=>{
   const labels = btns.map(b => b.textContent.replace(/\\s+/g,' ').trim());
   const b12 = btns.find(b => b.dataset.buy === 'box_12');
   if (!b12) return { fail:'box_12 단추가 없다', labels };
-  /* 복원 단추는 **창을 지우기 전에** 본다. 지운 뒤에 물으면 늘 없다. */
-  const restore = !!document.querySelector('[data-restore]');
+  /* 되받기 단추는 **창을 지우기 전에** 본다. 지운 뒤에 물으면 늘 없다. */
+  const resync = !!document.querySelector('[data-resync]');
+  const oldRestore = !!document.querySelector('[data-restore]');
   b12.click();
   /* 결제가 끝난 **뒤에** 웹훅이 닿는다 — 그 순서를 그대로 흉내 낸다. 먼저 올려 두면
      settle 이 「이미 올라 있는 값」을 기준으로 잡아 영원히 못 기다린다. */
@@ -134,7 +135,7 @@ const shown = await ev(`(async()=>{
   const after = (document.querySelector('.gatix b')||{}).textContent;
   const bought = window.__log.find(x => x[0] === 'buy');
   const v = document.querySelector('.veil'); if (v) v.remove();
-  return { before, after, labels, waiting, restore, bought: bought && bought[1] };
+  return { before, after, labels, waiting, resync, oldRestore, bought: bought && bought[1] };
 })()`);
 if (shown.fail) console.log('  진단:', JSON.stringify(shown));
 ok('상점 칸이 세 개 뜬다', shown.labels && shown.labels.length === 3, (shown.labels||[]).join(' | '));
@@ -142,7 +143,24 @@ ok('누르면 그 상품으로 결제한다', shown.bought === 'box_12', String(
 ok('기다리는 동안 그 단추가 말한다', /받는 중/.test(shown.waiting || ''), shown.waiting);
 ok('산 뒤 잔액을 다시 그린다', shown.before === '3' && shown.after === '15',
    `${shown.before} → ${shown.after}`);
-ok('복원 단추가 있다 (심사 필수)', shown.restore, String(shown.restore));
+/* ── 소모품에 스토어 복원을 달면 반려된다 (3.1.1 · 2026-10-03) ──
+   돌려줄 것을 스토어가 안 들고 있어서, 그 단추는 애플 계정 비밀번호만 묻고 끝난다.
+   우리 복원 수단은 **서버 장부**다 — 상자는 계정에 쌓인다. 그래서 두 가지를 못 박는다:
+   되받기 단추는 있어야 하고, 그것이 **스토어를 부르면 안 된다.** */
+ok('되받기 단추가 있다 (우리 쪽 복원)', shown.resync, String(shown.resync));
+ok('옛 스토어 복원 단추는 없다', !shown.oldRestore, String(shown.oldRestore));
+const touched = await ev(`(async()=>{
+  window.__log.length = 0;
+  showGacha();
+  const b = document.querySelector('[data-resync]');
+  if (!b) return { fail:'되받기 단추가 없다' };
+  b.click();
+  await new Promise(r => setTimeout(r, 900));
+  const v = document.querySelector('.veil'); if (v) v.remove();
+  return { calls: window.__log.map(x => x[0]) };
+})()`);
+ok('되받기가 **스토어를 안 부른다**', !(touched.calls || []).includes('restore'),
+   (touched.calls || []).join(',') || '(아무것도 안 불렀다)');
 
 /* ── 4. 취소는 사고가 아니다 ──────────────────────────────────────────── */
 const cancel = await ev(`(async()=>{
