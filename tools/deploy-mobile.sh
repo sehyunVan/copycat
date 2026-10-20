@@ -19,9 +19,9 @@
 # Git Bash + ssh/scp/tar 만 쓴다. 서버에는 tar 만 있으면 된다.
 set -euo pipefail
 
-HOST="${HOST:-root@165.227.196.68}"
+HOST="${HOST:-root@64.227.141.147}"
 WEBROOT="${WEBROOT:-/var/www/copycat-test}"
-VHOST="cc.165-227-196-68.sslip.io"
+VHOST="cc.64-227-141-147.sslip.io"
 
 DO_CADDY=0; DRY=0; NEW_TOKEN=0
 for a in "$@"; do

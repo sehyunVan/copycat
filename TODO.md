@@ -73,7 +73,7 @@ HTTPS 로 함수를 부르고, 함수가 Resend 의 HTTP API 로 보낸다. HTTP
 
 ## 다시 시작할 때 필요한 사실들
 
-    서버        ssh root@165.227.196.68 · Caddy 설정 원본은 playground/home/deploy/Caddyfile
+    서버        ssh root@64.227.141.147 · Caddy 설정 원본은 playground/home/deploy/Caddyfile
     도메인      https://copycat.sarl  (인증서 자동 갱신 · /privacy.html · /delete.html)
     메일        보내기 Resend(send·rsend·DKIM) · 받기 Google Workspace(MX smtp.google.com)
                 문의처 copycat@copycat.sarl — 게임은 js/store.js 의 CONTACT 한 곳,
@@ -776,7 +776,7 @@ APK: 빌드 → 설치 → 실행까지 에뮬레이터에서 확인. Capacitor 
 ### 서버에 올려 뒀다 — 폰에서 바로 열린다
 
 ```
-https://cc.165-227-196-68.sslip.io/n-S_SvLeaA4t/
+https://cc.64-227-141-147.sslip.io/n-S_SvLeaA4t/
 ```
 
 별도 호스트·별도 루트(`/var/www/copycat-test`)다. 사이트 배포가 `/var/www/home` 을
@@ -2318,7 +2318,7 @@ CRT · 게시판 · 사다리 · 접은 의자가 전부 **프레임 밖**에 �
 `node spike/verify-aug24.js` **58항목** · `node spike/verify-load.js` **39항목** 통과).
 
 **배포물 넷 재빌드 + 서버 재배포 완료**(캐시 이름 `copycat-v202608240452`,
-주소는 그대로 `https://cc.165-227-196-68.sslip.io/n-S_SvLeaA4t/`).
+주소는 그대로 `https://cc.64-227-141-147.sslip.io/n-S_SvLeaA4t/`).
 `verify-live.js` 실제 HTTPS 에서 23항목 통과, 개인 사이트도 200 그대로.
 (그때 **APK 만 옛 코드로 남아 있었다.** 2026-08-25 에 같이 다시 만들었다 — 아래.)
 
@@ -2350,7 +2350,7 @@ APK 안 `assets/public/` 까지), **zip 을 풀어 띄운 상태로 `verify-rug.
 `dist/android`·`dist/iphone` 캐시 `copycat-v202608260404` · APK 27.1MB · 음악 포함 둘)에
 **35번 문 표시**까지 들어갔다(34·39·49 는 그 전에 들어가 있었다).
 `bash tools/deploy-mobile.sh` 로 **서버에 올렸다** — 111파일 49MB, **주소는 그대로**
-(`https://cc.165-227-196-68.sslip.io/n-S_SvLeaA4t/`).
+(`https://cc.64-227-141-147.sslip.io/n-S_SvLeaA4t/`).
 `node spike/verify-live.js` 실제 HTTPS 에서 **22항목 전부 통과** — 설치 조건 · 서비스 워커
 장악 · **네트워크를 끊고 새로 고쳐도 3D 까지** 뜬다. 올라간 파일에 `DOOR_LAMP` 가 실려
 있는 것과 `assets/tones/*.jpg` 가 200 으로 오는 것까지 주소에서 직접 확인했다.
@@ -4361,9 +4361,9 @@ WebGL 은 `Page.captureScreenshot` 에 안 잡혀서 **같은 evaluate 안에서
 - [x] `js/cloud.js` 의 `SITE` 를 루트로 (`/site` 는 서버가 같은 파일로 보낸다)
 - [x] 문서의 연락처를 개인 메일로 (회사 계정이 스토어 심사에 노출될 자리였다)
 
-DNS 는 이미 맞아 있었는데(A 레코드 → 165.227.196.68) HTTPS 만 거절당하고 있었다.
+DNS 는 이미 맞아 있었는데(A 레코드 → 64.227.141.147) HTTPS 만 거절당하고 있었다.
 원인은 한 줄이다: **Caddy 는 설정 파일에 적힌 이름에만 인증서를 청구한다.** 그 박스가
-든 인증서는 `cc.165-227-196-68.sslip.io` 것뿐이었고, 낯선 이름으로 온 handshake 는
+든 인증서는 `cc.64-227-141-147.sslip.io` 것뿐이었고, 낯선 이름으로 온 handshake 는
 내밀 것이 없어서 끊겼다. 블록을 넣고 reload 하니 12초 만에 발급됐다(tls-alpn-01).
 
     certificate obtained successfully   copycat.sarl   Let's Encrypt YE2

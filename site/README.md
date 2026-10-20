@@ -10,8 +10,14 @@
 | `index.html` | 랜딩페이지. 정적 파일 하나 |
 | `STORE.md` | itch.io 페이지 원고 — 한 줄 소개·태그·본문, 3개 국어 |
 | `SELLING.md` | 스토어 개설 → 배포 → 등급분류 → 세금까지의 순서 |
+| `APPSTORE.md` | App Store Connect 제출 원고 — 칸 이름 그대로 |
+| `APPREVIEW.md` | 심사와 주고받은 답변 (2.1 · 4.8 · 3.1.1) |
 | `pay/` | PayPal 직접 결제 백엔드 (Cloudflare Worker). **지금은 꺼져 있다** — `pay/README.md` |
 | `shot.mjs` | CDP 렌더 검증 도구 — 기기 폭을 강제해 오버플로를 측정한다 |
+
+스토어에 내보내며 밟은 함정은 이 폴더가 아니라 **[`playground/SHIPPING.md`](../../SHIPPING.md)**
+에 있다 — copycat 만의 일이 아니라 다음 앱도 그대로 밟을 것들이라 밖에 뒀다.
+
 
 유료로 팔던 흔적은 코드로만 남아 있다. 결제 스크립트는 주소가 없으면 **DOM을 건드리기 전에
 빠져나가고**, 마크업의 PayPal 블록은 `hidden` 이다. 되살리는 데 필요한 건 값 두 개뿐이라,
